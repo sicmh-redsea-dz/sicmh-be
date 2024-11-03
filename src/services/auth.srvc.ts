@@ -8,9 +8,21 @@ import { Login, Register, AuthResponse } from '../models/auth.model'
 
 dotenv.config()
 
+enum Roles {
+  Admin         = 1,
+  Doctor        = 2,
+  Enfermera     = 3,
+  Recepcionista = 4, 
+  Asistente     = 5
+}
+
+enum queryKeys {
+ GetUser  = 'getUser',
+ Register = 'register' 
+}
 interface UserRow {
-  Rol               : string
   Activo            : number
+  NombreRol         : string
   UsuarioID         : number
   NombreUsuario     : string
   ContrasenaHash    : string
@@ -34,9 +46,9 @@ export class AuthService {
   }
 
   public async register({email,name, password}: Register): Promise<AuthResponse> {
-    const query = queries('register')
+    const query = queries(queryKeys.Register)
     const hashedPassword = bcrypt.hashSync( password, 10 )
-    const values = [ name, email, hashedPassword, 'Admin', 1 ]
+    const values = [ name, email, hashedPassword, Roles.Admin, 1 ]
     try {
       const [ response ]: [ResultSetHeader, any] = await this.pool.execute(query, values)
       const { insertId: id } = response
@@ -55,7 +67,7 @@ export class AuthService {
   }
 
   private formatDataForResp(user: UserRow, password?: string): AuthResponse {
-    const { CorreoElectronico: email, ContrasenaHash: pass, NombreUsuario: name, UsuarioID: id, Activo, Rol} = user
+    const { CorreoElectronico: email, ContrasenaHash: pass, NombreUsuario: name, UsuarioID: id, Activo, NombreRol: Rol} = user
     if( password && !bcrypt.compareSync(password, pass) ) throw new Error('Not a valid Password')
     let isActive = Activo ? true : false
     const token = this.getJwtToken({id, name})
@@ -63,7 +75,7 @@ export class AuthService {
   }
 
   private async getUserData(val: string | number): Promise<UserRow> {
-    const query = queries('getUser', typeof val === 'number' ? 2 : 1)
+    const query = queries(queryKeys.GetUser, typeof val === 'number' ? 2 : 1)
     const [response]: [UserRow[], any] = await this.pool.execute<[UserRow[], any]>( query, [ val ])
     let [ user ] = response
     return user
