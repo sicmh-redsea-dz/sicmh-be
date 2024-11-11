@@ -1,15 +1,19 @@
 import { Pool, ResultSetHeader } from 'mysql2/promise';
 
-import { FormPatient, PatientResponse, PatientShortResponse } from '../models/patient.model';
+import { FormPatient, PatientResponse, PatientShortResponse, TotalRegistriesResponse } from '../models/patient.model';
 import { queries } from '../helper/patients/queries'
 
 enum queryKeys {
   Read = 'read',
   ReadOne = 'readOne',
   Create = 'create',
-  Update = 'update'
+  Update = 'update',
+  TotalReg = 'total-registries'
 }
-
+interface Pagination {
+  limit: number,
+  offset: number
+}
 export interface PatientRow {
   Genero            : string;
   Nombre            : string;
@@ -25,14 +29,19 @@ export class PatientsService {
 
   constructor(private pool: Pool) {  }
 
-  public async findAll(shortenedAns: boolean = false): Promise<PatientResponse[] | PatientShortResponse[]> {
+  public async findAll(shortenedAns: boolean, pagination?: Pagination): Promise<PatientShortResponse[] | [ PatientResponse[], number ]> {
+    const { limit = 25, offset = 0 } = pagination || {};
+    let query = queries(queryKeys.Read, limit, offset);
+    if (shortenedAns) {
+      query = query.replace(/limit\s*\d+\s*offset\s*\d+/i, '');
+    }
     try {
-      const query = queries( queryKeys.Read )
-      const [ response ] = await this.pool.execute<[PatientRow[], any]>(query);
-      const formattedResp = this.formatDataForResp( response )
-      return shortenedAns ?  this.shortAnsFormatter(formattedResp) : formattedResp;
-    } catch ( err: any ) {
-      throw new Error( err )
+      const [response] = await this.pool.execute<[PatientRow[], any]>(query, shortenedAns ? [] : [limit, offset]);
+      const formattedResp = this.formatDataForResp(response);
+      const totalRegistries = await this.totalRegistries()
+      return shortenedAns ? this.shortAnsFormatter(formattedResp) : [formattedResp, totalRegistries];
+    } catch (err: any) {
+      throw new Error(err);
     }
   }
 
@@ -78,6 +87,17 @@ export class PatientsService {
       throw new Error('Error editing Patient')
     }
 
+  }
+
+  private async totalRegistries(): Promise<number> {
+    const query = queries(queryKeys.TotalReg)
+    try {
+      const [ response ] = await this.pool.execute<[TotalRegistriesResponse, any]>(query)
+      const [ totalRegistries ]  = response
+      return totalRegistries['total_registries']
+    } catch( err: any ) {
+      throw new Error( err )
+    }
   }
 
   private shortAnsFormatter(data: PatientResponse[]): PatientShortResponse[] {

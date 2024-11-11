@@ -20,12 +20,12 @@ export const getVisits = async (req: Request, res: Response) => {
   
   const pagination = { limit, offset }
 
-  const [ visits, doctors, patients] = await Promise.all([
+  const [[ visits, totalRegistries ], doctors, patients] = await Promise.all([
     visitsService.findAll(pagination),
     visitsService.findAllDocs(),
     patientsService.findAll(true)
   ])
-
+  
   res.status(200).json({
     data: {
       visits,
@@ -33,7 +33,8 @@ export const getVisits = async (req: Request, res: Response) => {
       doctors,
       totalVisitsCount: visits.length,
       totalPatientsCount: patients.length,
-      totalDoctorsCount: doctors.length
+      totalDoctorsCount: doctors.length,
+      totalRegistries: totalRegistries
     }
   })
 }

@@ -1,5 +1,5 @@
 import { Pool, ResultSetHeader } from "mysql2/promise";
-import { VisitsResponse, FormVisit, VisitResponse } from "../models/visit.model";
+import { VisitsResponse, FormVisit, VisitResponse, TotalRegistriesResponse } from "../models/visit.model";
 import { queries } from "../helper/visits/queries";
 
 enum queryKeys {
@@ -8,6 +8,7 @@ enum queryKeys {
   AllDocs   = 'all-docs',
   OneVisit  = 'getOneVisit',
   AllVisits = 'all-visits',
+  TotalReg  = 'total-registries'
 }
 interface VisitsRow {
   HistoriaID        : number,
@@ -41,17 +42,17 @@ interface Pagination {
   limit: number,
   offset: number
 }
-
 export class VisitsService {
   constructor(private pool: Pool) {}
 
-  public async findAll(pagination: Pagination): Promise<VisitsResponse[]> {
+  public async findAll(pagination: Pagination): Promise<[VisitsResponse[], number]> {
     const { limit, offset } = pagination
     const query = queries(queryKeys.AllVisits, limit, offset)
     try {
       const [ response ] = await this.pool.execute<[VisitsRow[], any]>(query);
       const formmattedData = this.formatDataResponse( response )
-      return formmattedData
+      const totalRegistries = await this.totalRegistries()
+      return [formmattedData, totalRegistries]
     } catch( err: any ) {
       throw new Error( err )
     }
@@ -104,6 +105,17 @@ export class VisitsService {
         return { id: DoctorID, name: NombreDoctor }
       })
     } catch ( err: any ) {
+      throw new Error( err )
+    }
+  }
+
+  private async totalRegistries(): Promise<number> {
+    const query = queries(queryKeys.TotalReg)
+    try {
+      const [ response ] = await this.pool.execute<[TotalRegistriesResponse, any]>(query)
+      const [ totalRegistries ]  = response
+      return totalRegistries['total_registries']
+    } catch( err: any ) {
       throw new Error( err )
     }
   }

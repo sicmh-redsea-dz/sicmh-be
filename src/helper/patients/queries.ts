@@ -1,4 +1,4 @@
-export const queries = (key: string) => {
+export const queries = (key: string, limit?: number, offset?: number) => {
   let query: string = ''
   switch( key ) {
     case 'readOne':
@@ -8,7 +8,10 @@ export const queries = (key: string) => {
       break
     case 'read':
       query = `
-        select * from Pacientes;
+        select * 
+          from Pacientes
+        limit ${limit || 25}
+        offset ${offset || 0};
       `
       break
     case 'create':
@@ -23,6 +26,12 @@ export const queries = (key: string) => {
         where PacienteID = ?;
       `
       break
+    case 'total-registries':
+      query = `
+          select count(*) as total_registries
+            from Pacientes;
+        `
+      break;
     default: 
       query = ''
       break

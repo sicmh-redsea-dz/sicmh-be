@@ -24,3 +24,5 @@ export interface FormPatient {
   image?    : string
   notes?    : string
 }
+
+export interface TotalRegistriesResponse { total_registries: number };

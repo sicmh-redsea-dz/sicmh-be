@@ -44,3 +44,5 @@ export interface FormVisit{
     fatPercentage       :string,
     ageAccordingToWeight:string,
 }
+
+export interface TotalRegistriesResponse { total_registries: number };

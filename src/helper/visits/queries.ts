@@ -79,6 +79,16 @@ export const queries = (key: string, limit?: number, offset?: number) => {
           WHERE HistoriaID = ?;
       `
       break
+    case 'total-registries':
+      query = `
+        select count(*) as total_registries
+        from HistoriaMedica as hm
+          inner join Pacientes as p 
+            on hm.PacienteID = p.PacienteID
+          inner join Doctores AS d 
+            on hm.DoctorID = d.DoctorID;
+      `
+      break
     default: 
       query = ''
       break
