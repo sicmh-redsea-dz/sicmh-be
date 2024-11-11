@@ -11,11 +11,6 @@ export const queries = (key: string) => {
         select * from Pacientes;
       `
       break
-    case 'register':
-      query = `
-        insert into Usuarios ( NombreUsuario, CorreoElectronico, ContrasenaHash, RolId, Activo ) values ( ?, ?, ?, ?, ? );
-      `
-      break
     case 'create':
       query = `
         insert into Pacientes(Nombre, Apellido, FechaNacimiento, Telefono, CorreoElectronico, Direccion, Genero) values(?,?,?,?,?,?,?);

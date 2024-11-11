@@ -1,6 +1,6 @@
 import { Pool, ResultSetHeader } from 'mysql2/promise';
 
-import { FormPatient, PatientResponse } from '../models/patient.model';
+import { FormPatient, PatientResponse, PatientShortResponse } from '../models/patient.model';
 import { queries } from '../helper/patients/queries'
 
 enum queryKeys {
@@ -25,16 +25,17 @@ export class PatientsService {
 
   constructor(private pool: Pool) {  }
 
-  public async findAll(): Promise<PatientResponse[]> {
+  public async findAll(shortenedAns: boolean = false): Promise<PatientResponse[] | PatientShortResponse[]> {
     try {
       const query = queries( queryKeys.Read )
-      const [response] = await this.pool.execute<[PatientRow[], any]>(query);
-      const formattedResp = this.formatDataForResp(response)
-      return formattedResp;
+      const [ response ] = await this.pool.execute<[PatientRow[], any]>(query);
+      const formattedResp = this.formatDataForResp( response )
+      return shortenedAns ?  this.shortAnsFormatter(formattedResp) : formattedResp;
     } catch ( err: any ) {
       throw new Error( err )
     }
   }
+
 
   public async findOne(patientId: string): Promise<PatientResponse> {
     try {
@@ -77,6 +78,13 @@ export class PatientsService {
       throw new Error('Error editing Patient')
     }
 
+  }
+
+  private shortAnsFormatter(data: PatientResponse[]): PatientShortResponse[] {
+    return data.map((patient) => {
+      const {id, name, lastName} = patient
+      return {id, name: `${name} ${lastName}`}
+    })
   }
 
   private formatDataForResp(data: PatientRow | PatientRow[]): PatientResponse[] {

@@ -8,6 +8,11 @@ export interface PatientResponse {
   address:   string;
 }
 
+export interface PatientShortResponse {
+  id:        number;
+  name:      string;
+}
+
 export interface FormPatient {
   birthdate : string
   firstName : string
