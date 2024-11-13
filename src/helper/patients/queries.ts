@@ -9,7 +9,8 @@ export const queries = (key: string, limit?: number, offset?: number) => {
     case 'read':
       query = `
         select * 
-          from Pacientes
+          from Pacientes as p
+        where p.isActive = 1
         limit ${limit || 25}
         offset ${offset || 0};
       `
@@ -30,6 +31,13 @@ export const queries = (key: string, limit?: number, offset?: number) => {
       query = `
           select count(*) as total_registries
             from Pacientes;
+        `
+      break;
+    case 'delete':
+      query = `
+          update Pacientes as p 
+            set p.IsActive = ? 
+          where p.PacienteID = ?;
         `
       break;
     default: 

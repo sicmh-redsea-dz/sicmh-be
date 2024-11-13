@@ -8,7 +8,8 @@ enum queryKeys {
   AllDocs   = 'all-docs',
   OneVisit  = 'getOneVisit',
   AllVisits = 'all-visits',
-  TotalReg  = 'total-registries'
+  TotalReg  = 'total-registries',
+  SoftDelete= 'delete'
 }
 interface VisitsRow {
   HistoriaID        : number,
@@ -91,6 +92,17 @@ export class VisitsService {
       const [ response ] = await this.pool.execute<[VisitRow[], any]>(queryToRead, [parseInt( id )])
       const formattedData = this.formatDataResponse( response )
       return formattedData[0].id
+    } catch ( err: any ) {
+      throw new Error( err )
+    }
+  }
+
+  public async softDeletePatient(id: number): Promise<boolean> {
+    const query = queries( queryKeys.SoftDelete )
+    const values = [0, id]
+    try {
+      await this.pool.execute(query, values)
+      return true
     } catch ( err: any ) {
       throw new Error( err )
     }

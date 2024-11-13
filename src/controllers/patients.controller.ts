@@ -49,4 +49,14 @@ export const patchPacient = async (req: Request, res: Response ) => {
   res.status(200).json({
     data: { patient }
   });
-} 
+}
+
+export const softDeletePacient = async (req: Request, res: Response ) => {
+const { id } = req.params
+await patientService.softDeletePatient(parseInt( id ))
+  res.status(200).json({
+    data: {
+      msg: 'ok'
+    }
+  })
+}

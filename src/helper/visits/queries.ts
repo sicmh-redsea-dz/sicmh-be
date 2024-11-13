@@ -14,7 +14,8 @@ export const queries = (key: string, limit?: number, offset?: number) => {
               on hm.PacienteID = p.PacienteID
             inner join Doctores AS d 
               on hm.DoctorID = d.DoctorID
-        order by hm.FechaUltimaVisita DESC
+        where hm.isActive = 1
+        order by hm.FechaUltimaVisita desc
         limit ${limit || 25}
         offset ${offset || 0};
       `
@@ -89,6 +90,13 @@ export const queries = (key: string, limit?: number, offset?: number) => {
             on hm.DoctorID = d.DoctorID;
       `
       break
+    case 'delete':
+      query = `
+          update HistoriaMedica as hm 
+            set hm.isActive = ? 
+          where hm.HistoriaID = ?;
+        `
+      break;
     default: 
       query = ''
       break

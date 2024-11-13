@@ -8,7 +8,8 @@ enum queryKeys {
   ReadOne = 'readOne',
   Create = 'create',
   Update = 'update',
-  TotalReg = 'total-registries'
+  TotalReg = 'total-registries',
+  SoftDelete = 'delete'
 }
 interface Pagination {
   limit: number,
@@ -86,7 +87,17 @@ export class PatientsService {
       console.error('Error exec query: ', err.message)
       throw new Error('Error editing Patient')
     }
+  }
 
+  public async softDeletePatient(id: number): Promise<boolean> {
+    const query = queries( queryKeys.SoftDelete )
+    const values = [0, id]
+    try {
+      await this.pool.execute(query, values)
+      return true
+    } catch ( err: any ) {
+      throw new Error( err )
+    }
   }
 
   private async totalRegistries(): Promise<number> {

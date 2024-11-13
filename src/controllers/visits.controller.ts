@@ -71,3 +71,14 @@ export const editVisit = async(req: Request, res: Response ) => {
   })
 
 }
+
+export const softDeleteVisit = async(req: Request, res: Response ) => {
+  const { id } = req.params
+  await visitsService.softDeletePatient(parseInt(id))
+  res.status(200).json({
+    data: {
+      msg: 'ok'
+    }
+  })
+
+}
