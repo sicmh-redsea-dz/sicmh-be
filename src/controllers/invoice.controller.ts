@@ -40,3 +40,11 @@ export const newInvoice = async(req: Request, res: Response) => {
     }
   })
 }
+
+export const deleteInvoice = async (req: Request, res: Response) => {
+  const { id } = req.params
+  await invoiceService.softDeleteInvoice( id )
+  res.status(200).json({
+    msg: 'ok'
+  })
+}

@@ -32,6 +32,17 @@ export class InvoiceService {
     }
   }
 
+  public async softDeleteInvoice(invoiceId: string) {
+    const query = queries('soft-delete')
+    const value = [ 0, invoiceId ]
+    try {
+      await this.pool.execute(query, value)
+      return true
+    }catch( err: any ) {
+      throw new Error( err.message )
+    }
+  }
+
   public async createInvoice(invoiceForm: InvoiceForm) {
     const {date, doctor, pMethod, patient, amount, service} = invoiceForm
     const invoiceNumber = this.generateShortenedUuid()

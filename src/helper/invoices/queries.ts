@@ -16,7 +16,7 @@ export const queries = (key: string) => {
           on d.DoctorID = f.DoctorID
         inner join Pacientes as p
           on p.PacienteID = f.PacienteID
-        where f.FacturaID > 4
+        where f.FacturaID > 4 and f.IsActive = true
         order by f.FechaFactura desc;;
       `
       break
@@ -40,6 +40,13 @@ export const queries = (key: string) => {
       query = `
         insert into FacturaServicios(FacturaID, ServicioID)
         values (?, ?);
+      `
+      break;
+    case 'soft-delete':
+      query = `
+        update Facturas as f
+        set f.IsActive = ?
+        where f.InvoiceNumber = ?;
       `
       break;
     default:
