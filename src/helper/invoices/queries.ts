@@ -1,7 +1,6 @@
 export const queries = (key: string) => {
   let query: string = ''
   switch( key ) {
-    // cambiar query -> Facturas, Servicios, FacturaServicios
     case 'get':
       query = `
         select 
@@ -17,9 +16,32 @@ export const queries = (key: string) => {
           on d.DoctorID = f.DoctorID
         inner join Pacientes as p
           on p.PacienteID = f.PacienteID
-        where f.FacturaID > 4;
+        where f.FacturaID > 4
+        order by f.FechaFactura desc;;
       `
       break
+    case 'getServices':
+      query = `
+        select s.* from Servicios as s;
+      `
+      break;
+    case 'getPaymentMethods':
+      query = `
+        select tp.* from Tipo_Pago as tp;
+      `
+      break;
+    case 'create-invoice':
+      query = `
+        insert into Facturas(PacienteID, DoctorID, FechaFactura, Monto, Estado, InvoiceNumber, TipoPagoID)
+        values(?, ?, ?, ?, ?, ?, ?);
+      `
+      break;
+    case 'create-detail-invoice':
+      query = `
+        insert into FacturaServicios(FacturaID, ServicioID)
+        values (?, ?);
+      `
+      break;
     default:
       query = ''
       break
