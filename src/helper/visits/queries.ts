@@ -32,8 +32,6 @@ export const queries = (key: string, limit?: number, offset?: number) => {
           PacienteID,
           DoctorID,
           FechaVisita,
-          Diagnostico,
-          Tratamiento,
           Notas,
           Presion,
           Oxigenacion,
@@ -41,12 +39,8 @@ export const queries = (key: string, limit?: number, offset?: number) => {
           Glucometria,
           Peso,
           Altura,
-          IMC,
-          PorcentajeGrasa,
-          GrasaVisceral,
-          EdadSegunPeso,
           FechaUltimaVisita
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `
       break
     case 'getOneVisit':

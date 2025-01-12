@@ -2,10 +2,11 @@ import { Response, Request } from 'express'
 import { pool } from '../config/database'
 import { VisitsService } from '../services/visits.srvc'
 import { PatientsService } from '../services/patients.srvc'
-import { log } from 'console'
+import { StockService } from '../services/stock.srvc'
 
 const visitsService = new VisitsService(pool)
 const patientsService = new PatientsService( pool )
+const stockService = new StockService( pool )
 
 export const getVisits = async (req: Request, res: Response) => {
   const limit = parseInt((req.query.limit || '25').toString())
@@ -20,10 +21,11 @@ export const getVisits = async (req: Request, res: Response) => {
   
   const pagination = { limit, offset }
 
-  const [[ visits, totalRegistries ], doctors, patients] = await Promise.all([
+  const [[ visits, totalRegistries ], doctors, patients, stock] = await Promise.all([
     visitsService.findAll(pagination),
     visitsService.findAllDocs(),
-    patientsService.findAll(true)
+    patientsService.findAll(true),
+    stockService.findall()
   ])
   
   res.status(200).json({
@@ -31,6 +33,7 @@ export const getVisits = async (req: Request, res: Response) => {
       visits,
       patients,
       doctors,
+      stock,
       totalVisitsCount: visits.length,
       totalPatientsCount: patients.length,
       totalDoctorsCount: doctors.length,
@@ -52,7 +55,6 @@ export const getOneVisit = async(req: Request, res: Response) => {
 export const createVisit = async (req: Request, res: Response) => {
   const visitFormData = req.body
   const response = await visitsService.saveNewVisit( visitFormData )
-  
   res.status( 201 ).json({
     data: {
       visit: response

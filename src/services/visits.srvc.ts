@@ -132,9 +132,14 @@ export class VisitsService {
     }
   }
 
+  // private convertVisitForm(data: FormVisit): any[] {
+  //   const {patient, doctor, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight} = data
+  //   const values = [patient, doctor, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, parseFloat(height)/100, parseFloat(BMI), parseFloat(fatPercentage), parseFloat(visceralFat), parseInt(ageAccordingToWeight), date]
+  //   return values
+  // }
   private convertVisitForm(data: FormVisit): any[] {
     const {patient, doctor, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight} = data
-    const values = [patient, doctor, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, parseFloat(height)/100, parseFloat(BMI), parseFloat(fatPercentage), parseFloat(visceralFat), parseInt(ageAccordingToWeight), date]
+    const values = [patient, doctor, date, notes, pressure, oxygenation, temperature, glucometry, weight, parseFloat(height)/100, date]
     return values
   }
 
