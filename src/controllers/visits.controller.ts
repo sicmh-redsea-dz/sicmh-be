@@ -3,10 +3,12 @@ import { pool } from '../config/database'
 import { VisitsService } from '../services/visits.srvc'
 import { PatientsService } from '../services/patients.srvc'
 import { StockService } from '../services/stock.srvc'
+import { InvoiceService } from '../services/invoice.srvc'
 
 const visitsService = new VisitsService(pool)
 const patientsService = new PatientsService( pool )
 const stockService = new StockService( pool )
+const invoiceService = new InvoiceService( pool )
 
 export const getVisits = async (req: Request, res: Response) => {
   const limit = parseInt((req.query.limit || '25').toString())
@@ -54,7 +56,9 @@ export const getOneVisit = async(req: Request, res: Response) => {
 
 export const createVisit = async (req: Request, res: Response) => {
   const visitFormData = req.body
+  const {date, doctor, patient, stockItems: stock} = visitFormData
   const { origin } = req.params
+  if( origin === 'er' ) invoiceService.createInvoice({amount: '0', date, doctor, patient, pMethod: '1', service: [], stock })
   const response = await visitsService.saveNewVisit( visitFormData, origin )
   res.status( 201 ).json({
     data: {

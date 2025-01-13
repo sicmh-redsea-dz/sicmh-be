@@ -73,7 +73,7 @@ export class VisitsService {
   }
 
   public async saveNewVisit(visitForm: FormVisit, origin: string): Promise<number> {
-    const values = this.convertVisitForm(visitForm)
+    const values = origin === 'sp' ? this.convertVisitFormForSp(visitForm) : this.convertVisitFormForEr(visitForm)
     const query = origin === 'sp' ? queries(queryKeys.Create) : queries(queryKeys.CreateER)
     try{
       const [ response ]: [ResultSetHeader, any] = await this.pool.execute( query, values )
@@ -87,7 +87,7 @@ export class VisitsService {
   public async editVisit(id: string, visitForm: FormVisit ): Promise<number> {
     const queryToUpdate = queries( queryKeys.Update )
     const queryToRead = queries( queryKeys.OneVisit )
-    const values = [...this.convertVisitForm(visitForm), id]
+    const values = [...this.convertVisitFormForSp(visitForm), id]
     try {
       await this.pool.execute(queryToUpdate, values)
       const [ response ] = await this.pool.execute<[VisitRow[], any]>(queryToRead, [parseInt( id )])
@@ -133,13 +133,14 @@ export class VisitsService {
     }
   }
 
-  // private convertVisitForm(data: FormVisit): any[] {
-  //   const {patient, doctor, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight} = data
-  //   const values = [patient, doctor, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, parseFloat(height)/100, parseFloat(BMI), parseFloat(fatPercentage), parseFloat(visceralFat), parseInt(ageAccordingToWeight), date]
-  //   return values
-  // }
-  private convertVisitForm(data: FormVisit): any[] {
+  private convertVisitFormForSp(data: FormVisit): any[] {
     const {patient, doctor, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight} = data
+    const values = [patient, doctor, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, parseFloat(height)/100, parseFloat(BMI), parseFloat(fatPercentage), parseFloat(visceralFat), parseInt(ageAccordingToWeight), date]
+    return values
+  }
+
+  private convertVisitFormForEr(data: FormVisit): any[] {
+    const {patient, doctor, date, notes, pressure, oxygenation, temperature, glucometry, weight, height } = data
     const values = [patient, doctor, date, notes, pressure, oxygenation, temperature, glucometry, weight, parseFloat(height)/100, date]
     return values
   }

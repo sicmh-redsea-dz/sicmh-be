@@ -44,15 +44,19 @@ export class InvoiceService {
   }
 
   public async createInvoice(invoiceForm: InvoiceForm) {
-    const {date, doctor, pMethod, patient, amount, service} = invoiceForm
+    const {date, doctor, pMethod, patient, amount, service, stock} = invoiceForm
     const invoiceNumber = this.generateShortenedUuid()
     const values = [parseInt(patient), parseInt(doctor), date, parseFloat(amount), 'pendiente', invoiceNumber, pMethod]
     let queryForInvoice = queries('create-invoice')
-    let queryForDetail = queries('create-detail-invoice')
+    let queryForServiceInvoice = queries('create-service-invoice')
+    let queryForStockInvoice = queries('create-stock-invoice')
     try {
         const [ response ]: [ResultSetHeader, any] = await this.pool.execute(queryForInvoice, values)
         const { insertId } = response
-        await Promise.all(service.map((item) => this.pool.execute(queryForDetail, [insertId, item])))
+        await Promise.all([
+          ...(service.length > 0 ? service.map((item) => this.pool.execute(queryForServiceInvoice, [insertId, item])) : []),
+          ...(stock.length > 0 ? stock.map((item) => this.pool.execute(queryForStockInvoice,[insertId, item])) : [])
+        ])
         return insertId
     }catch( err: any ) {
       throw new Error(err.message)

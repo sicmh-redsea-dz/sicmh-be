@@ -17,7 +17,7 @@ export const queries = (key: string) => {
         inner join Pacientes as p
           on p.PacienteID = f.PacienteID
         where f.FacturaID > 4 and f.IsActive = true
-        order by f.FechaFactura desc;;
+        order by f.FechaFactura desc;
       `
       break
     case 'getServices':
@@ -36,9 +36,15 @@ export const queries = (key: string) => {
         values(?, ?, ?, ?, ?, ?, ?);
       `
       break;
-    case 'create-detail-invoice':
+    case 'create-service-invoice':
       query = `
         insert into FacturaServicios(FacturaID, ServicioID)
+        values (?, ?);
+      `
+      break;
+    case 'create-stock-invoice':
+      query = `
+        insert into FacturaInventario(FacturaID, ProductoID)
         values (?, ?);
       `
       break;
