@@ -4,7 +4,8 @@ import { queries } from "../helper/visits/queries";
 
 enum queryKeys {
   Update    = 'update',
-  Create    = 'create',
+  Create    = 'create-simple-visit',
+  CreateER  = 'create-er-visit',
   AllDocs   = 'all-docs',
   OneVisit  = 'getOneVisit',
   AllVisits = 'all-visits',
@@ -71,9 +72,9 @@ export class VisitsService {
     }
   }
 
-  public async saveNewVisit(visitForm: FormVisit): Promise<number> {
+  public async saveNewVisit(visitForm: FormVisit, origin: string): Promise<number> {
     const values = this.convertVisitForm(visitForm)
-    const query = queries(queryKeys.Create)
+    const query = origin === 'sp' ? queries(queryKeys.Create) : queries(queryKeys.CreateER)
     try{
       const [ response ]: [ResultSetHeader, any] = await this.pool.execute( query, values )
       const { insertId } = response

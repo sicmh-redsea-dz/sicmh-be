@@ -26,7 +26,30 @@ export const queries = (key: string, limit?: number, offset?: number) => {
           from Doctores as d;
       `
       break
-    case 'create':
+    case 'create-simple-visit':
+      query = `
+        insert into HistoriaMedica(
+          PacienteID,
+          DoctorID,
+          FechaVisita,
+          Diagnostico,
+          Tratamiento,
+          Notas,
+          Presion,
+          Oxigenacion,
+          Temperatura,
+          Glucometria,
+          Peso,
+          Altura,
+          IMC,
+          PorcentajeGrasa,
+          GrasaVisceral,
+          EdadSegunPeso,
+          FechaUltimaVisita
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+      `
+      break
+    case 'create-er-visit':
       query = `
         insert into HistoriaMedica(
           PacienteID,

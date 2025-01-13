@@ -54,7 +54,8 @@ export const getOneVisit = async(req: Request, res: Response) => {
 
 export const createVisit = async (req: Request, res: Response) => {
   const visitFormData = req.body
-  const response = await visitsService.saveNewVisit( visitFormData )
+  const { origin } = req.params
+  const response = await visitsService.saveNewVisit( visitFormData, origin )
   res.status( 201 ).json({
     data: {
       visit: response

@@ -6,7 +6,7 @@ const router = Router()
 
 router.get('/', authenticateJwt, getVisits)
 router.get('/:id', authenticateJwt, getOneVisit)
-router.post('/create', authenticateJwt, createVisit)
+router.post('/create/:origin', authenticateJwt, createVisit)
 router.patch('/edit-visit/:id', authenticateJwt, editVisit)
 router.delete('/:id', authenticateJwt, softDeleteVisit)
 
