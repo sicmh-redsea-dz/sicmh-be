@@ -5,5 +5,10 @@ export interface InvoiceForm {
   patient: string;
   amount: string;
   service: number[];
-  stock: number[];
+  stock: Stock[];
+}
+
+interface Stock {
+  id: number,
+  qty: number
 }

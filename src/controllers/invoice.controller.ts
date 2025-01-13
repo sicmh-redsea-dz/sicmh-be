@@ -15,6 +15,14 @@ export const getInvoices = async (req: Request, res: Response) => {
   })
 }
 
+export const getOneInvoice = async(req:Request, res: Response) => {
+  const { id } = req.params
+  const response = await invoiceService.findOne( id )
+  res.status(200).json({
+    data: response
+  })
+}
+
 export const getDataForInvoice = async (req: Request, res: Response) => {
   const response = await Promise.all([
     invoiceService.newInvoiceData(),

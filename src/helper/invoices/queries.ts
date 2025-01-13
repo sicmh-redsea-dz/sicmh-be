@@ -20,6 +20,36 @@ export const queries = (key: string) => {
         order by f.FechaFactura desc;
       `
       break
+    case 'get-one':
+      query = `
+        select 
+          f.FacturaID,
+          f.PacienteID,
+          f.DoctorID,
+          f.FechaFactura,
+          f.Monto,
+          f.Estado,
+          f.InvoiceNumber,
+          f.TipoPagoID,
+          sum(fi.Cantidad * i.PrecioUnidad) as Subtotal
+        from Facturas as f
+          inner join FacturaInventario as fi
+            on fi.FacturaID = f.FacturaID
+          inner join Inventario as i
+            on fi.ProductoID = i.ProductoID
+        where f.InvoiceNumber = ?
+        group by f.FacturaID, f.PacienteID, f.DoctorID, f.FechaFactura, f.Monto, f.Estado, f.InvoiceNumber, f.TipoPagoID;
+      `
+      break
+    case 'get-stock-invoice':
+      query = `
+        select 
+          fi.FacturaInventarioID, 
+          fi.ProductoID
+        from FacturaInventario as fi 
+        where fi.FacturaID = ?;
+      `
+      break
     case 'getServices':
       query = `
         select s.* from Servicios as s;
@@ -44,8 +74,8 @@ export const queries = (key: string) => {
       break;
     case 'create-stock-invoice':
       query = `
-        insert into FacturaInventario(FacturaID, ProductoID)
-        values (?, ?);
+        insert into FacturaInventario(FacturaID, ProductoID, Cantidad)
+        values (?, ?, ?);
       `
       break;
     case 'soft-delete':
