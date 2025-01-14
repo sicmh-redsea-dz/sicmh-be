@@ -78,6 +78,17 @@ export const queries = (key: string) => {
         values (?, ?, ?);
       `
       break;
+    case 'update-invoice':
+      query = `
+        update Facturas
+        set
+          FechaFactura = ?,
+          Monto = ?,
+          Estado = ?,
+          TipoPagoID = ?
+        WHERE FacturaID = ?;
+      `
+      break;
     case 'soft-delete':
       query = `
         update Facturas as f
