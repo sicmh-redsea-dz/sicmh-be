@@ -11,10 +11,10 @@ export const queries = (key: string) => {
           f.Estado, 
           f.Monto,
           f.InvoiceNumber
-        from Facturas as f
-        inner join Doctores as d
+        from facturas as f
+        inner join doctores as d
           on d.DoctorID = f.DoctorID
-        inner join Pacientes as p
+        inner join pacientes as p
           on p.PacienteID = f.PacienteID
         where f.FacturaID > 4 and f.IsActive = true
         order by f.FechaFactura desc;
@@ -32,10 +32,10 @@ export const queries = (key: string) => {
           f.InvoiceNumber,
           f.TipoPagoID,
           sum(fi.Cantidad * i.PrecioUnidad) as Subtotal
-        from Facturas as f
-          inner join FacturaInventario as fi
+        from facturas as f
+          inner join factura_inventario as fi
             on fi.FacturaID = f.FacturaID
-          inner join Inventario as i
+          inner join inventario as i
             on fi.ProductoID = i.ProductoID
         where f.InvoiceNumber = ?
         group by f.FacturaID, f.PacienteID, f.DoctorID, f.FechaFactura, f.Monto, f.Estado, f.InvoiceNumber, f.TipoPagoID;
@@ -46,13 +46,13 @@ export const queries = (key: string) => {
         select 
           fi.FacturaInventarioID, 
           fi.ProductoID
-        from FacturaInventario as fi 
+        from factura_inventario as fi 
         where fi.FacturaID = ?;
       `
       break
     case 'getServices':
       query = `
-        select s.* from Servicios as s;
+        select s.* from servicios as s;
       `
       break;
     case 'getPaymentMethods':
@@ -62,19 +62,19 @@ export const queries = (key: string) => {
       break;
     case 'create-invoice':
       query = `
-        insert into Facturas(PacienteID, DoctorID, FechaFactura, Monto, Estado, InvoiceNumber, TipoPagoID)
+        insert into facturas(PacienteID, DoctorID, FechaFactura, Monto, Estado, InvoiceNumber, TipoPagoID)
         values(?, ?, ?, ?, ?, ?, ?);
       `
       break;
     case 'create-service-invoice':
       query = `
-        insert into FacturaServicios(FacturaID, ServicioID)
+        insert into factura_servicios(FacturaID, ServicioID)
         values (?, ?);
       `
       break;
     case 'create-stock-invoice':
       query = `
-        insert into FacturaInventario(FacturaID, ProductoID, Cantidad)
+        insert into factura_inventario(FacturaID, ProductoID, Cantidad)
         values (?, ?, ?);
       `
       break;
@@ -82,16 +82,16 @@ export const queries = (key: string) => {
       query = `
         update Facturas
         set
-          FechaFactura = ?,
+          FechaFactura = ?
           Monto = ?,
           Estado = ?,
           TipoPagoID = ?
-        WHERE FacturaID = ?;
+        where FacturaID = ?;
       `
       break;
     case 'soft-delete':
       query = `
-        update Facturas as f
+        update facturas as f
         set f.IsActive = ?
         where f.InvoiceNumber = ?;
       `

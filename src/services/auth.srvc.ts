@@ -9,7 +9,7 @@ import { Login, Register, AuthResponse } from '../models/auth.model'
 dotenv.config()
 
 enum Roles {
-  Admin         = 1,
+  Admin         = 6,
   Doctor        = 2,
   Enfermera     = 3,
   Recepcionista = 4, 

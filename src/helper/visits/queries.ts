@@ -9,10 +9,10 @@ export const queries = (key: string, limit?: number, offset?: number) => {
               concat(p.Nombre, ' ',p.Apellido) as NombrePaciente,
               hm.FechaUltimaVisita,
               hm.Diagnostico
-          from HistoriaMedica as hm
-            inner join Pacientes as p 
+          from historia_medica as hm
+            inner join pacientes as p 
               on hm.PacienteID = p.PacienteID
-            inner join Doctores AS d 
+            inner join doctores AS d 
               on hm.DoctorID = d.DoctorID
         where hm.isActive = 1
         order by hm.FechaUltimaVisita desc
@@ -23,12 +23,12 @@ export const queries = (key: string, limit?: number, offset?: number) => {
     case 'all-docs':
       query = `
         select d.DoctorID, concat(d.Nombre, ' ', d.Apellido) as NombreDoctor
-          from Doctores as d;
+          from doctores as d;
       `
       break
     case 'create-simple-visit':
       query = `
-        insert into HistoriaMedica(
+        insert into historia_medica(
           PacienteID,
           DoctorID,
           FechaVisita,
@@ -51,7 +51,7 @@ export const queries = (key: string, limit?: number, offset?: number) => {
       break
     case 'create-er-visit':
       query = `
-        insert into HistoriaMedica(
+        insert into historia_medica(
           PacienteID,
           DoctorID,
           FechaVisita,
@@ -69,47 +69,47 @@ export const queries = (key: string, limit?: number, offset?: number) => {
     case 'getOneVisit':
       query = `
         select *
-          from HistoriaMedica as hm
+          from historia_medica as hm
         where hm.HistoriaID = ?;
       `
       break
     case 'update':
       query = `
-        UPDATE HistoriaMedica
-          SET
-            PacienteID = ?,
-            DoctorID = ?,
-            FechaVisita = ?,
-            Diagnostico = ?,
-            Tratamiento = ?,
-            Notas = ?,
-            Presion = ?,
-            Oxigenacion = ?,
-            Temperatura = ?,
-            Glucometria = ?,
-            Peso = ?,
-            Altura = ?,
-            IMC = ?,
-            PorcentajeGrasa = ?,
-            GrasaVisceral = ?,
-            EdadSegunPeso = ?,
-            FechaUltimaVisita = ?
-          WHERE HistoriaID = ?;
+        update historia_medica
+        set
+          PacienteID = ?,
+          DoctorID = ?,
+          FechaVisita = ?,
+          Diagnostico = ?,
+          Tratamiento = ?,
+          Notas = ?,
+          Presion = ?,
+          Oxigenacion = ?,
+          Temperatura = ?,
+          Glucometria = ?,
+          Peso = ?,
+          Altura = ?,
+          IMC = ?,
+          PorcentajeGrasa = ?,
+          GrasaVisceral = ?,
+          EdadSegunPeso = ?,
+          FechaUltimaVisita = ?
+        where HistoriaID = ?;
       `
       break
     case 'total-registries':
       query = `
         select count(*) as total_registries
-        from HistoriaMedica as hm
-          inner join Pacientes as p 
+        from historia_medica as hm
+          inner join pacientes as p 
             on hm.PacienteID = p.PacienteID
-          inner join Doctores AS d 
+          inner join doctores AS d 
             on hm.DoctorID = d.DoctorID;
       `
       break
     case 'delete':
       query = `
-          update HistoriaMedica as hm 
+          update historia_medica as hm 
             set hm.isActive = ? 
           where hm.HistoriaID = ?;
         `

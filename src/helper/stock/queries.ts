@@ -8,7 +8,7 @@ export const queries = (key: string) => {
           i.NombreProducto,
           i.Descripcion,
           i.Cantidad
-        from Inventario as i
+        from inventario as i
         where i.Cantidad > 0
         order by i.NombreProducto ASC;
       `

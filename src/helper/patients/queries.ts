@@ -3,13 +3,13 @@ export const queries = (key: string, limit?: number, offset?: number) => {
   switch( key ) {
     case 'readOne':
       query = `
-        select * from Pacientes where PacienteID=?;
+        select * from pacientes where PacienteID=?;
       `
       break
     case 'read':
       query = `
         select * 
-          from Pacientes as p
+          from pacientes as p
         where p.isActive = 1
         limit ${limit || 25}
         offset ${offset || 0};
@@ -17,12 +17,12 @@ export const queries = (key: string, limit?: number, offset?: number) => {
       break
     case 'create':
       query = `
-        insert into Pacientes(Nombre, Apellido, FechaNacimiento, Telefono, CorreoElectronico, Direccion, Genero) values(?,?,?,?,?,?,?);
+        insert into pacientes(Nombre, Apellido, FechaNacimiento, Telefono, CorreoElectronico, Direccion, Genero) values(?,?,?,?,?,?,?);
       `
       break
     case 'update':
       query = `
-        update Pacientes
+        update pacientes
         set Nombre=?,Apellido=?,FechaNacimiento=?,Telefono=?,CorreoElectronico=?,Direccion=?,Genero=?
         where PacienteID = ?;
       `
@@ -30,12 +30,12 @@ export const queries = (key: string, limit?: number, offset?: number) => {
     case 'total-registries':
       query = `
           select count(*) as total_registries
-            from Pacientes;
+            from pacientes;
         `
       break;
     case 'delete':
       query = `
-          update Pacientes as p 
+          update pacientes as p 
             set p.IsActive = ? 
           where p.PacienteID = ?;
         `
