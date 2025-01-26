@@ -57,7 +57,7 @@ export const queries = (key: string) => {
       break;
     case 'getPaymentMethods':
       query = `
-        select tp.* from Tipo_Pago as tp;
+        select tp.* from tipo_pago as tp;
       `
       break;
     case 'create-invoice':
@@ -80,9 +80,9 @@ export const queries = (key: string) => {
       break;
     case 'update-invoice':
       query = `
-        update Facturas
+        update facturas
         set
-          FechaFactura = ?
+          FechaFactura = ?,
           Monto = ?,
           Estado = ?,
           TipoPagoID = ?

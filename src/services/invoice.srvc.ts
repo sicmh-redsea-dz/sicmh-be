@@ -40,7 +40,7 @@ export class InvoiceService {
     const queryTonInsertServices = queries('create-service-invoice')
     try {
       const invoiceToUpd = await this.findOne(invoiceNumber)
-      await this.pool.execute(queryToUpdateInvoice, [ date, amount, 'Pagado', pMethod, invoiceToUpd.invoice.invoiceId ])
+      await this.pool.execute(queryToUpdateInvoice, [ date, parseFloat(amount), 'Pagado', Number(pMethod), invoiceToUpd.invoice.invoiceId ])
       await Promise.all( service.map(( item: any ) => this.pool.execute(queryTonInsertServices, [ invoiceToUpd.invoice.invoiceId, item ])))
       return invoiceToUpd.invoice.invoiceId
     } catch ( err: any ) {
