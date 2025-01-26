@@ -23,6 +23,7 @@ export interface PatientRow {
   Direccion         : string;
   PacienteID        : number;
   FechaNacimiento   : Date;
+  Identificacion    : string;
   CorreoElectronico : string;
 }
 
@@ -58,8 +59,8 @@ export class PatientsService {
   }
 
   public async saveNewPatient(patient: FormPatient): Promise<PatientResponse> {
-    const {firstName, lastName, birthdate, phone, email, address, gender} = patient
-    const values = [firstName, lastName, birthdate, phone, email, address, gender]
+    const {firstName, lastName, birthdate, phone, email, address, gender, idNumber} = patient
+    const values = [firstName, lastName, birthdate, phone, email, address, idNumber, gender]
     const query = queries( queryKeys.Create )
     try {
       const [response]: [ResultSetHeader, any] = await this.pool.execute(query,values)
@@ -122,8 +123,8 @@ export class PatientsService {
     const isPatientRow = Array.isArray( data )
     const dataToFormat = isPatientRow ? data : [ data ]
     const formattedData = dataToFormat.map((patient: PatientRow) => {
-        const { PacienteID:id, Nombre: name, Apellido:lastName, FechaNacimiento:birthDate, Telefono: phone, CorreoElectronico:email, Direccion:address, Genero: gender} = patient
-        return {id, name, lastName, birthDate, phone, email, address, gender}
+        const { PacienteID:id, Nombre: name, Apellido:lastName, FechaNacimiento:birthDate, Telefono: phone, CorreoElectronico:email, Direccion:address, Genero: gender, Identificacion: idNumber} = patient
+        return {id, name, lastName, birthDate, phone, email, address, gender, idNumber}
     })
     return formattedData
   }

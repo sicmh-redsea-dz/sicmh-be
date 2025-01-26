@@ -21,6 +21,7 @@ export interface FormPatient {
   gender    : string
   phone     : string
   email     : string
+  idNumber: string
   image?    : string
   notes?    : string
 }

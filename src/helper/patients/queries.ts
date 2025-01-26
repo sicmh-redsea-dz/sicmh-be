@@ -17,7 +17,7 @@ export const queries = (key: string, limit?: number, offset?: number) => {
       break
     case 'create':
       query = `
-        insert into pacientes(Nombre, Apellido, FechaNacimiento, Telefono, CorreoElectronico, Direccion, Genero) values(?,?,?,?,?,?,?);
+        insert into pacientes(Nombre, Apellido, FechaNacimiento, Telefono, CorreoElectronico, Direccion, Identificacion, Genero) values(?,?,?,?,?,?,?,?);
       `
       break
     case 'update':
