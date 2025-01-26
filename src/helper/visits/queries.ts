@@ -45,8 +45,9 @@ export const queries = (key: string, limit?: number, offset?: number) => {
           PorcentajeGrasa,
           GrasaVisceral,
           EdadSegunPeso,
-          FechaUltimaVisita
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          FechaUltimaVisita,
+          isActive
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `
       break
     case 'create-er-visit':
@@ -62,8 +63,9 @@ export const queries = (key: string, limit?: number, offset?: number) => {
           Glucometria,
           Peso,
           Altura,
-          FechaUltimaVisita
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          FechaUltimaVisita,
+          isActive
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `
       break
     case 'getOneVisit':

@@ -135,13 +135,13 @@ export class VisitsService {
 
   private convertVisitFormForSp(data: FormVisit): any[] {
     const {patient, doctor, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight} = data
-    const values = [patient, doctor, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, parseFloat(height)/100, parseFloat(BMI), parseFloat(fatPercentage), parseFloat(visceralFat), parseInt(ageAccordingToWeight), date]
+    const values = [patient, doctor, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, parseFloat(height)/100, parseFloat(BMI), parseFloat(fatPercentage), parseFloat(visceralFat), parseInt(ageAccordingToWeight), date, true]
     return values
   }
 
   private convertVisitFormForEr(data: FormVisit): any[] {
     const {patient, doctor, date, notes, pressure, oxygenation, temperature, glucometry, weight, height } = data
-    const values = [patient, doctor, date, notes, pressure, oxygenation, temperature, glucometry, weight, parseFloat(height)/100, date]
+    const values = [patient, doctor, date, notes, pressure, oxygenation, temperature, glucometry, weight, parseFloat(height)/100, date, true]
     return values
   }
 
