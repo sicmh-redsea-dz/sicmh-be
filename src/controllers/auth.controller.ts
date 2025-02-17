@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { AuthService } from '../services/auth.srvc'
-import { pool } from '../config/database'
+import { pool } from '../config/db'
 
 const authService = new AuthService(pool)
 

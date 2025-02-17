@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { InvoiceService } from '../services/invoice.srvc'
-import { pool } from '../config/database'
+import { pool } from '../config/db'
 import { VisitsService } from '../services/visits.srvc'
 import { PatientsService } from '../services/patients.srvc'
 

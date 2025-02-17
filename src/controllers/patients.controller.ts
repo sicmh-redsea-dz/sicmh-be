@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { PatientsService } from '../services/patients.srvc';
-import { pool } from '../config/database';
+import { pool } from '../config/db';
 
 const patientService = new PatientsService(pool);
 

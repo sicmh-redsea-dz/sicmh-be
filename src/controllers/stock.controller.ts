@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { StockService } from "../services/stock.srvc";
-import { pool } from "../config/database";
+import { pool } from "../config/db";
 
 const stockService = new StockService(pool)
 

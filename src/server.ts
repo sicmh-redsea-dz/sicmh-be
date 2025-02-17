@@ -1,11 +1,15 @@
-import * as dotenv from 'dotenv';
-
+import { config } from './config/env'
 import app from './app';
+import { initializeDb } from './config/db';
 
-dotenv.config();
+const port = config.PORT;
 
-const port = process.env.PORT || 3000;
 
-app.listen(port, () => {
-  console.log(`Server listening on port: ${port}`);
-})
+const startServer = async () => {
+  await initializeDb()
+  app.listen(port, () => {
+    console.log(`Server running on port: ${port}`);
+  })
+}
+
+startServer()

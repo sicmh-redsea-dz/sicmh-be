@@ -1,5 +1,6 @@
 import mysql from 'mysql2/promise';
 import * as dotenv from 'dotenv';
+
 dotenv.config();
 
 export const pool = mysql.createPool({
@@ -9,3 +10,12 @@ export const pool = mysql.createPool({
   database  : process.env.DB_SCHEMA || 'cami-vime',
   port      : parseInt(process.env.DB_PORT || '3306', 10)
 })
+
+export const initializeDb = async () => {
+  try {
+    await pool.query('select now()')
+    console.log('Database connected succesfully')
+  } catch( err ) {
+    console.error('Database connection error: ', err)
+  }
+}

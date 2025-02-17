@@ -1,0 +1,32 @@
+import { generateToken } from "../../config/jwt";
+import { comparePassword } from "../../utils/passwordUtils";
+import { AuthResponse } from "../entities/AuthResponse";
+import { User } from "../entities/User";
+
+export class UserMapper {
+    static toAuthResponse(user: User, password?: string): AuthResponse {
+        const { 
+            CorreoElectronico: email,
+            ContrasenaHash: pass,
+            NombreUsuario: name,
+            UsuarioID: id,
+            Activo,
+            NombreRol: Rol
+        } = user
+
+        if( password && !comparePassword(password, pass) ) 
+            throw new Error('Not a valid Password')
+
+        const isActive = Activo ? true : false
+        const token = generateToken({ id, name })
+
+        return {
+            _id: id,
+            email,
+            name,
+            roles: [Rol],
+            isActive,
+            token
+        }
+    }
+}
