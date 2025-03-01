@@ -4,7 +4,11 @@ import { body, ValidationChain, validationResult } from 'express-validator'
 const handleValidationErrors: any = (req:Request, res:Response, next: NextFunction) => {
     const errors = validationResult( req )
     if ( !errors.isEmpty() )
-        return res.status( 400 ).json({ errors: errors.array() })
+        return res.status( 400 ).json({ 
+            errors: errors
+                .array()
+                .map(err => { return {'msg': err.msg} })
+        })
     next()
 }
 
@@ -36,5 +40,6 @@ export const validateLogin = [
 
     body('password')
         .notEmpty()
-        .withMessage('Password is required')
+        .withMessage('Password is required'),
+    handleValidationErrors
 ]

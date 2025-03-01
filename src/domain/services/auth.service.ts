@@ -6,8 +6,8 @@ import { User } from "../entities/User"
 import { UserMapper } from "../mappers/UserMapper"
 import { AuthResponse } from "../entities/AuthResponse"
 
-interface Register {
-    name: string
+interface AuthParams {
+    name?: string
     email: string
     password: string
 }
@@ -21,7 +21,7 @@ enum Roles {
   }
 
 export class AuthService {
-    static async register(params:Register): Promise<AuthResponse> {
+    static register = async (params:AuthParams): Promise<AuthResponse> => {
         const { name, email, password } = params
         const hashedPassword = await hashPassword( password )
         const values = [ name, email, hashedPassword, Roles.Admin, 1 ]
@@ -35,7 +35,24 @@ export class AuthService {
         }
     }
 
-    private static async getUserData(identifier: number|string): Promise<User> {
+    static login = async (params:AuthParams): Promise<AuthResponse> => {
+        const { email, password } = params
+        try {
+            const existingUser = await this.getUserData( email )
+            if ( !existingUser )
+                    throw new Error('Not a valid email')
+            return UserMapper.toAuthResponse( existingUser, password )
+        } catch ( err ) {
+            throw err
+        }
+    }
+
+    static checkToken = async (id:number) => {
+        const user = await this.getUserData( id )
+        return UserMapper.toAuthResponse( user )
+    }
+
+    private static getUserData = async (identifier: number|string): Promise<User> => {
         const value = typeof identifier === 'number' ? 2 : 1
         const query = authQueries('get-user', value)
         try{

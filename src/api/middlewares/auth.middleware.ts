@@ -3,8 +3,10 @@ import { verifyToken } from "../../config/jwt";
 
 export const authMiddleware = (req:Request, res:Response, next: NextFunction) => {
     const token = req.header('Authorization')?.replace('Bearer ', '')
-    if ( !token )
-        return res.status( 401 ).json({ message: 'Access denied. No token provided.'})
+    if ( !token ) {
+        res.status( 401 ).json({ message: 'Access denied. No token provided.'})
+        return 
+    }
 
     try{
         const decoded = verifyToken(token);
