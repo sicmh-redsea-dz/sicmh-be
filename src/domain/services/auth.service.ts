@@ -4,7 +4,7 @@ import { authQueries } from "../../infrastructure/database/queries/auth.queries"
 import { hashPassword } from "../../utils/passwordUtils"
 import { User } from "../entities/User"
 import { UserMapper } from "../mappers/UserMapper"
-import { AuthResponse } from "../entities/AuthResponse"
+import { AuthResponse } from "../responses/AuthResponse"
 
 interface AuthParams {
     name?: string
@@ -30,8 +30,15 @@ export class AuthService {
             const result = await Database.execute<ResultSetHeader>(query, values)
             const newUser = await this.getUserData( result.insertId )
             return UserMapper.toAuthResponse( newUser )
-        } catch ( err ) {
-            throw err;
+        } catch ( err:any ) {
+            let error = new Error()
+            if( err.code === 'ER_DUP_ENTRY') {
+                error.name = 'duplicate_entry'
+                error.message = `Duplicated entry ${name} | ${email}`
+               throw error 
+            } else {
+                throw err
+            }
         }
     }
 

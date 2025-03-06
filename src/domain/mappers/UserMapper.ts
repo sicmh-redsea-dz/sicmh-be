@@ -1,6 +1,6 @@
 import { generateToken } from "../../config/jwt";
 import { comparePassword } from "../../utils/passwordUtils";
-import { AuthResponse } from "../entities/AuthResponse";
+import { AuthResponse } from "../responses/AuthResponse";
 import { User } from "../entities/User";
 
 export class UserMapper {

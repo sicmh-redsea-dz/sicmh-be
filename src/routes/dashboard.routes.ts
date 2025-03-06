@@ -6,7 +6,6 @@ import stockRoutes from './stock.routes'
 
 const router = Router();
 
-router.use('/patients', patientsRoutes);
 router.use ('/visits', visitsRoutes)
 router.use('/invoices', invoiceRoutes)
 router.use('/stock', stockRoutes)
