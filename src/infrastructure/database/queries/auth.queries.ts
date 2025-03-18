@@ -9,9 +9,26 @@ export const authQueries = (key: string, caller?:number) => {
                         CorreoElectronico, 
                         ContrasenaHash, 
                         RolId, 
-                        Activo 
+                        Activo,
+                        firebaseID,
+                        provider
                     ) 
-                    values ( ?, ?, ?, ?, ? );
+                    values ( ?, ?, ?, ?, ?, ?, ? );
+            `
+            break
+        case 'g-register':
+            query = `
+                insert into 
+                    usuarios ( 
+                        NombreUsuario, 
+                        CorreoElectronico, 
+                        RolId, 
+                        Activo,
+                        firebaseID,
+                        provider,
+                        access_token
+                    ) 
+                    values ( ?, ?, ?, ?, ?, ?, ? );
             `
             break
         case 'get-user':
@@ -23,6 +40,7 @@ export const authQueries = (key: string, caller?:number) => {
                     u.CorreoElectronico, 
                     u.ContrasenaHash, 
                     u.Activo, 
+                    u.firebaseID,
                     r.NombreRol
                 from usuarios as u
                     inner join roles as r

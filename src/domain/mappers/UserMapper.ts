@@ -11,14 +11,14 @@ export class UserMapper {
             NombreUsuario: name,
             UsuarioID: id,
             Activo,
-            NombreRol: Rol
+            NombreRol: Rol,
+            firebaseID: fireUID
         } = user
 
-        if( password && !comparePassword(password, pass) ) 
+        if( password && !comparePassword(password, pass!) ) 
             throw new Error('Not a valid Password')
 
         const isActive = Activo ? true : false
-        const token = generateToken({ id, name })
 
         return {
             _id: id,
@@ -26,7 +26,7 @@ export class UserMapper {
             name,
             roles: [Rol],
             isActive,
-            token
+            fireUID
         }
     }
 }

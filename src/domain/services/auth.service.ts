@@ -9,7 +9,9 @@ import { AuthResponse } from "../responses/AuthResponse"
 interface AuthParams {
     name?: string
     email: string
-    password: string
+    password?: string
+    uid: string,
+    accessToken?: string
 }
 
 enum Roles {
@@ -22,9 +24,9 @@ enum Roles {
 
 export class AuthService {
     static register = async (params:AuthParams): Promise<AuthResponse> => {
-        const { name, email, password } = params
-        const hashedPassword = await hashPassword( password )
-        const values = [ name, email, hashedPassword, Roles.Admin, 1 ]
+        const { name, email, password, uid } = params
+        const hashedPassword = await hashPassword( password! )
+        const values = [ name, email, hashedPassword, Roles.Admin, 1, uid, 'conventional' ]
         const query = authQueries('register')
         try {
             const result = await Database.execute<ResultSetHeader>(query, values)
@@ -50,6 +52,20 @@ export class AuthService {
                     throw new Error('Not a valid email')
             return UserMapper.toAuthResponse( existingUser, password )
         } catch ( err ) {
+            throw err
+        }
+    }
+
+    static googleLogin = async (params:AuthParams): Promise<AuthResponse> => {
+        const { name, email, uid, accessToken } = params
+        const query = authQueries('g-register')
+        const values = [ name, email, Roles.Admin, 1, uid, 'google', accessToken]
+        try {
+            const result = await Database.execute<ResultSetHeader>( query, values )
+            const newUser = await this.getUserData( result.insertId )
+            return UserMapper.toAuthResponse( newUser )
+        } catch ( err ) {
+            console.log( err )
             throw err
         }
     }
