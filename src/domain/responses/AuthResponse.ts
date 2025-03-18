@@ -3,6 +3,7 @@ export interface AuthResponse {
     name     : string
     email    : string
     roles?   : string[]
-    token    : string
+    // token    : string
     isActive?: boolean
+    fireUID  : string
 }

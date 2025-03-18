@@ -6,10 +6,9 @@ export class AuthController {
         const body = req.body
         try {
             const registeredUser = await AuthService.register( body )
-            const { token, ...user } = registeredUser
+            const { ...user } = registeredUser
             res.status( 202 ).json({
-                user,
-                token
+                user
             })
         } catch ( err ) {
             next( err )
@@ -20,10 +19,21 @@ export class AuthController {
         const body = req.body
         try {
             const loggedUser = await AuthService.login( body )
-            const { token, ...user } = loggedUser
+            const { ...user } = loggedUser
             res.status( 202 ).json({
-                user,
-                token
+                user
+            })
+        } catch ( err ) {
+            next( err )
+        }
+    }
+
+    static googleLogin = async(req:Request, res:Response, next:NextFunction) => {
+        const body = req.body
+        try {
+            const gLoggedUser = await AuthService.googleLogin( body )
+            res.status( 202 ).json({
+                user: gLoggedUser
             })
         } catch ( err ) {
             next( err )
@@ -34,14 +44,12 @@ export class AuthController {
         const { id } = ( req as any ).user
         try {
             const currentUser = await AuthService.checkToken( id )
-            const { token, ...user } = currentUser
+            const { ...user } = currentUser
             res.status( 200 ).json({
-                user, 
-                token
+                user
             })
         } catch ( err ) {
             next( err )
         }
-        
     }
 }
