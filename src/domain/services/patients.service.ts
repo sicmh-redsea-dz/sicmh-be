@@ -27,7 +27,7 @@ interface IncomingPatientParams {
 }
 
 export class PatientsService {
-    static findAllPatients = async (pagination: Pagination):Promise<findAllPatientsResponse> => {
+    findAllPatients = async (pagination: Pagination):Promise<findAllPatientsResponse> => {
         let patientsQ = patientQueries('read', pagination)
         try {
             const patients = await Database.execute<Patient[]>(patientsQ);
@@ -42,7 +42,7 @@ export class PatientsService {
         }
     }
 
-    static findOnePatient = async (patientId:number):Promise<PatientResponse> => {
+    findOnePatient = async (patientId:number):Promise<PatientResponse> => {
         const patientQ = patientQueries('read-one')
         const patientV = [patientId]
         try {
@@ -57,7 +57,7 @@ export class PatientsService {
         }
     }
 
-    static insertPatient = async (patientParams:IncomingPatientParams):Promise<PatientResponse> => {
+    insertPatient = async (patientParams:IncomingPatientParams):Promise<PatientResponse> => {
         const { birthdate, firstName, lastName, address, gender, phone, email, idNumber } = patientParams
         const patientQ = patientQueries('create')
         const patientV = [firstName, lastName, birthdate, phone, email, address, idNumber, gender]
@@ -77,7 +77,7 @@ export class PatientsService {
         }
     }
 
-    static updatedPatient = async (patientParams:IncomingPatientParams, id:number):Promise<PatientResponse> => {
+    updatedPatient = async (patientParams:IncomingPatientParams, id:number):Promise<PatientResponse> => {
         const { firstName, lastName, phone, email, address, gender, birthdate } = patientParams
         const patientQ = patientQueries( 'update' )
         const patientV = [ firstName, lastName, birthdate, phone, email, address, gender, id ]
@@ -94,7 +94,7 @@ export class PatientsService {
         }
     }
 
-    static softDeletePatient = async (id:number):Promise<[boolean, number]> => {
+    softDeletePatient = async (id:number):Promise<[boolean, number]> => {
         const patientQ = patientQueries( 'soft-delete' )
         const patientV = [0, id]
         try {
@@ -110,7 +110,7 @@ export class PatientsService {
         }
     }
 
-    private static errorHandler = (name:string, msg:string) => {
+    private errorHandler = (name:string, msg:string) => {
         const err = new Error()
         err.name = name
         err.message = msg

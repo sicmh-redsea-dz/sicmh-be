@@ -7,6 +7,7 @@ dotenv.config()
 const secretJwtToken = process.env.SECRET_JWT_TOKEN || '';
 
 export const authenticateJwt = ( req: Request, res: Response, next: NextFunction) => {
+  console.log('hello')
   const token = req.header('Authorization')?.split(' ')[1]
   if( !token ) res.status(403).json({message: 'No bearer token found'})
   jwt.verify(token!, secretJwtToken, ( err, decoded ) => {

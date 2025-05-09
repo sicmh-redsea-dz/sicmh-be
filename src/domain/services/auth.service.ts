@@ -56,7 +56,18 @@ export class AuthService {
         }
     }
 
-    static googleLogin = async (params:AuthParams): Promise<AuthResponse> => {
+    static checkUser = async ( uid:string ) => {
+        const query = authQueries('check-user')
+        try {
+            const user = await Database.execute<User[]>(query, [ uid ])
+            if ( user.length !== 0 ) return { exists: true, user: UserMapper.toAuthResponse( user[0] ) }
+            return { exists: false, user: {}}
+        } catch ( err ) {
+            throw err
+        }
+    }
+
+    static googleRegister = async (params:AuthParams): Promise<AuthResponse> => {
         const { name, email, uid, accessToken } = params
         const query = authQueries('g-register')
         const values = [ name, email, Roles.Admin, 1, uid, 'google', accessToken]
@@ -70,9 +81,14 @@ export class AuthService {
         }
     }
 
-    static checkToken = async (id:number) => {
-        const user = await this.getUserData( id )
-        return UserMapper.toAuthResponse( user )
+    static checkToken = async (id:string) => {
+        const query = authQueries('check-user')
+        try {
+            const user = await Database.execute<User[]>(query,[ id ])
+            return UserMapper.toAuthResponse( user[0] )
+        } catch ( err ) {
+            throw err
+        }
     }
 
     private static getUserData = async (identifier: number|string): Promise<User> => {
