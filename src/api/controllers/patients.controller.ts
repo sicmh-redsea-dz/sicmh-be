@@ -1,13 +1,20 @@
 import { NextFunction, Request, Response } from 'express'
 import { PatientsService } from '../../domain/services/patients.service'
+import { ServiceContainer } from '../../domain/services/container/service.container'
 
 export class PatientsController {
-    static getPatients = async (req:Request, res:Response, next:NextFunction) => {
+    private patientsService: PatientsService
+
+    constructor() {
+        this.patientsService = ServiceContainer.getPatientsService()
+    }
+
+    getPatients = async (req:Request, res:Response, next:NextFunction) => {
         const limit = Number(req.query.limit) || 25
         const offset = Number(req.query.offset) || 0
 
         try {
-            const { patients, totalRegistries } = await PatientsService.findAllPatients({limit, offset})
+            const { patients, totalRegistries } = await this.patientsService.findAllPatients({limit, offset})
             res.status( 202 ).json({
                 data: {
                     patients,
@@ -20,10 +27,10 @@ export class PatientsController {
         }
     }
 
-    static getPatient = async (req:Request, res:Response, next:NextFunction) => {
+    getPatient = async (req:Request, res:Response, next:NextFunction) => {
         const { id } = req.params 
         try {
-            const patient = await PatientsService.findOnePatient(Number(id))
+            const patient = await this.patientsService.findOnePatient(+id)
             res.status( 200 ).json({
                 data: { patient }
             })
@@ -32,10 +39,10 @@ export class PatientsController {
         }
     }
 
-    static insertPatient = async (req:Request, res:Response, next:NextFunction) => {
+    insertPatient = async (req:Request, res:Response, next:NextFunction) => {
         const body = req.body
         try {
-            const insertedPatient = await PatientsService.insertPatient(body)
+            const insertedPatient = await this.patientsService.insertPatient(body)
             res.status( 201 ).json({
                 data: { patient: insertedPatient }
             })
@@ -44,11 +51,11 @@ export class PatientsController {
         }
     }
 
-    static updatePatient = async (req:Request, res:Response, next:NextFunction) => {
+    updatePatient = async (req:Request, res:Response, next:NextFunction) => {
         const { id } = req.params
         const body = req.body
         try {
-            const updatedPatient = await PatientsService.updatedPatient(body, Number(id))
+            const updatedPatient = await this.patientsService.updatedPatient(body, Number(id))
             res.status( 200 ).json({
                 data: {
                     patient: updatedPatient
@@ -59,10 +66,10 @@ export class PatientsController {
         }
     }
 
-    static deletePatient = async (req:Request, res:Response, next:NextFunction) => {
+    deletePatient = async (req:Request, res:Response, next:NextFunction) => {
         const { id } = req.params
         try {
-            const [isPatientDeleted, patientId] = await PatientsService.softDeletePatient( Number(id) )
+            const [isPatientDeleted, patientId] = await this.patientsService.softDeletePatient( Number(id) )
             res.status(200).json({
                 data: {
                   msg: 'ok',

@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Response, Request, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 
@@ -17,8 +17,8 @@ app.use('/dashboard', dashboardRoutes);
 app.use('/app', appRoutes)
 app.use('/auth', authRoutes);
 
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    errorHandler(err, req, res, next);
+app.use((err: any, req:Request, res:Response, next:NextFunction) => {
+    errorHandler(err, res, next);
 });
 
 export default app;

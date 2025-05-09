@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from "express";
+import { Response, NextFunction } from "express";
 
-export const errorHandler = (err:any, req:Request, res:Response, next:NextFunction) => {
+export const errorHandler = (err:any, res:Response, next:NextFunction) => {
     if ( err.name === 'validation_errors')
         return res.status( 400 ).json({ message: err.errors })
     if ( err.name === 'duplicate_entry' )

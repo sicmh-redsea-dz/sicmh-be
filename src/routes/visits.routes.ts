@@ -4,7 +4,7 @@ import { getVisits, createVisit, editVisit, getOneVisit, softDeleteVisit } from 
 
 const router = Router()
 
-router.get('/', authenticateJwt, getVisits)
+router.get('/', getVisits)
 router.get('/:id', authenticateJwt, getOneVisit)
 router.post('/create/:origin', authenticateJwt, createVisit)
 router.patch('/edit-visit/:id', authenticateJwt, editVisit)
