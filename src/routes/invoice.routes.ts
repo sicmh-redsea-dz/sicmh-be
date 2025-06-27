@@ -7,8 +7,8 @@ const router = Router()
 
 router.get('/', authMiddleware, getInvoices)
 router.get('/invoice/:id', authenticateJwt, getOneInvoice)
-router.get('/new-invoice', authenticateJwt, getDataForInvoice)
-router.post('/new-invoice', authenticateJwt, newInvoice)
+router.get('/new-invoice', authMiddleware, getDataForInvoice)
+router.post('/new-invoice', authMiddleware, newInvoice)
 router.patch('/invoice/:id', authenticateJwt, updateExistingInvoice)
 router.delete('/:id', authenticateJwt, deleteInvoice)
 
