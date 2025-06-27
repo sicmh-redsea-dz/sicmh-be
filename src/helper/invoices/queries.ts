@@ -11,13 +11,18 @@ export const queries = (key: string) => {
           f.Estado, 
           f.Monto,
           f.InvoiceNumber
-        from facturas as f
-        inner join doctores as d
-          on d.DoctorID = f.DoctorID
-        inner join pacientes as p
-          on p.PacienteID = f.PacienteID
-        where f.FacturaID > 4 and f.IsActive = true
-        order by f.FechaFactura desc;
+        from 
+          facturas as f
+        inner join 
+          personal as d
+            on d.PersonalID = f.PersonalID
+        inner join 
+          pacientes as p
+            on p.PacienteID = f.PacienteID
+        where 
+          f.FacturaID > 4 and f.IsActive = true
+        order by 
+          f.FechaFactura desc;
       `
       break
     case 'get-one':
@@ -30,15 +35,15 @@ export const queries = (key: string) => {
           f.Monto,
           f.Estado,
           f.InvoiceNumber,
-          f.TipoPagoID,
-          sum(fi.Cantidad * i.PrecioUnidad) as Subtotal
+          f.TipoPagoID
         from facturas as f
-          inner join factura_inventario as fi
-            on fi.FacturaID = f.FacturaID
-          inner join inventario as i
-            on fi.ProductoID = i.ProductoID
-        where f.InvoiceNumber = ?
-        group by f.FacturaID, f.PacienteID, f.DoctorID, f.FechaFactura, f.Monto, f.Estado, f.InvoiceNumber, f.TipoPagoID;
+          inner join 
+            factura_inventario as fi
+              on fi.FacturaID = f.FacturaID
+        where 
+          f.InvoiceNumber = ?
+        group by 
+          f.FacturaID, f.PacienteID, f.DoctorID, f.FechaFactura, f.Monto, f.Estado, f.InvoiceNumber, f.TipoPagoID;
       `
       break
     case 'get-stock-invoice':
@@ -52,12 +57,18 @@ export const queries = (key: string) => {
       break
     case 'getServices':
       query = `
-        select s.* from servicios as s;
+        select 
+          s.* 
+        from 
+          servicios as s;
       `
       break;
     case 'getPaymentMethods':
       query = `
-        select tp.* from tipo_pago as tp;
+        select 
+          tp.* 
+        from 
+          tipo_pago as tp;
       `
       break;
     case 'create-invoice':

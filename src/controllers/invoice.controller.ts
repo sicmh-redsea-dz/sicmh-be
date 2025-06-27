@@ -29,6 +29,7 @@ export const getDataForInvoice = async (req: Request, res: Response) => {
     visitsService.findAllDocs(),
     patientsService.findAll(true)
   ])
+  
   res.status(200).json({
     data: {
       services: response[0][0],

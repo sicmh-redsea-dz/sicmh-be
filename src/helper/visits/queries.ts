@@ -22,8 +22,10 @@ export const queries = (key: string, limit?: number, offset?: number) => {
       break
     case 'all-docs':
       query = `
-        select d.DoctorID, concat(d.Nombre, ' ', d.Apellido) as NombreDoctor
-          from doctores as d;
+        select
+          p.PersonalID, concat(p.Nombre, ' ', p.Apellido) as NombreDoctor
+        from 
+          personal as p;
       `
       break
     case 'create-simple-visit':

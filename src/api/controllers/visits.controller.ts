@@ -14,7 +14,7 @@ export class VisitsController {
 
     @asyncHandler()
     async getVisits(): Promise<any> {
-        return this.visitsService.findAllVisits();
+        return this.visitsService.findAllVisits()
     }
 
     @asyncHandler()

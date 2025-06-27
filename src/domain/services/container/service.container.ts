@@ -2,12 +2,14 @@ import { PatientsService } from '../patients.service'
 import { VisitsService } from '../visits.service'
 import { StockService } from '../stock.services'
 import { StaffService } from '../staff.service'
+import { DashbService } from '../dashboard.service'
 
 export class ServiceContainer {
     private static patientsService: PatientsService
     private static visitsService: VisitsService
     private static staffService: StaffService
     private static stockService: StockService
+    private static dashbService: DashbService
 
     static getVisitsService(): VisitsService {
         if (!this.visitsService) 
@@ -35,6 +37,12 @@ export class ServiceContainer {
         if ( !this.patientsService )
             this.patientsService = new PatientsService()
         return this.patientsService
+    }
+
+    static getDashbService(): DashbService {
+        if ( !this.dashbService )
+            this.dashbService = new DashbService()
+        return this.dashbService
     }
 
 }
