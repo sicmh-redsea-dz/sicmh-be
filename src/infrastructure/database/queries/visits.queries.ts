@@ -53,7 +53,7 @@ export const visitsQueries = (key: string): string => {
                     PorcentajeGrasa,
                     GrasaVisceral,
                     EdadSegunPeso,
-                    FechaUltimaVisita
+                    FechaUltimaVisita,
                     isActive,
                     TipoVisita,
                     FacturaID,

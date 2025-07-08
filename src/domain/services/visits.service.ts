@@ -77,6 +77,7 @@ export class VisitsService {
 
     createVisit = async (createVisitPayload: CreateVisitPayload): Promise<any> => {
         const { patient, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight, doctor } = createVisitPayload
+        
         const visitQ = visitsQueries( 'create-visit' )
         const values = [patient, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight, date, true, 'Consulta', 5, doctor]
         try {
@@ -86,6 +87,7 @@ export class VisitsService {
                 visit: insertId
             }
         } catch ( err ) {
+            console.error('error creating visit: ', err)
             throw err
         }
     }
