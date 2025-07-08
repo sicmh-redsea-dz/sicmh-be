@@ -53,11 +53,11 @@ export const validatePostPatient: (ValidationChain | RequestHandler)[] = [
         .withMessage('email is required')
         .isEmail()
         .withMessage('Invalid email address'),
-    body('idNumber')
+    body('id')
         .notEmpty()
-        .withMessage('idNumber is required')
+        .withMessage('id is required')
         .isLength({ min: 13, max: 13 })
-        .withMessage('idNumber must be 13 characters long'),
+        .withMessage('id must be 13 characters long'),
     handleValidationErrors
 ]
 
