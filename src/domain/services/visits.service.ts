@@ -76,20 +76,41 @@ export class VisitsService {
     }
 
     createVisit = async (createVisitPayload: CreateVisitPayload): Promise<any> => {
-        const { patient, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight, doctor } = createVisitPayload
-        
-        const visitQ = visitsQueries( 'create-visit' )
-        const values = [patient, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight, date, true, 'Consulta', 5, doctor]
+        const fieldsForVisit = HistoryMapper.toDbForm(createVisitPayload)
+        const translatedFields = this.removeUndefined(fieldsForVisit)
+
+        translatedFields['isActive'] = true
+        translatedFields['TipoVisita'] = 'Consulta'
+        translatedFields['FacturaID'] = 5
+
+        const { query, values } = this.buildInsertQuery('historia_medica', translatedFields)
+
         try {
-            const resp = await Database.execute<ResultSetHeader>(visitQ, values)
+            const resp = await Database.execute<ResultSetHeader>(query, values)
             const { insertId } = resp
             return {
                 visit: insertId
             }
-        } catch ( err ) {
+        } catch (err) {
             console.error('error creating visit: ', err)
             throw err
         }
+    }
+
+    private buildInsertQuery(table: string, data: Record<string, any>): { query: string; values: any[] } {
+        const keys = Object.keys(data)
+        const columns = keys.join(', ')
+        const placeholders = keys.map(() => '?').join(', ')
+        const values = keys.map((key) => data[key])
+
+        const query = `INSERT INTO ${table} (${columns}) VALUES (${placeholders});`
+        return { query, values }
+    }
+
+    private removeUndefined(obj: Record<string, any>): Record<string, any> {
+        return Object.fromEntries(
+            Object.entries(obj).filter(([_, value]) => value !== undefined)
+        );
     }
 
     editVisit = async( editVisitPayload: EditVisitPayload ): Promise<any> => {
