@@ -6,16 +6,15 @@ const optionalNumeric = ( field: string, type: 'i'|'f' ) => {
     const chain = 
         body( field )
             .optional()
-            .isNumeric()
-            .withMessage(`${ field } must be a number`)
+            // .isNumeric()
+            // .withMessage(`${ field } must be a number`)
     return type === 'f' ? chain.toFloat() : chain.toInt()
 }
 
 const optionalString = ( field: string ) => 
     body( field )
         .optional()
-        .isLength({ min: 5 })
-        .withMessage(`${ field } must be at least 5 characters long.`)
+        // .withMessage(`${ field } must be at least 5 characters long.`)
     
 export const validateCreatePatient: (ValidationChain | RequestHandler)[] = [
     optionalNumeric('BMI', 'f'),

@@ -67,4 +67,48 @@ export class HistoryMapper {
             staffId,
         }
     }
+    
+    static toDbForm = ( newHistory: any ) => {
+        const {
+            patient: PacienteID,
+            diagnosis: Diagnostico,
+            treatment: Tratamiento,
+            notes: Notas,
+            pressure: Presion,
+            oxygenation: Oxigenacion,
+            temperature: Temperatura,
+            glucometry: Glucometria,
+            weight: Peso,
+            height: Altura,
+            BMI: IMC,
+            bodyFatPercentage: PorcentajeGrasa,
+            visceralFat: GrasaVisceral,
+            ageBasedOnWeight: EdadSegunPeso,
+            date: FechaUltimaVisita,
+            visitType: TipoVisita,
+            invoiceId: FacturaID,
+            doctor: PersonalID,
+        } = newHistory
+    
+        return {
+            PacienteID,
+            Diagnostico,
+            Tratamiento,
+            Notas,
+            Presion,
+            Oxigenacion,
+            Temperatura,
+            Glucometria,
+            Peso,
+            Altura,
+            IMC,
+            PorcentajeGrasa,
+            GrasaVisceral,
+            EdadSegunPeso,
+            FechaUltimaVisita,
+            TipoVisita,
+            FacturaID,
+            PersonalID,
+        }
+    }
 }
