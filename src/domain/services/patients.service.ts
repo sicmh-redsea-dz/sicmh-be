@@ -19,11 +19,11 @@ interface IncomingPatientParams {
     birthdate:string
     firstName:string
     lastName:string
-    idNumber?:string
     address:string
     gender:string
     phone:string
     email:string
+    id?:string
 }
 
 export class PatientsService {
@@ -58,15 +58,18 @@ export class PatientsService {
     }
 
     insertPatient = async (patientParams:IncomingPatientParams):Promise<PatientResponse> => {
-        const { birthdate, firstName, lastName, address, gender, phone, email, idNumber } = patientParams
+        console.log('patient params :::: ', patientParams)
+        const { birthdate, firstName, lastName, address, gender, phone, email, id } = patientParams
         const patientQ = patientQueries('create')
-        const patientV = [firstName, lastName, birthdate, phone, email, address, idNumber, gender]
+        const patientV = [firstName, lastName, birthdate, phone, email, address, id, gender]
         try {
             const newPatient = await Database.execute<ResultSetHeader>(patientQ, patientV)
             const { insertId } = newPatient
+            console.log('insert id ::::: ', insertId)
             return this.findOnePatient(insertId)
         } catch ( err:any ) {
             let error = new Error()
+            console.log('da error :::: ', error)
             if( err.code === 'ER_DUP_ENTRY') {
                 error.name = 'duplicate_entry'
                 error.message = `Duplicated entry ${email}`

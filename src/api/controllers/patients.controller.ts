@@ -41,6 +41,7 @@ export class PatientsController {
 
     insertPatient = async (req:Request, res:Response, next:NextFunction) => {
         const body = req.body
+
         try {
             const insertedPatient = await this.patientsService.insertPatient(body)
             res.status( 201 ).json({
