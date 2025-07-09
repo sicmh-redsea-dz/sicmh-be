@@ -7,6 +7,7 @@ import { FindAllVistiHistories, HistoryResponse } from '../responses/VisitsRepon
 import { StaffService } from './staff.service'
 import { PatientsService } from './patients.service'
 import { StockService } from './stock.services'
+import { InvoiceService } from './invoice.service'
 
 interface CreateVisitPayload {
     BMI:                    number
@@ -25,6 +26,7 @@ interface CreateVisitPayload {
     treatment:              string
     visceralFat:            number
     weight:                 number
+    stockItems?:            { id: number; qty: number; }[]
 }
 
 interface EditVisitPayload {
@@ -37,11 +39,18 @@ export class VisitsService {
     private staffService: StaffService
     private stockService: StockService
     private patientService: PatientsService
+    private invoiceService: InvoiceService
 
-    constructor ( staffService: StaffService, patientService: PatientsService, stockService: StockService ) {
+    constructor ( 
+        staffService: StaffService, 
+        patientService: PatientsService, 
+        stockService: StockService,
+        invoiceService: InvoiceService
+    ) {
         this.staffService = staffService
         this.patientService = patientService
         this.stockService = stockService
+        this.invoiceService = invoiceService
     }
 
     findAllVisits = async ():Promise<FindAllVistiHistories> => {
@@ -76,18 +85,32 @@ export class VisitsService {
     }
 
     createVisit = async (createVisitPayload: CreateVisitPayload): Promise<any> => {
+        const { stockItems, date, doctor, patient } = createVisitPayload
         const fieldsForVisit = HistoryMapper.toDbForm(createVisitPayload)
         const translatedFields = this.removeUndefined(fieldsForVisit)
 
         translatedFields['isActive'] = true
-        translatedFields['TipoVisita'] = 'Consulta'
-        translatedFields['FacturaID'] = 5
-
-        const { query, values } = this.buildInsertQuery('historia_medica', translatedFields)
+        translatedFields['TipoVisita'] = stockItems ? 'Emergencia' : 'Consulta'
 
         try {
+
+            let amount: number = 0.00
+
+            if ( stockItems && stockItems.length > 0 )
+                amount = await this.stockService.readAmountByStockQty( stockItems )
+            
+            translatedFields['FacturaID'] = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
+
+            const { query, values } = this.buildInsertQuery('historia_medica', translatedFields)
+
             const resp = await Database.execute<ResultSetHeader>(query, values)
             const { insertId } = resp
+
+            if ( stockItems && stockItems.length > 0 ) {
+                await this.stockService.reduceStockQuantities( stockItems )
+                await this.stockService.insertInvoiceStock(translatedFields['FacturaID'], stockItems)
+            }
+
             return {
                 visit: insertId
             }

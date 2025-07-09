@@ -3,6 +3,7 @@ import { VisitsService } from '../visits.service'
 import { StockService } from '../stock.services'
 import { StaffService } from '../staff.service'
 import { DashbService } from '../dashboard.service'
+import { InvoiceService } from '../invoice.service'
 
 export class ServiceContainer {
     private static patientsService: PatientsService
@@ -10,13 +11,15 @@ export class ServiceContainer {
     private static staffService: StaffService
     private static stockService: StockService
     private static dashbService: DashbService
+    private static invoiceService: InvoiceService
 
     static getVisitsService(): VisitsService {
         if (!this.visitsService) 
             this.visitsService = new VisitsService( 
                 this.getStaffService(), 
                 this.getPatientsService(),
-                this.getStockService()
+                this.getStockService(),
+                this.getInvoiceService()
             )
         return this.visitsService;
     }
@@ -43,6 +46,13 @@ export class ServiceContainer {
         if ( !this.dashbService )
             this.dashbService = new DashbService()
         return this.dashbService
+    }
+
+    static getInvoiceService(): InvoiceService {
+        if (!this.invoiceService) {
+            this.invoiceService = new InvoiceService( this.getPatientsService() )
+        }
+        return this.invoiceService
     }
 
 }

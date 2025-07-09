@@ -11,4 +11,4 @@ router.get(
     dashb.getData.bind( dashb )
 )
 
-export { router as dashbRoutes}
+export { router as dashbRoutes }
