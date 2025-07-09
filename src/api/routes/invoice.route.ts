@@ -10,12 +10,14 @@ router.get(
     '/raw',
     inv.rawData.bind( inv )
 )
-
 router.get(
     '/:id',
     inv.readOne.bind( inv )
 )
-
+router.patch(
+    '/:id', 
+    inv.updateOne.bind( inv )
+)
 router.post(
     '/create', 
     inv.create.bind( inv )

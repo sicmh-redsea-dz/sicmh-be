@@ -38,7 +38,7 @@ export class InvoiceService {
 
     getInvById = async ( invNumber: string ): Promise<any> => {
         const queryForInv = invoiceQueries( 'get-one' )
-        
+
         try {
             const invoice = await Database.execute<any>(queryForInv, [invNumber])
             
@@ -47,6 +47,43 @@ export class InvoiceService {
             throw new Error ( err.message )
         }
     }
+
+    updateInvById = async (id: string, updInvoicePayload: Record<string, any>): Promise<any> => {
+        const mappedFields = InvoiceMapper.toDbForm({
+            ...updInvoicePayload,
+            invoiceNum: id,
+            state: 'Pagado'
+        })
+
+        const translatedFields = this.removeUndefined(mappedFields)
+
+        delete translatedFields.invoiceNum
+        delete translatedFields['InvoiceNumber']
+
+        const entries = Object.entries(translatedFields).map(([key, value]) => {
+            return [key, value === undefined ? null : value]
+        })
+
+        const setClauses = entries.map(([key]) => `\`${key}\` = ?`).join(', ')
+        const values = entries.map(([, value]) => value ?? null)
+
+        const sql = `
+            UPDATE \`cami-vime\`.\`facturas\`
+            SET ${setClauses}
+            WHERE \`InvoiceNumber\` = ?
+        `
+
+        try {
+            await Database.execute(sql, [...values, id])
+            return {
+                id
+            }
+        } catch (err) {
+            console.error('Error en updateInvById:', err)
+            throw new Error((err as any)?.message || 'Error desconocido')
+        }
+    }
+
 
     getRawData = async (): Promise<any> => {
         const servicesQ = invoiceQueries('getServices')
