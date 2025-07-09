@@ -11,12 +11,16 @@ export const invoiceQueries = (key: string): string => {
                     f.Monto,
                     f.Estado,
                     f.InvoiceNumber,
-                    f.TipoPagoID
-                from facturas as f
-                where 
+                    f.TipoPagoID,
+                    hm.TipoVisita
+                from 
+                    facturas as f
+                    inner join historia_medica as hm
+                        on hm.FacturaID = f.FacturaID
+                where
                     f.InvoiceNumber = ?
                 group by 
-                    f.FacturaID, f.PacienteID, f.PersonalID, f.FechaFactura, f.Monto, f.Estado, f.InvoiceNumber, f.TipoPagoID;
+                    f.FacturaID, f.PacienteID, f.PersonalID, f.FechaFactura, f.Monto, f.Estado, f.InvoiceNumber, f.TipoPagoID, hm.TipoVisita;
             `
             break
         case 'get-stock-invoice':

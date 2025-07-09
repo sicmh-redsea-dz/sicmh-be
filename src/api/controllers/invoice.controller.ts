@@ -28,4 +28,11 @@ export class InvoiceController {
         return this.invoiceService.getInvById( id )
     }
 
+    @asyncHandler()
+    async updateOne( req: Request ): Promise<any> {
+        const { params, body } = req
+        const { id } = params
+        return this.invoiceService.updateInvById( id, body )
+    }
+
 }
