@@ -16,23 +16,27 @@ export class InvoiceService {
     createInvoice = async( createInvoicePayload:any ): Promise<any> => {
         const invoiceNum = generateShortenedUuid()
 
+        if ( createInvoicePayload.origin )
+            delete createInvoicePayload.service
+
         const mappedFields = InvoiceMapper.toDbForm({ 
             ...createInvoicePayload, 
             invoiceNum, 
-            isActive: true, 
-            state: 'Pendiente', 
+            IsActive: true, 
+            state: createInvoicePayload.origin ? 'Pagado' : 'Pendiente', 
         })
+        
         const translatedFields = this.removeUndefined( mappedFields )
         const { query, values } = this.buildInsertQuery('facturas', translatedFields)
         
         try {
-
             const resp = await Database.execute<ResultSetHeader>(query, values)
             const { insertId } = resp
 
             return insertId
         } catch ( err: any ) {
-            throw new Error ( err.message )
+            console.log('error creating invoice ::: ', err.message)
+            throw err
         }
     }
 
@@ -81,6 +85,19 @@ export class InvoiceService {
         } catch (err) {
             console.error('Error en updateInvById:', err)
             throw new Error((err as any)?.message || 'Error desconocido')
+        }
+    }
+
+    removeInvoiceById = async ( invoiceId: string ): Promise<any> => {
+        const invQ = invoiceQueries( 'delete' )
+        const values = [ 0, invoiceId ]
+
+        try {
+            await Database.execute( invQ, values )
+            return true
+        } catch ( err: any ) {
+            console.error('Error deleting Invoice by Id ::::: ', err)
+            throw err
         }
     }
 
