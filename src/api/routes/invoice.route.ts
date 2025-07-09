@@ -22,5 +22,9 @@ router.post(
     '/create', 
     inv.create.bind( inv )
 )
+router.delete(
+    '/:id', 
+    inv.removeOne.bind( inv )
+)
 
 export { router as invoiceRoutes }

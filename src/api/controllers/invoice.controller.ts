@@ -35,4 +35,10 @@ export class InvoiceController {
         return this.invoiceService.updateInvById( id, body )
     }
 
+    @asyncHandler()
+    async removeOne( req: Request ): Promise<any> {
+        const { id } = req.params
+        return this.invoiceService.removeInvoiceById( id )
+    }
+
 }

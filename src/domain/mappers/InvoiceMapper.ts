@@ -20,6 +20,7 @@ export class InvoiceMapper {
     }
 
     static toDbForm = ( newInv: any ) => {
+        
         const {
             patient: PacienteID,
             date: FechaFactura,

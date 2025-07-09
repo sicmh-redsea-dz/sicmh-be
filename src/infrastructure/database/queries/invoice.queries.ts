@@ -62,6 +62,13 @@ export const invoiceQueries = (key: string): string => {
                     personal as p;
             `
             break
+        case 'delete':
+            query = `
+                update facturas as f
+                set f.IsActive = ?
+                where f.InvoiceNumber = ?;
+            `
+            break
         default:
             query = ''
             break
