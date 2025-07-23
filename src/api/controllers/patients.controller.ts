@@ -18,7 +18,6 @@ export class PatientsController {
             res.status( 202 ).json({
                 data: {
                     patients,
-                    totalCount: patients.length,
                     totalRegistries
                 }
             })
