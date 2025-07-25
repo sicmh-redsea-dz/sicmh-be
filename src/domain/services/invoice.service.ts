@@ -5,12 +5,33 @@ import { InvoiceMapper } from '../mappers/InvoiceMapper'
 import { PatientsService } from './patients.service'
 import { invoiceQueries } from '../../infrastructure/database/queries/invoice.queries'
 
+interface Delimiters {
+  limit: number,
+  offset: number,
+  term: string,
+}
+
 export class InvoiceService {
 
     private patientService: PatientsService
 
     constructor( patientService: PatientsService ) {
         this.patientService = patientService
+    }
+
+    getInvoices = async( args: Delimiters ): Promise<any> => {
+        const invoiceQ = invoiceQueries('read', args)
+        try {
+            const invoiceResp = await Database.execute<any[]>( invoiceQ )
+            const totalRegistries = invoiceResp.length > 0 ? invoiceResp[0].total_registries : 0
+            return {
+                invoiceResp,
+                totalRegistries
+            }
+        } catch( err: any ) {
+            console.log('error reading invoices ::: ', err.message)
+            throw err
+        }
     }
 
     createInvoice = async( createInvoicePayload:any ): Promise<any> => {

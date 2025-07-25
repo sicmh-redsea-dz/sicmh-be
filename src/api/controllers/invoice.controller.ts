@@ -12,6 +12,15 @@ export class InvoiceController {
     }
 
     @asyncHandler()
+    async read( req:Request ): Promise<any> {
+        const limit = Number(req.query.limit) || 25
+        const offset = Number(req.query.offset) || 0
+        const term = String(req.query.term) || ''
+
+        return this.invoiceService.getInvoices({limit, offset, term})
+    }
+
+    @asyncHandler()
     async create( req: Request ): Promise<any> {
         const { body } = req
         return this.invoiceService.createInvoice( body )

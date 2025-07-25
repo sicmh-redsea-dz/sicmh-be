@@ -1,6 +1,47 @@
-export const invoiceQueries = (key: string): string => {
+interface Delimiters {
+  limit: number,
+  offset: number,
+  term: string,
+}
+
+export const invoiceQueries = (key: string, delimiters?: Delimiters): string => {
     let query: string = ''
     switch( key ) {
+        case 'read':
+            const { limit, offset, term } = delimiters!
+            const hasTerm = !!term
+            const whereClause = `
+                f.FacturaID > 4 and f.IsActive = true
+                ${hasTerm ? `and (
+                    f.InvoiceNumber like concat('%', '${term}', '%')
+                )`: ''}    
+            `
+            query = `
+                    select 
+                        f.FacturaID, 
+                        concat(p.Nombre, ' ', p.Apellido) as Paciente, 
+                        concat(d.Nombre, ' ', d.Apellido) as Doctor, 
+                        f.FechaFactura, 
+                        f.Estado, 
+                        f.Monto,
+                        f.InvoiceNumber,
+                        count(*) over() as total_registries
+                    from 
+                        facturas as f
+                        inner join 
+                            personal as d
+                            on d.PersonalID = f.PersonalID
+                        inner join 
+                            pacientes as p
+                            on p.PacienteID = f.PacienteID
+                    where 
+                        ${whereClause}
+                    order by 
+                        f.FechaFactura desc
+                    limit ${limit}
+                    offset ${offset};
+            `
+            break
         case 'get-one':
             query = `
                 select 
