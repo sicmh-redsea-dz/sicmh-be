@@ -1,14 +1,38 @@
-export const visitsQueries = (key: string): string => {
+interface DelimitersArgs {
+    limit: number,
+    offset: number,
+    term: string,
+    def: boolean
+}
+
+export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string => {
     let query: string = ''
     switch( key ) {
         case 'all-visits':
+            const { limit, offset, term, def} = delimiters!
+            const hasTerm = !!term
+
+            const whereClause = `
+                hm.isActive = 1
+                ${hasTerm ? `and (
+                pc.Identificacion like concat('%', '${term}', '%') or
+                pc.Nombre like concat('%', '${term}', '%') or
+                pc.Apellido like concat('%', '${term}', '%') or
+                pr.Nombre like concat('%', '${term}', '%') or
+                pr.Apellido like concat('%', '${term}', '%')
+                )` : ''}
+                ${def ? `and fac.Estado = 'Pendiente'` : ''}
+            `;
             query = `
                 select 
                     hm.HistoriaID,
                     concat(pr.Nombre, ' ', pr.Apellido) as NombreDoctor,
+                    pc.Identificacion as IdPaciente,
                     concat(pc.Nombre, ' ', pc.Apellido) as NombrePaciente,
                     hm.FechaUltimaVisita,
                     hm.Diagnostico,
+                    fac.InvoiceNumber,
+                    fac.Estado,
                     count(*) over() as total_registries
                 from 
                     historia_medica as hm
@@ -18,10 +42,15 @@ export const visitsQueries = (key: string): string => {
                     inner join 
                         personal as pr
                         on hm.PersonalID = pr.PersonalID
+                    inner join
+                        facturas as fac
+                        on hm.FacturaID = fac.FacturaID
                 where 
-                    hm.isActive = 1
+                    ${whereClause}
                 order by 
-                    hm.FechaUltimaVisita desc;
+                    hm.FechaUltimaVisita desc
+                limit ${limit}
+                offset ${offset};
             `
             break
         case 'one-visit':

@@ -16,6 +16,9 @@ export interface ShortHistoryResponse {
     patientName: string
     lastVisitDate: string
     diagnosis: string
+    patientId: string
+    invoiceNumber: string
+    state: string
 }
 
 export interface HistoryResponse {

@@ -13,8 +13,13 @@ export class VisitsController {
     }
 
     @asyncHandler()
-    async getVisits(): Promise<any> {
-        return this.visitsService.findAllVisits()
+    async getVisits(req:Request): Promise<any> {
+        const limit = Number(req.query.limit) || 25
+        const offset = Number(req.query.offset) || 0
+        const term = String(req.query.term) || ''
+        const def = Boolean(req.query.default) || false
+
+        return this.visitsService.findAllVisits({ limit, offset, term, def })
     }
 
     @asyncHandler()

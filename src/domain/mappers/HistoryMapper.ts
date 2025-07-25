@@ -7,15 +7,21 @@ export class HistoryMapper {
             HistoriaID: id,
             NombreDoctor: doctorName,
             NombrePaciente: patientName,
+            IdPaciente: patientId,
             FechaUltimaVisita: lastVisitDate,
-            Diagnostico: diagnosis
+            Diagnostico: diagnosis,
+            InvoiceNumber: invoiceNumber,
+            Estado: state
         } = history
 
         return {
             id,
             doctorName,
+            patientId,
             patientName,
             lastVisitDate,
+            invoiceNumber,
+            state,
             diagnosis
         }
     }
