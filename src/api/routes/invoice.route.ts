@@ -11,6 +11,10 @@ router.get(
     inv.rawData.bind( inv )
 )
 router.get(
+    '/',
+    inv.read.bind( inv )
+)
+router.get(
     '/:id',
     inv.readOne.bind( inv )
 )
