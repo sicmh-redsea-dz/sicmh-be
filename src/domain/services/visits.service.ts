@@ -34,6 +34,13 @@ interface EditVisitPayload {
     body: CreateVisitPayload
 }
 
+interface DelimitersArgs {
+    limit: number,
+    offset: number
+    term: string
+    def: boolean
+}
+
 export class VisitsService {
 
     private staffService: StaffService
@@ -53,11 +60,11 @@ export class VisitsService {
         this.invoiceService = invoiceService
     }
 
-    findAllVisits = async ():Promise<FindAllVistiHistories> => {
-        let visitQ = visitsQueries('all-visits')
+    findAllVisits = async (args: DelimitersArgs):Promise<FindAllVistiHistories> => {
+        let visitQ = visitsQueries('all-visits', args)
         try {
             const visitHistory = await Database.execute<ShortHistory[]>(visitQ)
-            const totalRecords = visitHistory[0].total_registries
+            const totalRecords =  visitHistory.length > 0 ? visitHistory[0].total_registries : 0
             const staff = await this.staffService.getAllDocs()
             const patients = await this.patientService.findAllPatients({limit: 100, offset: 0})
             const stock = await this.stockService.findAll()
@@ -68,7 +75,8 @@ export class VisitsService {
                 stock,
                 totalRecords
             }
-        } catch ( err ) {
+        } catch ( err: any) {
+            console.log('the err :::: ', err.message)
             throw err
         }
         
