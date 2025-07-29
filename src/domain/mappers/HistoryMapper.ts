@@ -48,6 +48,10 @@ export class HistoryMapper {
             TipoVisita: visitType,
             FacturaID: invoiceId,
             PersonalID: staffId,
+            Ant_Familiar: familyHst, 
+            Ant_Habito: backgroundHst, 
+            Ant_Patologico: pathologicalHst, 
+            Ant_Quirurgico: surgicalHst, 
         } = history
 
         return {
@@ -71,6 +75,10 @@ export class HistoryMapper {
             visitType,
             invoiceId,
             staffId,
+            familyHst,
+            backgroundHst,
+            pathologicalHst,
+            surgicalHst,
         }
     }
     
@@ -94,6 +102,11 @@ export class HistoryMapper {
             visitType: TipoVisita,
             invoiceId: FacturaID,
             doctor: PersonalID,
+
+            familyHst: Ant_Familiar,
+            backgroundHst: Ant_Habito,
+            pathologicalHst: Ant_Patologico,
+            surgicalHst: Ant_Quirurgico,
         } = newHistory
     
         return {
@@ -115,6 +128,10 @@ export class HistoryMapper {
             TipoVisita,
             FacturaID,
             PersonalID,
+            Ant_Familiar,
+            Ant_Habito,
+            Ant_Patologico,
+            Ant_Quirurgico
         }
     }
 }

@@ -32,4 +32,9 @@ export interface History {
     TipoVisita:        string
     FacturaID:         number
     PersonalID:        number
+
+    Ant_Familiar    : string | null
+    Ant_Habito      : string | null
+    Ant_Patologico  : string | null
+    Ant_Quirurgico  : string | null
 }  
