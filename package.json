@@ -23,6 +23,7 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.11.3",
+    "puppeteer": "^24.15.0",
     "uuid": "^11.0.5"
   },
   "devDependencies": {
