@@ -115,7 +115,11 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                     FechaUltimaVisita = now(),
                     TipoVisita = ?,
                     FacturaID = ?,
-                    PersonalID = ?
+                    PersonalID = ?,
+                    Ant_Familiar = ?,
+                    Ant_Habito = ?,
+                    Ant_Patologico = ?,
+                    Ant_Quirurgico = ?
                 where 
                     HistoriaID = ?;
             `

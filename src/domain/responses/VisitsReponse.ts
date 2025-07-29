@@ -42,4 +42,8 @@ export interface HistoryResponse {
     visitType: string
     invoiceId: number
     staffId: number
+    familyHst       : string | null
+    backgroundHst   : string | null
+    pathologicalHst : string | null
+    surgicalHst     : string | null
 }

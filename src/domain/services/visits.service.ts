@@ -26,6 +26,10 @@ interface CreateVisitPayload {
     treatment:              string
     visceralFat:            number
     weight:                 number
+    familyHst:              string
+    backgroundHst:          string
+    pathologicalHst:        string
+    surgicalHst:            string
     stockItems?:            { id: number; qty: number; }[]
 }
 
@@ -146,9 +150,9 @@ export class VisitsService {
 
     editVisit = async( editVisitPayload: EditVisitPayload ): Promise<any> => {
         const {id, body} = editVisitPayload
-        const { patient, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight, doctor } = body
+        const { patient, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight, doctor, familyHst, backgroundHst, pathologicalHst, surgicalHst } = body
         const visitQ = visitsQueries( 'edit-visit' )
-        const values = [patient, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight, 'Consulta', 5, doctor, +id]
+        const values = [patient, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight, 'Consulta', 5, doctor, , familyHst, backgroundHst, pathologicalHst, surgicalHst, +id]
         try {
             const updatedVisit = await Database.execute<ResultSetHeader>(visitQ, values)
             const { affectedRows } = updatedVisit
@@ -157,7 +161,8 @@ export class VisitsService {
                 throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`)
 
             return this.findVisitById( +id )
-        } catch ( err ) {
+        } catch ( err: any ) {
+            console.log(' error editing visit: ', err.message)
             throw err
         }
     }
