@@ -7,6 +7,10 @@ const router = Router()
 const inv = new InvoiceController()
 
 router.get(
+    '/generate-pdf',
+    inv.generatePDF.bind( inv )
+)
+router.get(
     '/raw',
     inv.rawData.bind( inv )
 )
