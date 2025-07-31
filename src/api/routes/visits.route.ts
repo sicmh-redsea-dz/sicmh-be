@@ -29,5 +29,14 @@ router.delete(
     validateDeletePatient,
     visitsController.deleteVisit.bind( visitsController )
 )
+router.get(
+    '/search/doctors',
+    visitsController.getDoctors.bind( visitsController )
+)
+
+router.get(
+    '/search/patients',
+    visitsController.getPatients.bind( visitsController )
+)
 
 export { router as visitsRoutes }

@@ -1,8 +1,8 @@
 export const asyncHandler = () => {
-    return (target:any, propertyKey:string, descriptor: PropertyDescriptor) => {
+    return (_target:any, _propertyKey:string, descriptor: PropertyDescriptor) => {
         const originalMethod = descriptor.value
         descriptor.value = async function (...args: any[]) {
-            const [ , res, next ] = args
+            const [ _req, res, next ] = args
             
             try {
                 const result = await originalMethod.apply(this, args)
@@ -13,7 +13,7 @@ export const asyncHandler = () => {
                     data: result
                 })
 
-            } catch ( err ) {
+            } catch ( err: any ) {
                 next( err )
 
             }

@@ -37,4 +37,7 @@ export interface History {
     Ant_Habito      : string | null
     Ant_Patologico  : string | null
     Ant_Quirurgico  : string | null
+
+    NombrePaciente  : string
+    NombreDoctor    : string
 }  

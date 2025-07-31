@@ -8,6 +8,10 @@ import { StaffService } from './staff.service'
 import { PatientsService } from './patients.service'
 import { StockService } from './stock.services'
 import { InvoiceService } from './invoice.service'
+import { StaffMapper } from '../mappers/StaffMapper'
+import { Staff } from '../entities/Staff'
+import { Patient, ShortPatient } from '../entities/Patient'
+import { PatientMapper } from '../mappers/PatientMapper'
 
 interface CreateVisitPayload {
     BMI:                    number
@@ -148,24 +152,52 @@ export class VisitsService {
         );
     }
 
-    editVisit = async( editVisitPayload: EditVisitPayload ): Promise<any> => {
-        const {id, body} = editVisitPayload
-        const { patient, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight, doctor, familyHst, backgroundHst, pathologicalHst, surgicalHst } = body
-        const visitQ = visitsQueries( 'edit-visit' )
-        const values = [patient, date, diagnosis, treatment, notes, pressure, oxygenation, temperature, glucometry, weight, height, BMI, fatPercentage, visceralFat, ageAccordingToWeight, 'Consulta', 5, doctor, , familyHst, backgroundHst, pathologicalHst, surgicalHst, +id]
-        try {
-            const updatedVisit = await Database.execute<ResultSetHeader>(visitQ, values)
-            const { affectedRows } = updatedVisit
-
-            if ( affectedRows === 0)
-                throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`)
-
-            return this.findVisitById( +id )
-        } catch ( err: any ) {
-            console.log(' error editing visit: ', err.message)
-            throw err
+    private generateUpdateQuery( tableName: string, data: Record<string, any>, idField: string = 'HistoriaID' ){
+    
+        if (!data[idField]) {
+            throw new Error(`El campo ${idField} es requerido para la actualización`);
         }
+
+        const fieldsToUpdate = Object.keys(data).filter(key => key !== idField);
+
+        if (fieldsToUpdate.length === 0) {
+            throw new Error('No hay campos válidos para actualizar');
+        }
+
+        const setClause = fieldsToUpdate.map(field => `${field} = ?`).join(', ');
+
+        const values = fieldsToUpdate.map(field => data[field]);
+        
+        values.push(data[idField]);
+
+        const query = `update ${tableName} set ${setClause} where ${idField} = ?;`;
+
+        return { query, values };
     }
+
+
+   editVisit = async (editVisitPayload: EditVisitPayload): Promise<any> => {
+        const { id, body } = editVisitPayload;
+        const fieldsForVisit = HistoryMapper.toDbForm(body)
+        const translatedFields = this.removeUndefined(fieldsForVisit)
+        
+        translatedFields.HistoriaID = id;
+
+        try {
+            const { query, values } = this.generateUpdateQuery('historia_medica', translatedFields)
+            const updatedVisit = await Database.execute<ResultSetHeader>(query, values);
+            const { affectedRows } = updatedVisit;
+
+            if (affectedRows === 0) {
+                throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`);
+            }
+
+            return this.findVisitById(+id);
+        } catch (err: any) {
+            console.log('Error editing visit:', err);
+            throw err;
+        }
+    };
 
     deleteVisit = async ( id: number ): Promise<any> => {
         const visitQ = visitsQueries( 'delete-visit' )
@@ -178,6 +210,36 @@ export class VisitsService {
 
             return `Visit Id: ${id} deleted`
         } catch ( err ) {
+            throw err
+        }
+    }
+
+    getDoctors = async ( term: string ): Promise<any> => {
+        
+        const visitQ = visitsQueries( 'get-doctor', { term } )
+
+        try {
+            const resp = await Database.execute<Staff[]>( visitQ )
+            return {
+                doctors: resp.map( x => StaffMapper.toStaffResponse( x ))
+            }
+        } catch ( err: any ) {
+            console.log('error getting doctors :::: ', err.message)
+            throw err
+        }
+    }
+
+    getPatients = async ( term: string ): Promise<any> => {
+        
+        const visitQ = visitsQueries( 'get-patients', { term } )
+
+        try {
+            const resp = await Database.execute<ShortPatient[]>( visitQ )
+            return {
+                patients: resp.map( x => PatientMapper.toShortPatientsResponse( x ))
+            }
+        } catch ( err: any ) {
+            console.log('error getting doctors :::: ', err.message)
             throw err
         }
     }

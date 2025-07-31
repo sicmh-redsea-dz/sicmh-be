@@ -9,3 +9,8 @@ export interface PatientResponse {
     idNumber: string
     gender:   string
 }
+
+export interface ShortPatientResponse {
+    id:       number
+    name:     string
+}

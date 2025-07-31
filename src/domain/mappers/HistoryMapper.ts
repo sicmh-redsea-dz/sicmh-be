@@ -52,6 +52,8 @@ export class HistoryMapper {
             Ant_Habito: backgroundHst, 
             Ant_Patologico: pathologicalHst, 
             Ant_Quirurgico: surgicalHst, 
+            NombrePaciente: patientName,
+            NombreDoctor: docName
         } = history
 
         return {
@@ -79,6 +81,8 @@ export class HistoryMapper {
             backgroundHst,
             pathologicalHst,
             surgicalHst,
+            patientName,
+            docName
         }
     }
     
@@ -98,7 +102,7 @@ export class HistoryMapper {
             bodyFatPercentage: PorcentajeGrasa,
             visceralFat: GrasaVisceral,
             ageBasedOnWeight: EdadSegunPeso,
-            date: FechaUltimaVisita,
+            date,
             visitType: TipoVisita,
             invoiceId: FacturaID,
             doctor: PersonalID,
@@ -124,7 +128,8 @@ export class HistoryMapper {
             PorcentajeGrasa,
             GrasaVisceral,
             EdadSegunPeso,
-            FechaUltimaVisita,
+            FechaVisita: date,
+            FechaUltimaVisita: date,
             TipoVisita,
             FacturaID,
             PersonalID,

@@ -46,4 +46,6 @@ export interface HistoryResponse {
     backgroundHst   : string | null
     pathologicalHst : string | null
     surgicalHst     : string | null
+    patientName: string
+    docName: string
 }

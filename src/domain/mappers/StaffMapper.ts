@@ -7,7 +7,6 @@ export class StaffMapper {
             PersonalID: id,
             NombrePersonal: name,
             Especialidad: specialty,
-            UsuarioID: userId
         } = staff
 
         return {

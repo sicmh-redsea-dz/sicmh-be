@@ -13,6 +13,45 @@ export class InvoiceController {
         this.invoiceService = ServiceContainer.getInvoiceService()
     }
 
+    @asyncHandler()
+    async read( req:Request ): Promise<any> {
+        const limit = Number(req.query.limit) || 25
+        const offset = Number(req.query.offset) || 0
+        const term = String(req.query.term) || ''
+
+        return this.invoiceService.getInvoices({limit, offset, term})
+    }
+
+    @asyncHandler()
+    async create( req: Request ): Promise<any> {
+        const { body } = req
+        return this.invoiceService.createInvoice( body )
+    }
+
+    @asyncHandler()
+    async rawData(): Promise<any> {
+        return this.invoiceService.getRawData()
+    }
+
+    @asyncHandler()
+    async readOne( req: Request ): Promise<any> {
+        const { id } = req.params
+        return this.invoiceService.getInvById( id )
+    }
+
+    @asyncHandler()
+    async updateOne( req: Request ): Promise<any> {
+        const { params, body } = req
+        const { id } = params
+        return this.invoiceService.updateInvById( id, body )
+    }
+
+    @asyncHandler()
+    async removeOne( req: Request ): Promise<any> {
+        const { id } = req.params
+        return this.invoiceService.removeInvoiceById( id )
+    }
+
     async generatePDF( req: Request, res: Response, next: NextFunction ): Promise<any> {
         try {
             const browser = await puppeteer.launch({
@@ -65,45 +104,6 @@ export class InvoiceController {
             console.log('error al generar pdf ::::: ', err.message)
             next( err )
         }
-    }
-
-    @asyncHandler()
-    async read( req:Request ): Promise<any> {
-        const limit = Number(req.query.limit) || 25
-        const offset = Number(req.query.offset) || 0
-        const term = String(req.query.term) || ''
-
-        return this.invoiceService.getInvoices({limit, offset, term})
-    }
-
-    @asyncHandler()
-    async create( req: Request ): Promise<any> {
-        const { body } = req
-        return this.invoiceService.createInvoice( body )
-    }
-
-    @asyncHandler()
-    async rawData(): Promise<any> {
-        return this.invoiceService.getRawData()
-    }
-
-    @asyncHandler()
-    async readOne( req: Request ): Promise<any> {
-        const { id } = req.params
-        return this.invoiceService.getInvById( id )
-    }
-
-    @asyncHandler()
-    async updateOne( req: Request ): Promise<any> {
-        const { params, body } = req
-        const { id } = params
-        return this.invoiceService.updateInvById( id, body )
-    }
-
-    @asyncHandler()
-    async removeOne( req: Request ): Promise<any> {
-        const { id } = req.params
-        return this.invoiceService.removeInvoiceById( id )
     }
 
 }
