@@ -1,25 +1,26 @@
 interface DelimitersArgs {
-    limit: number,
-    offset: number,
-    term: string,
-    def: boolean
+    limit?: number,
+    offset?: number,
+    term?: string,
+    def?: boolean
 }
 
 export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string => {
     let query: string = ''
+    let whereClause: string = ''
     switch( key ) {
         case 'all-visits':
-            const { limit, offset, term, def} = delimiters!
-            const hasTerm = !!term
+            const { limit, offset, term: visitTerm, def} = delimiters!
+            const hasTerm = !!visitTerm
 
-            const whereClause = `
+            whereClause = `
                 hm.isActive = 1
                 ${hasTerm ? `and (
-                pc.Identificacion like concat('%', '${term}', '%') or
-                pc.Nombre like concat('%', '${term}', '%') or
-                pc.Apellido like concat('%', '${term}', '%') or
-                pr.Nombre like concat('%', '${term}', '%') or
-                pr.Apellido like concat('%', '${term}', '%')
+                pc.Identificacion like concat('%', '${visitTerm}', '%') or
+                pc.Nombre like concat('%', '${visitTerm}', '%') or
+                pc.Apellido like concat('%', '${visitTerm}', '%') or
+                pr.Nombre like concat('%', '${visitTerm}', '%') or
+                pr.Apellido like concat('%', '${visitTerm}', '%')
                 )` : ''}
                 ${def ? `and fac.Estado = 'Pendiente'` : ''}
             `;
@@ -56,9 +57,17 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
         case 'one-visit':
             query = `
                 select 
-                    hm.*
+                    hm.*,
+                    concat(pa.Nombre, ' ', pa.Apellido) as NombrePaciente,
+                    concat(pe.Nombre, ' ', pe.Apellido) as NombreDoctor
                 from 
                     historia_medica as hm
+                inner join 
+                    pacientes as pa
+                    on pa.PacienteID = hm.PacienteID
+                inner join 
+                    personal as pe
+                    on pe.PersonalID = hm.PersonalID
                 where 
                     hm.isActive = 1 and
                     hm.HistoriaID = ?
@@ -98,7 +107,6 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                     historia_medica
                 set
                     PacienteID = ?,
-                    FechaVisita = ?,
                     Diagnostico = ?,
                     Tratamiento = ?,
                     Notas = ?,
@@ -112,9 +120,7 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                     PorcentajeGrasa = ?,
                     GrasaVisceral = ?,
                     EdadSegunPeso = ?,
-                    FechaUltimaVisita = now(),
-                    TipoVisita = ?,
-                    FacturaID = ?,
+                    FechaUltimaVisita = ?,
                     PersonalID = ?,
                     Ant_Familiar = ?,
                     Ant_Habito = ?,
@@ -132,6 +138,50 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                     isActive = FALSE
                 where
                     HistoriaID = ?;
+            `
+            break
+        case 'get-doctor':
+            const { term: doctTerm } = delimiters!
+            whereClause = `
+                ${
+                    !!doctTerm 
+                    ? (
+                        `p.Nombre like concat('%', '${doctTerm}', '%') or
+                        p.Apellido like concat('%', '${doctTerm}', '%')`
+                    ) : ''
+                }
+            `
+            query = `
+                select 
+                    p.PersonalID,
+                    concat(p.Nombre, ' ', p.Apellido) as NombrePersonal,
+                    p.Especialidad
+                from 
+                    personal as p
+                where 
+                    ${whereClause};
+                    
+            `
+            break
+        case 'get-patients':
+            const { term: patTerm } = delimiters!
+            whereClause = `
+                ${
+                    !!patTerm
+                    ? (
+                        `p.Nombre like concat('%', '${patTerm}', '%') or
+                        p.Apellido like concat('%', '${patTerm}', '%')`
+                    ) : ''
+                }
+            `
+            query = `
+                select 
+                    p.PacienteID,
+                    concat(p.Nombre, ' ', p.Apellido) as NombrePersonal
+                from pacientes as p
+                where 
+                    ${whereClause};
+                    
             `
             break
         default:

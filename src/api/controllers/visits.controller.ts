@@ -45,4 +45,22 @@ export class VisitsController {
         const { id } = req.params
         return this.visitsService.deleteVisit( +id )
     }
+
+    @asyncHandler()
+    async getDoctors( req:Request ) {
+        const term = String(req.query.term) || ''
+        
+        if( term.trim().length === 0 ) return
+
+        return this.visitsService.getDoctors( term )
+    }
+
+    @asyncHandler()
+    async getPatients( req:Request ) {
+        const term = String(req.query.term) || ''
+
+        if( term.trim().length === 0 ) return
+
+        return this.visitsService.getPatients( term )
+    }
 }

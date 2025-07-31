@@ -25,8 +25,10 @@ export class StockService {
                 ${caseStatements}
                 else 0
                 end) AS total
-            from Inventario
-            where ProductoID in (${ids.join(', ')});
+            from 
+                Inventario
+            where 
+                ProductoID in (${ids.join(', ')});
         `
 
         try {

@@ -11,3 +11,8 @@ export interface Patient {
     Genero: string
     total_registries: number
 }
+
+export interface ShortPatient {
+    PacienteID: number
+    NombrePersonal: string
+}

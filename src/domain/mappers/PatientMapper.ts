@@ -1,5 +1,5 @@
-import { Patient } from "../entities/Patient";
-import { PatientResponse } from "../responses/PatientResponse";
+import { Patient, ShortPatient } from "../entities/Patient";
+import { PatientResponse, ShortPatientResponse } from "../responses/PatientResponse";
 
 export class PatientMapper {
     static toPatientsResponse = (patient:Patient): PatientResponse => {
@@ -25,6 +25,18 @@ export class PatientMapper {
             address,
             idNumber,
             gender
+        }
+    }
+
+    static toShortPatientsResponse = (patient:ShortPatient): ShortPatientResponse => {
+        const {
+            PacienteID: id,
+            NombrePersonal: name,
+        } = patient
+
+        return {
+            id,
+            name,
         }
     }
 }
