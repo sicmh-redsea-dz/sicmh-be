@@ -67,26 +67,56 @@ export class InvoiceController {
                     <head>
                         <meta charset="UTF-8">
                         <style>
+                            * {
+                                margin: 0;
+                                padding: 0;
+                                box-sizing: border-box;
+                                font-family: 'Roboto', sans-serif;
+                            }
+
                             body {
-                                font-family: Arial, sans-serif;
                                 margin: 2cm;
                                 font-size: 12px;
                             }
 
                             h1 {
-                                text-align: center;
-                                font-size: 18px;
+                                text-align: left;
+                                font-size: 2rem;
+                                font-weight: 500;
                                 margin-bottom: 1rem;
+                                color: #17365D;
+                            }
+
+                            .divider {
+                                border-top: 2px solid #B1C7E2;
+                                margin: 1rem 0 2rem 0;
                             }
 
                             .section {
                                 margin-bottom: 1.5rem;
                             }
 
+                            .section.no-border .info-pair {
+                                display: flex;
+                                margin-bottom: 4px;
+                                font-size: 16px;
+                            }
+
+                            .section.no-border .label {
+                                margin-right: 16px;
+                            }
+
+
+                            .section.no-border .value {
+                                font-weight: bold;
+                                text-align: right;
+                            }
+
                             .section-title {
                                 font-weight: bold;
                                 margin-bottom: 0.5rem;
                                 text-decoration: underline;
+                                font-size: 16px;
                             }
 
                             table {
@@ -99,6 +129,7 @@ export class InvoiceController {
                                 border: 1px solid #999;
                                 padding: 6px;
                                 text-align: left;
+                                font-size: 14px;
                             }
 
                             .no-border td {
@@ -106,8 +137,9 @@ export class InvoiceController {
                                 padding: 4px;
                             }
 
+
                             .signature-line {
-                                margin-top: 2rem;
+                                margin-top: 4rem;
                                 display: flex;
                                 justify-content: space-between;
                             }
@@ -124,13 +156,14 @@ export class InvoiceController {
                     <body>
                         <h1>MedIT - Reporte de Cierre de Caja</h1>
 
+                        <div class="divider"></div>
+
                         <div class="section no-border">
-                            <table class="no-border">
-                            <tr><td>Fecha:</td><td>2025-07-20</td></tr>
-                            <tr><td>Cajero/a:</td><td>Juan Pérez</td></tr>
-                            <tr><td>Turno:</td><td>08:00 - 17:00</td></tr>
-                            </table>
+                            <div class="info-pair"><span class="label" style="margin-right: 34px;">Fecha:</span><span class="value">2025-07-20</span></div>
+                            <div class="info-pair"><span class="label">Cajero/a:</span><span class="value">Juan Pérez</span></div>
+                            <div class="info-pair"><span class="label" style="margin-right: 34px;">Turno:</span><span class="value">08:00 - 17:00</span></div>
                         </div>
+
 
                         <div class="section">
                             <div class="section-title">Resumen de Ventas</div>
