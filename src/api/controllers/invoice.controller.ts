@@ -52,7 +52,7 @@ export class InvoiceController {
         return this.invoiceService.removeInvoiceById( id )
     }
 
-    async generatePDF( req: Request, res: Response, next: NextFunction ): Promise<any> {
+    async generatePDF( _req: Request, res: Response, next: NextFunction ): Promise<any> {
         try {
             const browser = await puppeteer.launch({
                 headless: true,

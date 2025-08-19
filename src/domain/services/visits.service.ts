@@ -68,19 +68,18 @@ export class VisitsService {
         this.invoiceService = invoiceService
     }
 
-    findAllVisits = async (args: DelimitersArgs):Promise<FindAllVistiHistories> => {
+    findAllVisits = async (args: DelimitersArgs):Promise<any> => {
         let visitQ = visitsQueries('all-visits', args)
         try {
             const visitHistory = await Database.execute<ShortHistory[]>(visitQ)
             const totalRecords =  visitHistory.length > 0 ? visitHistory[0].total_registries : 0
             const staff = await this.staffService.getAllDocs()
             const patients = await this.patientService.findAllPatients({limit: 100, offset: 0})
-            const stock = await this.stockService.findAll()
+            
             return {
                 visits: visitHistory.map( visit => HistoryMapper.toHistoryResponse( visit )),
                 staff,
                 patients: patients.patients,
-                stock,
                 totalRecords
             }
         } catch ( err: any) {
@@ -90,11 +89,16 @@ export class VisitsService {
         
     }
 
-    findVisitById = async ( id: number ):Promise<HistoryResponse> => {
+    findVisitById = async ( id: number ):Promise<any> => {
         const visitQ = visitsQueries( 'one-visit' )
         try {
             const medicalHistory = await Database.execute<History[]>(visitQ, [ id ])
-            return HistoryMapper.toHistoryFormResponse( medicalHistory[0] )
+            console.log('medical history :::: ', medicalHistory)
+            const stock = await this.stockService.findAll()
+            return {
+                visit: HistoryMapper.toHistoryFormResponse( medicalHistory[0] ),
+                stock
+            }
         } catch ( err ) {
             throw err
         }
@@ -124,7 +128,8 @@ export class VisitsService {
 
             if ( stockItems && stockItems.length > 0 ) {
                 await this.stockService.reduceStockQuantities( stockItems )
-                await this.stockService.insertInvoiceStock(translatedFields['FacturaID'], stockItems)
+                await this.stockService.insertStockInvoice(translatedFields['FacturaID'], stockItems)
+                await this.stockService.insertStockHistory( insertId, stockItems )
             }
 
             return {

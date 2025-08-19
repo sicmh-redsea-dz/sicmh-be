@@ -59,7 +59,13 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                 select 
                     hm.*,
                     concat(pa.Nombre, ' ', pa.Apellido) as NombrePaciente,
-                    concat(pe.Nombre, ' ', pe.Apellido) as NombreDoctor
+                    concat(pe.Nombre, ' ', pe.Apellido) as NombreDoctor,
+                    json_arrayagg(
+                        json_object(
+                            'InventarioID',ihmd.InventarioID,
+                            'CantidadUsada', ihmd.CantidadUsada
+                        )
+                    ) as InventarioUsado
                 from 
                     historia_medica as hm
                 inner join 
@@ -68,9 +74,14 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                 inner join 
                     personal as pe
                     on pe.PersonalID = hm.PersonalID
+                left join
+                    Inventario_HistoriaMedica as ihmd
+                    on ihmd.HistoriaMedicaID = hm.HistoriaID
                 where 
                     hm.isActive = 1 and
                     hm.HistoriaID = ?
+                group by
+                    hm.HistoriaID;
             `
             break
         case 'create-visit':
