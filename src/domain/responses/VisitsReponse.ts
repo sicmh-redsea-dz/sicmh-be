@@ -48,4 +48,5 @@ export interface HistoryResponse {
     surgicalHst     : string | null
     patientName: string
     docName: string
+    usedInventory : { stockId: number, stockQty: number}[]
 }

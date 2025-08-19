@@ -63,7 +63,7 @@ export class StockService {
         }
     }
 
-    insertInvoiceStock = async (facturaId: number, items: { id: number; qty: number }[]): Promise<void> => {
+    insertStockInvoice = async (facturaId: number, items: { id: number; qty: number }[]): Promise<void> => {
         if (!items.length) return
 
         const values = items
@@ -80,6 +80,28 @@ export class StockService {
             await Database.execute(query)
 
         } catch (err) {
+            throw err
+        }
+    }
+
+    insertStockHistory = async ( historyId: number, items: { id: number; qty: number }[] ): Promise<void> => {
+        if ( !items.length ) return
+
+        const values = items
+            .map(({ id, qty }) => `(${id}, ${historyId}, ${qty})`)
+            .join(', ')
+        
+        const query = `
+            insert into Inventario_HistoriaMedica (InventarioID, HistoriaMedicaID, CantidadUsada)
+            values ${values}
+        `
+            
+        try {
+
+            await Database.execute( query )
+
+        } catch ( err: any ) {
+            console.log('error inserting stock history: ', err.message)
             throw err
         }
     }

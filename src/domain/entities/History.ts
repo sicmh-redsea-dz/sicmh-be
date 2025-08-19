@@ -40,4 +40,6 @@ export interface History {
 
     NombrePaciente  : string
     NombreDoctor    : string
+
+    InventarioUsado : {InventarioID: number, CantidadUsada: number}[]
 }  

@@ -53,8 +53,14 @@ export class HistoryMapper {
             Ant_Patologico: pathologicalHst, 
             Ant_Quirurgico: surgicalHst, 
             NombrePaciente: patientName,
-            NombreDoctor: docName
+            NombreDoctor: docName,
+            InventarioUsado
         } = history
+        
+
+        const usedInventory = InventarioUsado
+            .filter( x => x.InventarioID )
+            .map( x => ({ stockId:x.InventarioID, stockQty: x.CantidadUsada }))
 
         return {
             id,
@@ -82,7 +88,8 @@ export class HistoryMapper {
             pathologicalHst,
             surgicalHst,
             patientName,
-            docName
+            docName,
+            usedInventory
         }
     }
     
