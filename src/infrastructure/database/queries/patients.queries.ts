@@ -1,5 +1,5 @@
 // export const queries = (key: string, pagination?: {limit:number, offset:number}) => {
-export const patientQueries = (key: string, pagination?: {limit:number, offset:number}) => {
+export const patientQueries = (key: string, pagination?: {limit:number, offset:number, term?: string}) => {
     let query: string = ''
     switch( key ) {
       case 'read-one':
@@ -11,13 +11,29 @@ export const patientQueries = (key: string, pagination?: {limit:number, offset:n
         `
         break
       case 'read':
-        const { limit, offset} = pagination!
+        const { limit, offset, term } = pagination!
+        const hasTerm = !!term
+        const whereClause = `
+          p.isActive = 1
+          ${
+            hasTerm 
+            ? `
+              and (
+                p.Nombre like concat('%', '${term}', '%') or
+                p.Apellido like concat('%', '${term}', '%') or
+                p.Identificacion like concat('%', '${term}', '%')
+              )
+            ` : ''
+          }
+        `
         query = `
           select 
             p.*,
             count(*) over() as total_registries
-          from pacientes as p
-          where p.isActive = 1
+          from 
+            pacientes as p
+          where 
+            ${whereClause}
           limit ${limit}
           offset ${offset};
         `
