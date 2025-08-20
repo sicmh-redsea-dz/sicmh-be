@@ -5,9 +5,10 @@ import { Patient } from '../entities/Patient';
 import { PatientMapper } from '../mappers/PatientMapper';
 import { PatientResponse } from '../responses/PatientResponse';
 
-interface Pagination {
-    limit: number,
+interface Delimiters {
+    limit: number
     offset: number
+    term?: string
 }
 
 interface findAllPatientsResponse {
@@ -27,8 +28,8 @@ interface IncomingPatientParams {
 }
 
 export class PatientsService {
-    findAllPatients = async (pagination: Pagination):Promise<findAllPatientsResponse> => {
-        let patientsQ = patientQueries('read', pagination)
+    findAllPatients = async (args: Delimiters):Promise<findAllPatientsResponse> => {
+        let patientsQ = patientQueries('read', args)
         try {
             const patients = await Database.execute<Patient[]>(patientsQ);
             const totalRegistries = patients[0].total_registries

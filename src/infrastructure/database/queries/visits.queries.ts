@@ -22,7 +22,7 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                 pr.Nombre like concat('%', '${visitTerm}', '%') or
                 pr.Apellido like concat('%', '${visitTerm}', '%')
                 )` : ''}
-                ${def ? `and fac.Estado = 'Pendiente'` : ''}
+                ${def ? `and hm.TipoVisita = 'Emergencia'` : `and hm.TipoVisita = 'Consulta'`}
             `;
             query = `
                 select 

@@ -17,7 +17,7 @@ export class VisitsController {
         const limit = Number(req.query.limit) || 25
         const offset = Number(req.query.offset) || 0
         const term = String(req.query.term) || ''
-        const def = Boolean(req.query.default) || false
+        const def = req.query.default === 'false' ? false : true
 
         return this.visitsService.findAllVisits({ limit, offset, term, def })
     }

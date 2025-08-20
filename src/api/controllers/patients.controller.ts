@@ -12,9 +12,10 @@ export class PatientsController {
     getPatients = async (req:Request, res:Response, next:NextFunction) => {
         const limit = Number(req.query.limit) || 25
         const offset = Number(req.query.offset) || 0
+        const term = String(req.query.term) || ''
 
         try {
-            const { patients, totalRegistries } = await this.patientsService.findAllPatients({limit, offset})
+            const { patients, totalRegistries } = await this.patientsService.findAllPatients({limit, offset, term})
             res.status( 202 ).json({
                 data: {
                     patients,
