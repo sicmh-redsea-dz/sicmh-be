@@ -3,20 +3,18 @@ import admin from 'firebase-admin'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
-// import { verifyToken } from '../../config/jwt';
-
-// const serviceAccountPath = join(__dirname, 'sampleapp-d2514-firebase-adminsdk-fbsvc-339751be6c.json');
-// const serviceAccount = JSON.parse(
-//     readFileSync(
-//         serviceAccountPath, 
-//         'utf-8'
-//     )
-// )
+const serviceAccountPath = join(__dirname, 'sampleapp-d2514-firebase-adminsdk-fbsvc-339751be6c.json');
+const serviceAccount = JSON.parse(
+    readFileSync(
+        serviceAccountPath, 
+        'utf-8'
+    )
+)
 
 
-// if ( !admin.apps.length ) admin.initializeApp({
-//     credential: admin.credential.cert( serviceAccount )
-// })
+if ( !admin.apps.length ) admin.initializeApp({
+    credential: admin.credential.cert( serviceAccount )
+})
 
 export const authMiddleware = async (req:Request, res:Response, next:NextFunction) => {
     
