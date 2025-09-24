@@ -1,0 +1,16 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.visitsRoutes = void 0;
+const express_1 = require("express");
+const visits_validator_1 = require("../validators/visits.validator");
+const visits_controller_1 = require("../controllers/visits.controller");
+const router = (0, express_1.Router)();
+exports.visitsRoutes = router;
+const visitsController = new visits_controller_1.VisitsController();
+router.get('/', visitsController.getVisits.bind(visitsController));
+router.get('/:id', visitsController.getVisit.bind(visitsController));
+router.post('/create', visits_validator_1.validateCreatePatient, visitsController.createVisit.bind(visitsController));
+router.patch('/edit/:id', visits_validator_1.validateEditPatient, visitsController.editVisit.bind(visitsController));
+router.delete('/:id', visits_validator_1.validateDeletePatient, visitsController.deleteVisit.bind(visitsController));
+router.get('/search/doctors', visitsController.getDoctors.bind(visitsController));
+router.get('/search/patients', visitsController.getPatients.bind(visitsController));
