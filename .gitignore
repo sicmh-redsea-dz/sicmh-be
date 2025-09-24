@@ -1,3 +1,5 @@
 /node_modules
 /src/api/middlewares/sampleapp-d2514-firebase-adminsdk-fbsvc-339751be6c.json
 .env
+
+/dist
