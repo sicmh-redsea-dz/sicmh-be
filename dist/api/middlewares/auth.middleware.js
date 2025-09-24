@@ -5,17 +5,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authMiddleware = void 0;
 const firebase_admin_1 = __importDefault(require("firebase-admin"));
-// import { verifyToken } from '../../config/jwt';
-// const serviceAccountPath = join(__dirname, 'sampleapp-d2514-firebase-adminsdk-fbsvc-339751be6c.json');
-// const serviceAccount = JSON.parse(
-//     readFileSync(
-//         serviceAccountPath, 
-//         'utf-8'
-//     )
-// )
-// if ( !admin.apps.length ) admin.initializeApp({
-//     credential: admin.credential.cert( serviceAccount )
-// })
+const fs_1 = require("fs");
+const path_1 = require("path");
+const serviceAccountPath = (0, path_1.join)(__dirname, 'sampleapp-d2514-firebase-adminsdk-fbsvc-339751be6c.json');
+const serviceAccount = JSON.parse((0, fs_1.readFileSync)(serviceAccountPath, 'utf-8'));
+if (!firebase_admin_1.default.apps.length)
+    firebase_admin_1.default.initializeApp({
+        credential: firebase_admin_1.default.credential.cert(serviceAccount)
+    });
 const authMiddleware = async (req, res, next) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) {
