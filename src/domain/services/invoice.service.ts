@@ -185,7 +185,8 @@ export class InvoiceService {
             
             browser = await puppeteer.launch({
                 headless: true,
-                args: ['--no-sandbox']
+                executablePath: '/usr/bin/chromium-browser',
+                args: ['--no-sandbox', '--disable-setuid-sandbox']
             })
             const page = await browser.newPage()
             await page.setContent(html, { waitUntil: 'networkidle0' })
