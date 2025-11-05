@@ -154,7 +154,8 @@ class InvoiceService {
                 });
                 browser = await puppeteer_1.default.launch({
                     headless: true,
-                    args: ['--no-sandbox']
+                    executablePath: '/usr/bin/google-chrome',
+                    args: ['--no-sandbox', '--disable-setuid-sandbox']
                 });
                 const page = await browser.newPage();
                 await page.setContent(html, { waitUntil: 'networkidle0' });
