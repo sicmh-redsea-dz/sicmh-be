@@ -6,7 +6,7 @@ const invoice_controller_1 = require("../controllers/invoice.controller");
 const router = (0, express_1.Router)();
 exports.invoiceRoutes = router;
 const inv = new invoice_controller_1.InvoiceController();
-router.get('/generate-pdf', inv.generatePDF.bind(inv));
+router.get('/generate-pdf/:term', inv.generatePDF.bind(inv));
 router.get('/raw', inv.rawData.bind(inv));
 router.get('/', inv.read.bind(inv));
 router.get('/:id', inv.readOne.bind(inv));
