@@ -10,7 +10,9 @@ const invoiceQueries = (key, delimiters) => {
             const whereClause = `
                 f.FacturaID > 4 and f.IsActive = true
                 ${hasTerm ? `and (
-                    f.InvoiceNumber like concat('%', '${term}', '%')
+                    f.InvoiceNumber like concat('%', '${term}', '%') or
+                    p.Nombre like concat('%', '${term}', '%') or
+                    p.Apellido like concat('%', '${term}', '%')
                 )` : ''}    
             `;
             query = `
@@ -106,6 +108,118 @@ const invoiceQueries = (key, delimiters) => {
                 set f.IsActive = ?
                 where f.InvoiceNumber = ?;
             `;
+            break;
+        // consultas para PDF
+        case 'report-header':
+            query = `
+                SELECT
+                    DATE_FORMAT(CURDATE(), '%Y-%m-%d') AS fecha_actual,
+                    CASE
+                        WHEN ? = 'td' THEN DATE_FORMAT(CURDATE(), '%d %b %Y')
+                        ELSE CONCAT(
+                            DATE_FORMAT(CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY, '%d %b %Y'),
+                            ' - ',
+                            DATE_FORMAT(CURDATE(), '%d %b %Y')
+                        )
+                    END AS rango_fechas,
+                    'Cajero General' AS cajero,
+                    '08:00 - 17:00' AS turno;
+            `;
+            break;
+        case 'report-summary':
+            query = `
+                SELECT
+                    CASE WHEN f.Estado = 'Pagado' THEN 'Pagado' ELSE 'Pendiente' END AS estado_factura,
+                    COUNT(*) AS cantidad_facturas,
+                    IFNULL(SUM(f.Monto), 0) AS total_monto
+                FROM 
+                    facturas AS f
+                WHERE
+                    f.IsActive = 1
+                    AND DATE(f.FechaFactura) BETWEEN
+                        CASE WHEN ?='td' THEN CURDATE()
+                            ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
+                        END
+                        AND CURDATE()
+                GROUP BY estado_factura
+                ORDER BY estado_factura;
+            `;
+            break;
+        case 'report-payments':
+            query = `
+                SELECT 
+                    IFNULL(tp.Descripcion, 'Sin método') AS metodo_pago,
+                    COUNT(f.FacturaID) AS cantidad,
+                    IFNULL(SUM(f.Monto), 0) AS total_monto
+                FROM 
+                    facturas AS f
+                LEFT JOIN 
+                    tipo_pago AS tp ON tp.TipoPagoID = f.TipoPagoID
+                WHERE 
+                    f.IsActive = 1
+                    AND f.Estado = 'Pagado'
+                    AND DATE(f.FechaFactura) BETWEEN
+                        CASE WHEN ?='td' THEN CURDATE()
+                            ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
+                        END
+                        AND CURDATE()
+                GROUP BY 
+                    IFNULL(tp.Descripcion, 'Sin método')
+                ORDER BY 
+                    metodo_pago;
+            `;
+            break;
+        case 'report-cashbox':
+            query = `
+                    SELECT
+                        'Efectivo en Caja' AS descripcion,
+                        IFNULL(SUM(CASE WHEN f.TipoPagoID = 1 THEN f.Monto END), 0) AS total_sistema,
+                        CAST(NULL AS DECIMAL(18,2)) AS conteo_manual,
+                        CAST(NULL AS DECIMAL(18,2)) AS diferencia
+                        FROM facturas AS f
+                        WHERE 
+                        f.IsActive = 1
+                        AND f.Estado = 'Pagado'
+                        AND DATE(f.FechaFactura) BETWEEN
+                            CASE WHEN ?='td' THEN CURDATE()
+                                ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
+                            END
+                            AND CURDATE()
+
+                        UNION ALL
+
+                        SELECT
+                        'Tarjeta' AS descripcion,
+                        IFNULL(SUM(CASE WHEN f.TipoPagoID = 2 THEN f.Monto END), 0) AS total_sistema,
+                        CAST(NULL AS DECIMAL(18,2)) AS conteo_manual,
+                        CAST(NULL AS DECIMAL(18,2)) AS diferencia
+                        FROM facturas AS f
+                        WHERE 
+                        f.IsActive = 1
+                        AND f.Estado = 'Pagado'
+                        AND DATE(f.FechaFactura) BETWEEN
+                            CASE WHEN ?='td' THEN CURDATE()
+                                ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
+                            END
+                            AND CURDATE()
+
+                        UNION ALL
+
+                    SELECT
+                        'Transferencia' AS descripcion,
+                        IFNULL(SUM(CASE WHEN f.TipoPagoID = 3 THEN f.Monto END), 0) AS total_sistema,
+                        CAST(NULL AS DECIMAL(18,2)) AS conteo_manual,
+                        CAST(NULL AS DECIMAL(18,2)) AS diferencia
+                        FROM facturas AS f
+                        WHERE 
+                        f.IsActive = 1
+                        AND f.Estado = 'Pagado'
+                        AND DATE(f.FechaFactura) BETWEEN
+                            CASE WHEN ?='td' THEN CURDATE()
+                                ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
+                            END
+                            AND CURDATE();
+                `;
             break;
         default:
             query = '';
