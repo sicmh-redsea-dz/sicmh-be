@@ -4,6 +4,7 @@ import { Database } from '../../infrastructure/database/Database'
 import { InvoiceMapper } from '../mappers/InvoiceMapper'
 import { PatientsService } from './patients.service'
 import { invoiceQueries } from '../../infrastructure/database/queries/invoice.queries'
+import puppeteer from 'puppeteer'
 
 interface Delimiters {
   limit: number,
@@ -166,6 +167,43 @@ export class InvoiceService {
         }
     }
 
+    generateCloseReportPdf = async ( term?: string ): Promise<any> => {
+        let browser;
+        try {
+            const [headerData, summaryData, paymentsData, cashbox] = await Promise.all([
+                Database.execute<any[]>(invoiceQueries('report-header'), [ term ]),
+                Database.execute<any[]>(invoiceQueries('report-summary'), [ term ]),
+                Database.execute<any[]>(invoiceQueries('report-payments'), [ term ]),
+                Database.execute<any[]>(invoiceQueries('report-cashbox'), [ term, term, term ]),
+            ])
+            const html = this.renderCloseReportTemplate({
+                header: headerData[0],
+                summary: summaryData,
+                payments: paymentsData,
+                cashbox: cashbox
+            })
+            
+            browser = await puppeteer.launch({
+                headless: true,
+                args: ['--no-sandbox']
+            })
+            const page = await browser.newPage()
+            await page.setContent(html, { waitUntil: 'networkidle0' })
+            const pdfBuffer = await page.pdf({
+                format: 'A4',
+                printBackground: true
+            })
+
+            return pdfBuffer
+        } catch ( err: any ) {
+            console.error('Error generando PDF: ', err?.message || err )
+            throw err
+        } finally {
+            if ( browser )
+                await browser.close().catch(() => {})
+        }
+    }
+
     private buildInsertQuery(table: string, data: Record<string, any>): { query: string; values: any[] } {
         const keys = Object.keys(data)
         const columns = keys.join(', ')
@@ -182,5 +220,172 @@ export class InvoiceService {
         );
     }
 
+    private renderCloseReportTemplate = ( args: { 
+        header: any,
+        summary: any,
+        payments: any,
+        cashbox: any,
+    }) => {
+        const { header, summary, payments, cashbox } = args
+        const summaryRows = summary.map((r: any) => `
+            <tr>
+                <td>${r.estado_factura}</td>
+                <td>${r.cantidad_facturas}</td>
+                <td>${Number(r.total_monto).toFixed(2)}</td>
+            </tr>`
+        ).join('')
 
+        const paymentRows = payments.map((r: any) => `
+            <tr>
+                <td>${r.metodo_pago}</td>
+                <td>${r.cantidad}</td>
+                <td>${Number(r.total_monto).toFixed(2)}</td>
+            </tr>`
+        ).join('');
+
+        const cashboxRows = cashbox.map((r: any) => `
+            <tr>
+                <td>${r.descripcion}</td>
+                <td>${Number(r.total_sistema).toFixed(2)}</td>
+                <td>${r.conteo_manual ?? ''}</td>
+                <td>${r.diferencia ?? ''}</td>
+            </tr>`
+        ).join('');
+
+        return `
+        <!DOCTYPE html>
+        <html>
+            <head>
+            <meta charset="UTF-8">
+            <style>
+                * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: 'Roboto', sans-serif;
+                }
+                body {
+                margin: 2cm;
+                font-size: 12px;
+                }
+                h1 {
+                text-align: left;
+                font-size: 2rem;
+                font-weight: 500;
+                margin-bottom: 1rem;
+                color: #17365D;
+                }
+                .divider {
+                border-top: 2px solid #B1C7E2;
+                margin: 1rem 0 2rem 0;
+                }
+                .section { margin-bottom: 1.5rem; }
+                .section.no-border .info-pair {
+                display: flex;
+                margin-bottom: 4px;
+                font-size: 16px;
+                }
+                .section.no-border .label { margin-right: 16px; }
+                .section.no-border .value {
+                font-weight: bold;
+                text-align: right;
+                margin-left: auto;
+                }
+                .section-title {
+                font-weight: bold;
+                margin-bottom: 0.5rem;
+                text-decoration: underline;
+                font-size: 16px;
+                }
+                table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 0.5rem;
+                }
+                th, td {
+                border: 1px solid #999;
+                padding: 6px;
+                text-align: left;
+                font-size: 14px;
+                }
+                .no-border td {
+                border: none;
+                padding: 4px;
+                }
+                .signature-line {
+                margin-top: 4rem;
+                display: flex;
+                justify-content: space-between;
+                }
+                .signature-line div {
+                width: 45%;
+                border-top: 1px solid #000;
+                text-align: center;
+                font-size: 11px;
+                padding-top: 0.2rem;
+                }
+            </style>
+            </head>
+            <body>
+            <h1>MedIT - Reporte de Cierre de Caja</h1>
+            <div class="divider"></div>
+
+            <div class="section no-border">
+                <div class="info-pair"><span class="label" style="margin-right: 34px;">Fecha:</span><span class="value">${header?.fecha_actual}</span></div>
+                <div class="info-pair"><span class="label" style="margin-right: 34px;">Rango:</span><span class="value">${header?.rango_fechas}</span></div>
+                <div class="info-pair"><span class="label">Cajero/a:</span><span class="value">${header?.cajero}</span></div>
+                <div class="info-pair"><span class="label" style="margin-right: 34px;">Turno:</span><span class="value">${header?.turno}</span></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Resumen de Ventas</div>
+                <table>
+                <thead>
+                    <tr><th>Categoría</th><th>Cantidad</th><th>Total (L.)</th></tr>
+                </thead>
+                <tbody>
+                    ${summaryRows}
+                </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Detalle de Métodos de Pago</div>
+                <table>
+                <thead>
+                    <tr><th>Método de Pago</th><th>Monto (L.)</th><th>Notas</th></tr>
+                </thead>
+                <tbody>
+                    ${paymentRows}
+                </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Caja y Reconciliación</div>
+                <table>
+                <thead>
+                    <tr>
+                    <th>Descripción</th><th>Total del Sistema</th><th>Conteo Manual</th><th>Diferencia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${cashboxRows}
+                </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Observaciones</div>
+                <p>[Diferencias, explicaciones o incidencias observadas]</p>
+            </div>
+
+            <div class="signature-line">
+                <div>Firma Cajero/a</div>
+                <div>Firma Supervisor/a</div>
+            </div>
+            </body>
+        </html>
+        `
+    }
 }
