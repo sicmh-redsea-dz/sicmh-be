@@ -4,6 +4,7 @@ import { scheduleRoutes } from './schedule.route'
 import { visitsRoutes } from './visits.route'
 import { dashbRoutes } from './dashboard.route'
 import { invoiceRoutes } from './invoice.route'
+import { invRoutes } from './inv.route'
 
 const router = Router()
 
@@ -26,6 +27,10 @@ router.use(
 router.use(
     '/scheduling', 
     scheduleRoutes
+)
+router.use(
+    '/inventory',
+    invRoutes
 )
 
 
