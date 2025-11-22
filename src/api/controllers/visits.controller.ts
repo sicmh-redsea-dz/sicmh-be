@@ -6,7 +6,7 @@ import { ServiceContainer } from '../../domain/services/container/service.contai
 
 
 export class VisitsController {
-    private visitsService: VisitsService
+    private readonly visitsService: VisitsService
 
     constructor() {
         this.visitsService = ServiceContainer.getVisitsService()
