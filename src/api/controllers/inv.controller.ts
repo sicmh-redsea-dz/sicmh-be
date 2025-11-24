@@ -19,4 +19,11 @@ export class InvController {
         const paginationTerms = { limit, offset, term }
         return this.invService.getInventory( paginationTerms )
     }
+
+    @asyncHandler()
+    getInventoryById( req: Request): Promise< any > {
+        const id = req.params.id
+        
+        return this.invService.getInventoryById( id )
+    }
 }
