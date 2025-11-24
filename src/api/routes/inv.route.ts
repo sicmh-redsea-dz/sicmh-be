@@ -10,4 +10,9 @@ router.get(
     inventoryController.getInventory.bind( inventoryController )
 )
 
+router.get(
+    '/:id',
+    inventoryController.getInventoryById.bind( inventoryController )
+)
+
 export { router as invRoutes }

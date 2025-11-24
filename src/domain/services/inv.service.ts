@@ -21,6 +21,17 @@ export class InvService {
         } catch ( err: any ) {
             console.log('the err :::: ', err.message)
             throw err
-        }
+        }   
     }
+
+    getInventoryById = async( id:string ): Promise<any> => {
+        let invQ = inventoryQueries( 'inv-by-id' )
+        try {
+            const resp = await Database.execute<any>( invQ, [ id ])
+            return InvMapper.toInvResponse( resp[0] )
+        } catch ( err: any ) { 
+            console.log('the err :::: ', err.message)
+            throw err
+        } 
+    } 
 }   
