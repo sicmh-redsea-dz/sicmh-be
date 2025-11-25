@@ -15,4 +15,9 @@ router.get(
     inventoryController.getInventoryById.bind( inventoryController )
 )
 
+router.post(
+    '/transfer',
+    inventoryController.transferInventory.bind( inventoryController )
+)
+
 export { router as invRoutes }
