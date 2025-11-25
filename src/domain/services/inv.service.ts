@@ -9,10 +9,11 @@ interface Delimiters {
 }
 
 export class InvService {
-    getInventory = async( params: Delimiters ): Promise<any> => {
-        let invQ = inventoryQueries( 'all-inv', params )
+    getInventory = async( pagParams: Delimiters, subinvId: number ): Promise<any> => {
+        let invQ = inventoryQueries( 'all-inv', { pagDelimeters: pagParams } )
+
         try {
-            const resp = await Database.execute<any>( invQ )
+            const resp = await Database.execute<any>( invQ, [ subinvId ])
             const totalRegistries = resp.length > 0 ? resp[0].total_registries : 0
             return {
                 resp: resp.map(( item: any ) => InvMapper.toInvResponse( item )),
@@ -33,5 +34,18 @@ export class InvService {
             console.log('the err :::: ', err.message)
             throw err
         } 
-    } 
+    }
+
+    transferInventory = async( data: any ): Promise<any> => {
+
+        let invQ = inventoryQueries( 'inv-transfer-id', { transferArgs: data } )
+
+        try {
+            const resp = await Database.execute<any>( invQ, [ data ])
+            return resp
+        } catch ( err: any ) {
+            console.log('the err :::: ', err.message)
+            throw err
+        }
+    }
 }   
