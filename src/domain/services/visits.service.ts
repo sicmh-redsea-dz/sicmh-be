@@ -12,6 +12,7 @@ import { StaffMapper } from '../mappers/StaffMapper'
 import { Staff } from '../entities/Staff'
 import { Patient, ShortPatient } from '../entities/Patient'
 import { PatientMapper } from '../mappers/PatientMapper'
+import { StockMapper } from '../mappers/StockMapper'
 
 interface CreateVisitPayload {
     BMI:                    number
@@ -35,6 +36,7 @@ interface CreateVisitPayload {
     pathologicalHst:        string
     surgicalHst:            string
     stockItems?:            { id: number; qty: number; }[]
+    origin:                 string
 }
 
 interface EditVisitPayload {
@@ -46,7 +48,7 @@ interface DelimitersArgs {
     limit: number,
     offset: number
     term: string
-    def: boolean
+    ext: string
 }
 
 export class VisitsService {
@@ -93,7 +95,6 @@ export class VisitsService {
         const visitQ = visitsQueries( 'one-visit' )
         try {
             const medicalHistory = await Database.execute<History[]>(visitQ, [ id ])
-            console.log('medical history :::: ', medicalHistory)
             const stock = await this.stockService.findAll()
             return {
                 visit: HistoryMapper.toHistoryFormResponse( medicalHistory[0] ),
@@ -105,12 +106,19 @@ export class VisitsService {
     }
 
     createVisit = async (createVisitPayload: CreateVisitPayload): Promise<any> => {
-        const { stockItems, date, doctor, patient } = createVisitPayload
+        const { stockItems, date, doctor, patient, origin } = createVisitPayload
         const fieldsForVisit = HistoryMapper.toDbForm(createVisitPayload)
         const translatedFields = this.removeUndefined(fieldsForVisit)
 
+        const validExt: Record<string, string> = {
+            visits: 'Consulta' ,
+            emergency: 'Emergencia' ,
+            hospitalization: 'Hospitalizacion',
+            oroom: 'Quirofano'
+        }
+
         translatedFields['isActive'] = true
-        translatedFields['TipoVisita'] = stockItems ? 'Emergencia' : 'Consulta'
+        translatedFields['TipoVisita'] = validExt[origin]
 
         try {
 
@@ -245,6 +253,21 @@ export class VisitsService {
             }
         } catch ( err: any ) {
             console.log('error getting doctors :::: ', err.message)
+            throw err
+        }
+    }
+
+    getStockItems = async ( term: number ): Promise<any> => {
+        
+        const visitQ = visitsQueries( 'get-stock-items' )
+
+        try {
+            const resp = await Database.execute<any[]>( visitQ, [ term ])
+            return {
+                stock: resp.map( x => StockMapper.toStockResponse( x ))
+            }
+        } catch ( err: any ) {
+            console.log('error getting stock items :::: ', err.message)
             throw err
         }
     }

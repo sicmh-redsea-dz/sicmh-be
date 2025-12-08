@@ -39,4 +39,9 @@ router.get(
     visitsController.getPatients.bind( visitsController )
 )
 
+router.get(
+    '/search/stock-items',
+    visitsController.getStockItems.bind( visitsController )
+)
+
 export { router as visitsRoutes }
