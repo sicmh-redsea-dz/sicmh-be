@@ -17,9 +17,9 @@ export class VisitsController {
         const limit = Number(req.query.limit) || 25
         const offset = Number(req.query.offset) || 0
         const term = String(req.query.term) || ''
-        const def = req.query.default === 'false' ? false : true
+        const ext = String ( req.query.ext ) || ''
 
-        return this.visitsService.findAllVisits({ limit, offset, term, def })
+        return this.visitsService.findAllVisits({ limit, offset, term, ext })
     }
 
     @asyncHandler()
@@ -62,5 +62,12 @@ export class VisitsController {
         if( term.trim().length === 0 ) return
 
         return this.visitsService.getPatients( term )
+    }
+
+    @asyncHandler()
+    async getStockItems( req:Request ) {
+        const term = req.query.term || ''
+
+        return this.visitsService.getStockItems( +term )
     }
 }

@@ -39,27 +39,37 @@ export class StockService {
         }
     }
 
-    reduceStockQuantities = async(items: { id: number; qty: number }[]): Promise<void> => {
-        const ids = items.map(item => item.id);
-        const caseStatements = items
-        .map(item => `when ${item.id} then Cantidad - ${item.qty}`)
-        .join(' ');
+    reduceStockQuantities = async (
+        items: { 
+            id: number; 
+            qty: number, 
+            subinventoryId?:number 
+        }[]
+    ): Promise<void> => {
+        if (!items.length) return;
 
-        const query = `
-            update Inventario
-            set Cantidad = case ProductoID
-                ${caseStatements}
-                else Cantidad
-            end
-            where ProductoID in (${ids.join(', ')});
-        `
+        // ID del subinventario "General" o el que quieras como default
+        const DEFAULT_SUBINVENTARIO_ID = 1; 
 
         try {
+            const promises = items.map(item => {
+                const subinvOrigen = item.subinventoryId ?? DEFAULT_SUBINVENTARIO_ID;
+                const query = `CALL sp_mov_inventario(?, ?, ?, ?, ?);`;
+                const values = [
+                    'SALIDA',    
+                    item.id,     
+                    item.qty,    
+                    subinvOrigen,
+                    null         
+                ];
 
-            await Database.execute<Stock[]>( query )
-            
-        } catch ( err ) {
-            throw err
+                return Database.execute(query, values);
+            });
+
+            await Promise.all(promises);
+        } catch (err) {
+            console.error('error reducing stock quantities: ', err);
+            throw err;
         }
     }
 

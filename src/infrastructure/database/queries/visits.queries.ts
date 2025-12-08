@@ -1,8 +1,15 @@
 interface DelimitersArgs {
+    ext?: string,
     limit?: number,
     offset?: number,
     term?: string,
-    def?: boolean
+}
+
+const validExt: Record<string, string> = {
+    visits: 'Consulta' ,
+    emergency: 'Emergencia' ,
+    hospitalization: 'Hospitalizacion',
+    'o-room': 'Quirofano'
 }
 
 export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string => {
@@ -10,9 +17,9 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
     let whereClause: string = ''
     switch( key ) {
         case 'all-visits':
-            const { limit, offset, term: visitTerm, def} = delimiters!
+            const { limit, offset, term: visitTerm, ext} = delimiters!
             const hasTerm = !!visitTerm
-
+            const normalizedExt = ext ? ext : ''
             whereClause = `
                 hm.isActive = 1
                 ${hasTerm ? `and (
@@ -22,7 +29,7 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                 pr.Nombre like concat('%', '${visitTerm}', '%') or
                 pr.Apellido like concat('%', '${visitTerm}', '%')
                 )` : ''}
-                ${def ? `and hm.TipoVisita = 'Emergencia'` : `and hm.TipoVisita = 'Consulta'`}
+                ${`and hm.TipoVisita = '${validExt[normalizedExt]}'`}
             `;
             query = `
                 select 
@@ -193,6 +200,18 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                 where 
                     ${whereClause};
                     
+            `
+            break
+        case 'get-stock-items':
+            query = `
+                select
+                    *
+                from
+                    Inventario as i
+                inner join
+                    ExistenciasInventario as ei
+                        on i.ProductoID = ei.ProductoID
+                where ei.SubinventarioID = ?
             `
             break
         default:
