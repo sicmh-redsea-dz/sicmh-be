@@ -6,6 +6,7 @@ export class InvMapper {
             Descripcion: prodDesc,
             PrecioUnidad: prodUnitPrice,
             Cantidad: prodQuantity,
+            NivelMinimoStock: prodMinStock
         } = invRecord
 
         return {
@@ -14,6 +15,25 @@ export class InvMapper {
             prodDesc,
             prodUnitPrice,
             prodQuantity,
+            prodMinStock
+        }
+    }
+
+    static toInvFormResponse = ( invRecord: any ) => {
+        const {
+            prodDesc: Descripcion,
+            prodMinStock: NivelMinimoStock,
+            prodName: NombreProducto,
+            prodQty: Cantidad,
+            prodUnitPrice: PrecioUnidad,
+        } = invRecord
+
+        return {
+            Descripcion,
+            NivelMinimoStock,
+            NombreProducto,
+            Cantidad,
+            PrecioUnidad
         }
     }
 }

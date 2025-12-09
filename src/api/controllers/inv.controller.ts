@@ -40,4 +40,19 @@ export class InvController {
             toLocId: Number( subinv )
         })
     }
+
+    @asyncHandler()
+    createArticle( req: Request ) {
+        const body = req.body
+        
+        return this.invService.create( body )
+    }
+
+    @asyncHandler()
+    patchArticle( req: Request ) {
+        const { id } = req.params
+        const body = req.body
+
+        return this.invService.patchArticle( body, Number( id ) )
+    }
 }

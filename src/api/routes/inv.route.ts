@@ -20,4 +20,14 @@ router.post(
     inventoryController.transferInventory.bind( inventoryController )
 )
 
+router.post(
+    '/new-item',
+    inventoryController.createArticle.bind( inventoryController )
+)
+
+router.patch(
+    '/edit-item/:id',
+    inventoryController.patchArticle.bind( inventoryController )
+)
+
 export { router as invRoutes }

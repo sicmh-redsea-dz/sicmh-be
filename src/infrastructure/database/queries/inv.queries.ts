@@ -23,7 +23,7 @@ export const inventoryQueries = ( key: string, params?: QueryParams ): string =>
 
         const hasTerm = !!term
         query = `
-             SELECT
+            SELECT
                 inv.ProductoID,
                 inv.NombreProducto,
                 inv.Descripcion,
@@ -35,7 +35,7 @@ export const inventoryQueries = ( key: string, params?: QueryParams ): string =>
                 ExistenciasInventario AS ei
                     on inv.ProductoID = ei.ProductoID
             WHERE 1=1
-                ${hasTerm ? `AND inv.NombreProducto LIKE CONCAT("%", ${term}, "%")` : ''}
+                ${hasTerm ? `AND inv.NombreProducto LIKE CONCAT("%", '${term}', "%")` : ''}
                 AND inv.Cantidad > 0
                 AND ei.SubinventarioID = ?
             LIMIT ${limit} OFFSET ${offset};
@@ -62,6 +62,24 @@ export const inventoryQueries = ( key: string, params?: QueryParams ): string =>
         const { prodId, prodQty, fromLocId, toLocId } = params!.transferArgs!
         query = `
             CALL sp_mov_inventario('TRANSFERENCIA', ${prodId}, ${prodQty}, ${fromLocId}, ${toLocId});
+        `
+    }
+
+    if ( key === 'update' ) {
+        query = `
+            UPDATE Inventario AS inv
+            INNER JOIN ExistenciasInventario AS ei
+                ON inv.ProductoID = ei.ProductoID
+            SET
+                inv.NombreProducto    = ?,
+                inv.Descripcion       = ?,
+                inv.PrecioUnidad      = ?,
+                inv.Cantidad          = ?,
+                inv.NivelMinimoStock  = ?,
+                ei.Cantidad           = ?
+            WHERE 
+                ei.SubinventarioID = 1
+                AND inv.ProductoID = ?;
         `
     }
 
