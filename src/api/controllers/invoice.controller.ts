@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express"
-import { ServiceContainer } from "../../domain/services/container/service.container"
-import { InvoiceService } from "../../domain/services/invoice.service"
+import { ServiceContainer } from "../../infrastructure/container/service.container"
+import { InvoiceService } from "../../application/services/invoice.service"
 import { asyncHandler } from "../decorators/asyncHandler"
 
 export class InvoiceController {

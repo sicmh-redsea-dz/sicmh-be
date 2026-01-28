@@ -2,5 +2,8 @@
   "watch": ["src"],
   "ext": "ts",
   "ignore": ["src/**/*.test.ts"],
-  "exec": "ts-node src/server.ts"
+  "exec": "ts-node src/server.ts",
+  "env": {
+    "NODE_OPTIONS": "--disable-warning=DEP0040"
+  }
 }

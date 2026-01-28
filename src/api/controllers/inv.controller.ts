@@ -1,6 +1,6 @@
 import { Request } from 'express'
-import { ServiceContainer } from '../../domain/services/container/service.container'
-import { InvService } from '../../domain/services/inv.service'
+import { ServiceContainer } from '../../infrastructure/container/service.container'
+import { InvService } from '../../application/services/inv.service'
 import { asyncHandler } from '../decorators/asyncHandler'
 
 export class InvController {

@@ -1,7 +1,7 @@
 import { Request } from 'express';
-import { VisitsService } from '../../domain/services/visits.service';
+import { VisitsService } from '../../application/services/visits.service';
 import { asyncHandler } from '../decorators/asyncHandler';
-import { ServiceContainer } from '../../domain/services/container/service.container';
+import { ServiceContainer } from '../../infrastructure/container/service.container';
 
 
 
