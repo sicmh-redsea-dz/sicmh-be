@@ -1,9 +1,7 @@
-import { ResultSetHeader } from 'mysql2'
 import { generateShortenedUuid } from '../../helper/uuidGen'
-import { Database } from '../../infrastructure/database/Database'
-import { InvoiceMapper } from '../mappers/InvoiceMapper'
+import { InvoiceRepository } from '../ports/invoice.repository'
+import { InvoiceMapper } from '../../domain/mappers/InvoiceMapper'
 import { PatientsService } from './patients.service'
-import { invoiceQueries } from '../../infrastructure/database/queries/invoice.queries'
 import puppeteer from 'puppeteer'
 
 interface Delimiters {
@@ -16,14 +14,13 @@ export class InvoiceService {
 
     private patientService: PatientsService
 
-    constructor( patientService: PatientsService ) {
+    constructor( patientService: PatientsService, private readonly invoiceRepo: InvoiceRepository ) {
         this.patientService = patientService
     }
 
     getInvoices = async( args: Delimiters ): Promise<any> => {
-        const invoiceQ = invoiceQueries('read', args)
         try {
-            const invoiceResp = await Database.execute<any[]>( invoiceQ )
+            const invoiceResp = await this.invoiceRepo.findAll( args )
             const totalRegistries = invoiceResp.length > 0 ? invoiceResp[0].total_registries : 0
             return {
                 invoiceResp,
@@ -49,13 +46,9 @@ export class InvoiceService {
         })
         
         const translatedFields = this.removeUndefined( mappedFields )
-        const { query, values } = this.buildInsertQuery('facturas', translatedFields)
         
         try {
-            const resp = await Database.execute<ResultSetHeader>(query, values)
-            const { insertId } = resp
-
-            return insertId
+            return await this.invoiceRepo.create( translatedFields )
         } catch ( err: any ) {
             console.log('error creating invoice ::: ', err.message)
             throw err
@@ -63,12 +56,15 @@ export class InvoiceService {
     }
 
     getInvById = async ( invNumber: string ): Promise<any> => {
-        const queryForInv = invoiceQueries( 'get-one' )
-
         try {
-            const invoice = await Database.execute<any>(queryForInv, [invNumber])
+            const invoice = await this.invoiceRepo.findByInvoiceNumber( invNumber )
+            if ( !invoice ) {
+                const error = new Error(`Invoice with Id ${invNumber} not found`)
+                error.name = 'not_found_error'
+                throw error
+            }
             
-            return InvoiceMapper.toResp( invoice[0] )
+            return InvoiceMapper.toResp( invoice )
         } catch ( err: any ) {
             throw new Error ( err.message )
         }
@@ -86,21 +82,8 @@ export class InvoiceService {
         delete translatedFields.invoiceNum
         delete translatedFields['InvoiceNumber']
 
-        const entries = Object.entries(translatedFields).map(([key, value]) => {
-            return [key, value === undefined ? null : value]
-        })
-
-        const setClauses = entries.map(([key]) => `\`${key}\` = ?`).join(', ')
-        const values = entries.map(([, value]) => value ?? null)
-
-        const sql = `
-            UPDATE \`cami-vime\`.\`facturas\`
-            SET ${setClauses}
-            WHERE \`InvoiceNumber\` = ?
-        `
-
         try {
-            await Database.execute(sql, [...values, id])
+            await this.invoiceRepo.updateByInvoiceNumber( id, translatedFields )
             return {
                 id
             }
@@ -111,11 +94,8 @@ export class InvoiceService {
     }
 
     removeInvoiceById = async ( invoiceId: string ): Promise<any> => {
-        const invQ = invoiceQueries( 'delete' )
-        const values = [ 0, invoiceId ]
-
         try {
-            await Database.execute( invQ, values )
+            await this.invoiceRepo.softDeleteByInvoiceNumber( invoiceId )
             return true
         } catch ( err: any ) {
             console.error('Error deleting Invoice by Id ::::: ', err)
@@ -125,16 +105,13 @@ export class InvoiceService {
 
 
     getRawData = async (): Promise<any> => {
-        const servicesQ = invoiceQueries('getServices')
-        const pMethodsQ = invoiceQueries('getPaymentMethods')
-        const allDocsQ = invoiceQueries('all-docs')
         try {
 
             const resp = await Promise.all([
                 this.patientService.findAllPatients({limit: 25, offset: 0}),
-                Database.execute( servicesQ ),
-                Database.execute( pMethodsQ ),
-                Database.execute( allDocsQ )
+                this.invoiceRepo.fetchServices(),
+                this.invoiceRepo.fetchPaymentMethods(),
+                this.invoiceRepo.fetchDoctors()
             ])
 
             const [patientsResp, servicesResp, paymentMethodsResp, doctorsResp] = resp 
@@ -171,10 +148,10 @@ export class InvoiceService {
         let browser;
         try {
             const [headerData, summaryData, paymentsData, cashbox] = await Promise.all([
-                Database.execute<any[]>(invoiceQueries('report-header'), [ term ]),
-                Database.execute<any[]>(invoiceQueries('report-summary'), [ term ]),
-                Database.execute<any[]>(invoiceQueries('report-payments'), [ term ]),
-                Database.execute<any[]>(invoiceQueries('report-cashbox'), [ term, term, term ]),
+                this.invoiceRepo.fetchReportHeader( term ),
+                this.invoiceRepo.fetchReportSummary( term ),
+                this.invoiceRepo.fetchReportPayments( term ),
+                this.invoiceRepo.fetchReportCashbox( term ),
             ])
             const html = this.renderCloseReportTemplate({
                 header: headerData[0],
@@ -202,16 +179,6 @@ export class InvoiceService {
             if ( browser )
                 await browser.close().catch(() => {})
         }
-    }
-
-    private buildInsertQuery(table: string, data: Record<string, any>): { query: string; values: any[] } {
-        const keys = Object.keys(data)
-        const columns = keys.join(', ')
-        const placeholders = keys.map(() => '?').join(', ')
-        const values = keys.map((key) => data[key])
-
-        const query = `INSERT INTO ${table} (${columns}) VALUES (${placeholders});`
-        return { query, values }
     }
 
     private removeUndefined(obj: Record<string, any>): Record<string, any> {

@@ -1,11 +1,18 @@
 import { NextFunction, Request, Response } from "express";
-import { AuthService } from "../../domain/services/auth.service";
+import { AuthService } from "../../application/services/auth.service";
+import { ServiceContainer } from "../../infrastructure/container/service.container";
 
 export class AuthController {
-    static register = async (req:Request, res:Response, next:NextFunction) => {
+    private readonly authService: AuthService
+
+    constructor() {
+        this.authService = ServiceContainer.getAuthService()
+    }
+
+    register = async (req:Request, res:Response, next:NextFunction) => {
         const body = req.body
         try {
-            const registeredUser = await AuthService.register( body )
+            const registeredUser = await this.authService.register( body )
             const { ...user } = registeredUser
             res.status( 202 ).json({
                 user
@@ -15,10 +22,10 @@ export class AuthController {
         }
     }
 
-    static login = async (req:Request, res:Response, next:NextFunction) => {
+    login = async (req:Request, res:Response, next:NextFunction) => {
         const body = req.body
         try {
-            const loggedUser = await AuthService.login( body )
+            const loggedUser = await this.authService.login( body )
             const { ...user } = loggedUser
             res.status( 202 ).json({
                 user
@@ -28,10 +35,10 @@ export class AuthController {
         }
     }
 
-    static checkUser = async (req:Request, res:Response, next:NextFunction) => {
+    checkUser = async (req:Request, res:Response, next:NextFunction) => {
         const { uid } = req.body
         try{
-            const { exists, user } = await AuthService.checkUser( uid )
+            const { exists, user } = await this.authService.checkUser( uid )
             res.status( 200 ).json({
                 user,
                 exists
@@ -41,10 +48,10 @@ export class AuthController {
         }
     }
 
-    static googleResgister = async(req:Request, res:Response, next:NextFunction) => {
+    googleResgister = async(req:Request, res:Response, next:NextFunction) => {
         const body = req.body
         try {
-            const user = await AuthService.googleRegister( body )
+            const user = await this.authService.googleRegister( body )
             res.status( 202 ).json({
                 user
             })
@@ -53,10 +60,10 @@ export class AuthController {
         }
     }
 
-    static checkToken = async (req:Request, res:Response, next:NextFunction) => {
+    checkToken = async (req:Request, res:Response, next:NextFunction) => {
         const { uid:id } = ( req as any ).user
         try {
-            const currentUser = await AuthService.checkToken( id )
+            const currentUser = await this.authService.checkToken( id )
             const { ...user } = currentUser
             res.status( 200 ).json({
                 user

@@ -1,5 +1,5 @@
-import { ServiceContainer } from "../../domain/services/container/service.container"
-import { DashbService } from "../../domain/services/dashboard.service"
+import { ServiceContainer } from "../../infrastructure/container/service.container"
+import { DashbService } from "../../application/services/dashboard.service"
 import { asyncHandler } from "../decorators/asyncHandler"
 
 

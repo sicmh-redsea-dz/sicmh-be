@@ -3,7 +3,7 @@ import { AuthResponse } from "../responses/AuthResponse";
 import { User } from "../entities/User";
 
 export class UserMapper {
-    static toAuthResponse(user: User, password?: string): AuthResponse {
+    static async toAuthResponse(user: User, password?: string): Promise<AuthResponse> {
         const { 
             CorreoElectronico: email,
             ContrasenaHash: pass,
@@ -14,8 +14,11 @@ export class UserMapper {
             firebaseID: fireUID
         } = user
 
-        if( password && !comparePassword(password, pass!) ) 
+        if( password ) {
+            const isValid = await comparePassword(password, pass!)
+            if ( !isValid )
             throw new Error('Not a valid Password')
+        }
 
         const isActive = Activo ? true : false
 

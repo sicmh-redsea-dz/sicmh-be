@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
-import { PatientsService } from '../../domain/services/patients.service'
-import { ServiceContainer } from '../../domain/services/container/service.container'
+import { PatientsService } from '../../application/services/patients.service'
+import { ServiceContainer } from '../../infrastructure/container/service.container'
 
 export class PatientsController {
     private patientsService: PatientsService

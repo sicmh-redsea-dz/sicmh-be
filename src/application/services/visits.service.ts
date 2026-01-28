@@ -1,18 +1,12 @@
-import { ResultSetHeader } from 'mysql2'
-import { Database } from '../../infrastructure/database/Database'
-import { visitsQueries } from '../../infrastructure/database/queries/visits.queries'
-import { History, ShortHistory } from '../entities/History'
-import { HistoryMapper } from '../mappers/HistoryMapper'
-import { FindAllVistiHistories, HistoryResponse } from '../responses/VisitsReponse'
+import { VisitsRepository } from '../ports/visits.repository'
+import { HistoryMapper } from '../../domain/mappers/HistoryMapper'
 import { StaffService } from './staff.service'
 import { PatientsService } from './patients.service'
 import { StockService } from './stock.services'
 import { InvoiceService } from './invoice.service'
-import { StaffMapper } from '../mappers/StaffMapper'
-import { Staff } from '../entities/Staff'
-import { Patient, ShortPatient } from '../entities/Patient'
-import { PatientMapper } from '../mappers/PatientMapper'
-import { StockMapper } from '../mappers/StockMapper'
+import { StaffMapper } from '../../domain/mappers/StaffMapper'
+import { PatientMapper } from '../../domain/mappers/PatientMapper'
+import { StockMapper } from '../../domain/mappers/StockMapper'
 
 interface CreateVisitPayload {
     BMI:                    number
@@ -57,23 +51,25 @@ export class VisitsService {
     private stockService: StockService
     private patientService: PatientsService
     private invoiceService: InvoiceService
+    private visitsRepo: VisitsRepository
 
     constructor ( 
         staffService: StaffService, 
         patientService: PatientsService, 
         stockService: StockService,
-        invoiceService: InvoiceService
+        invoiceService: InvoiceService,
+        visitsRepo: VisitsRepository
     ) {
         this.staffService = staffService
         this.patientService = patientService
         this.stockService = stockService
         this.invoiceService = invoiceService
+        this.visitsRepo = visitsRepo
     }
 
     findAllVisits = async (args: DelimitersArgs):Promise<any> => {
-        let visitQ = visitsQueries('all-visits', args)
         try {
-            const visitHistory = await Database.execute<ShortHistory[]>(visitQ)
+            const visitHistory = await this.visitsRepo.findAll( args )
             const totalRecords =  visitHistory.length > 0 ? visitHistory[0].total_registries : 0
             const staff = await this.staffService.getAllDocs()
             const patients = await this.patientService.findAllPatients({limit: 100, offset: 0})
@@ -92,12 +88,13 @@ export class VisitsService {
     }
 
     findVisitById = async ( id: number ):Promise<any> => {
-        const visitQ = visitsQueries( 'one-visit' )
         try {
-            const medicalHistory = await Database.execute<History[]>(visitQ, [ id ])
+            const medicalHistory = await this.visitsRepo.findById( id )
+            if ( !medicalHistory )
+                throw this.errorHandler('not_found_error', `No visit found with Id: ${id}`)
             const stock = await this.stockService.findAll()
             return {
-                visit: HistoryMapper.toHistoryFormResponse( medicalHistory[0] ),
+                visit: HistoryMapper.toHistoryFormResponse( medicalHistory ),
                 stock
             }
         } catch ( err ) {
@@ -129,10 +126,7 @@ export class VisitsService {
             
             translatedFields['FacturaID'] = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
 
-            const { query, values } = this.buildInsertQuery('historia_medica', translatedFields)
-
-            const resp = await Database.execute<ResultSetHeader>(query, values)
-            const { insertId } = resp
+            const insertId = await this.visitsRepo.create( translatedFields )
 
             if ( stockItems && stockItems.length > 0 ) {
                 await this.stockService.reduceStockQuantities( stockItems )
@@ -149,43 +143,10 @@ export class VisitsService {
         }
     }
 
-    private buildInsertQuery(table: string, data: Record<string, any>): { query: string; values: any[] } {
-        const keys = Object.keys(data)
-        const columns = keys.join(', ')
-        const placeholders = keys.map(() => '?').join(', ')
-        const values = keys.map((key) => data[key])
-
-        const query = `INSERT INTO ${table} (${columns}) VALUES (${placeholders});`
-        return { query, values }
-    }
-
     private removeUndefined(obj: Record<string, any>): Record<string, any> {
         return Object.fromEntries(
             Object.entries(obj).filter(([_, value]) => value !== undefined)
         );
-    }
-
-    private generateUpdateQuery( tableName: string, data: Record<string, any>, idField: string = 'HistoriaID' ){
-    
-        if (!data[idField]) {
-            throw new Error(`El campo ${idField} es requerido para la actualización`);
-        }
-
-        const fieldsToUpdate = Object.keys(data).filter(key => key !== idField);
-
-        if (fieldsToUpdate.length === 0) {
-            throw new Error('No hay campos válidos para actualizar');
-        }
-
-        const setClause = fieldsToUpdate.map(field => `${field} = ?`).join(', ');
-
-        const values = fieldsToUpdate.map(field => data[field]);
-        
-        values.push(data[idField]);
-
-        const query = `update ${tableName} set ${setClause} where ${idField} = ?;`;
-
-        return { query, values };
     }
 
 
@@ -193,14 +154,9 @@ export class VisitsService {
         const { id, body } = editVisitPayload;
         const fieldsForVisit = HistoryMapper.toDbForm(body)
         const translatedFields = this.removeUndefined(fieldsForVisit)
-        
-        translatedFields.HistoriaID = id;
 
         try {
-            const { query, values } = this.generateUpdateQuery('historia_medica', translatedFields)
-            const updatedVisit = await Database.execute<ResultSetHeader>(query, values);
-            const { affectedRows } = updatedVisit;
-
+            const affectedRows = await this.visitsRepo.update( +id, translatedFields )
             if (affectedRows === 0) {
                 throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`);
             }
@@ -213,11 +169,8 @@ export class VisitsService {
     };
 
     deleteVisit = async ( id: number ): Promise<any> => {
-        const visitQ = visitsQueries( 'delete-visit' )
         try {
-            const deletedVisit = await Database.execute<ResultSetHeader>(visitQ, [ id ])
-            const { affectedRows } = deletedVisit
-
+            const affectedRows = await this.visitsRepo.softDelete( id )
             if ( affectedRows == 0 )
                 throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`)
 
@@ -228,11 +181,8 @@ export class VisitsService {
     }
 
     getDoctors = async ( term: string ): Promise<any> => {
-        
-        const visitQ = visitsQueries( 'get-doctor', { term } )
-
         try {
-            const resp = await Database.execute<Staff[]>( visitQ )
+            const resp = await this.visitsRepo.findDoctors( term )
             return {
                 doctors: resp.map( x => StaffMapper.toStaffResponse( x ))
             }
@@ -243,11 +193,8 @@ export class VisitsService {
     }
 
     getPatients = async ( term: string ): Promise<any> => {
-        
-        const visitQ = visitsQueries( 'get-patients', { term } )
-
         try {
-            const resp = await Database.execute<ShortPatient[]>( visitQ )
+            const resp = await this.visitsRepo.findPatients( term )
             return {
                 patients: resp.map( x => PatientMapper.toShortPatientsResponse( x ))
             }
@@ -258,11 +205,8 @@ export class VisitsService {
     }
 
     getStockItems = async ( term: number ): Promise<any> => {
-        
-        const visitQ = visitsQueries( 'get-stock-items' )
-
         try {
-            const resp = await Database.execute<any[]>( visitQ, [ term ])
+            const resp = await this.visitsRepo.findStockItems( term )
             return {
                 stock: resp.map( x => StockMapper.toStockResponse( x ))
             }
