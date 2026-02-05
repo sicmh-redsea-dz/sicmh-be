@@ -1,116 +1,115 @@
-import { AuthRepository } from '../ports/auth.repository'
-import { hashPassword } from '../../utils/passwordUtils'
-import { User } from '../../domain/entities/User'
-import { UserMapper } from '../../domain/mappers/UserMapper'
-import { AuthResponse } from '../../domain/responses/AuthResponse'
+import { AuthRepository } from '../ports/auth.repository';
+import { hashPassword } from '../../utils/passwordUtils';
+import { User } from '../../domain/entities/User';
+import { UserMapper } from '../../domain/mappers/UserMapper';
+import { AuthResponse } from '../../domain/responses/AuthResponse';
 
 interface AuthParams {
-    name?: string
-    email: string
-    password?: string
-    uid: string,
-    accessToken?: string
+  name?: string;
+  email?: string;
+  uid: string;
+  accessToken?: string;
+  provider?: 'conventional' | 'google';
 }
 
 enum Roles {
-    Admin         = 6,
-    Doctor        = 2,
-    Enfermera     = 3,
-    Recepcionista = 4, 
-    Asistente     = 5
-  }
+  Admin = 6,
+  Doctor = 2,
+  Enfermera = 3,
+  Recepcionista = 4,
+  Asistente = 5,
+}
+
+const buildError = (name: string, message: string) => {
+  const error: any = new Error(message);
+  error.name = name;
+  return error;
+};
+
+const buildValidationError = (message: string) => {
+  const error: any = new Error(message);
+  error.name = 'validation_errors';
+  error.errors = [{ msg: message }];
+  return error;
+};
 
 export class AuthService {
-    constructor(private readonly authRepo: AuthRepository) {}
+  constructor(private readonly authRepo: AuthRepository) {}
 
-    register = async (params:AuthParams): Promise<AuthResponse> => {
-        const { name, email, password, uid } = params
-        const hashedPassword = await hashPassword( password! )
-        try {
-            const insertId = await this.authRepo.createUser({
-                name: name!,
-                email,
-                passwordHash: hashedPassword,
-                roleId: Roles.Admin,
-                active: 1,
-                firebaseId: uid,
-                provider: 'conventional'
-            })
-            const newUser = await this.getUserData( insertId )
-            return await UserMapper.toAuthResponse( newUser )
-        } catch ( err:any ) {
-            let error = new Error()
-            if( err.code === 'ER_DUP_ENTRY') {
-                error.name = 'duplicate_entry'
-                error.message = `Duplicated entry ${name} | ${email}`
-               throw error 
-            } else {
-                throw err
-            }
-        }
+  register = async (params: AuthParams): Promise<AuthResponse> => {
+    const { name, email, uid, accessToken, provider } = params;
+
+    if (!email) {
+      throw buildValidationError('Email is required.');
     }
 
-    login = async (params:AuthParams): Promise<AuthResponse> => {
-        const { email, password } = params
-        try {
-            const existingUser = await this.authRepo.findByEmail( email )
-            if ( !existingUser )
-                throw new Error('Not a valid email')
-            return await UserMapper.toAuthResponse( existingUser, password )
-        } catch ( err ) {
-            throw err
-        }
+    const existingByUid = await this.authRepo.findByFirebaseId(uid);
+    if (existingByUid) {
+      throw buildError('duplicate_entry', 'User already exists.');
     }
 
-    checkUser = async ( uid:string ) => {
-        try {
-            const user = await this.authRepo.findByFirebaseId( uid )
-            if ( user ) return { exists: true, user: await UserMapper.toAuthResponse( user ) }
-            return { exists: false, user: {}}
-        } catch ( err ) {
-            throw err
-        }
+    const existingByEmail = await this.authRepo.findByEmail(email);
+    if (existingByEmail) {
+      throw buildError('duplicate_entry', 'Email already registered.');
     }
 
-    googleRegister = async (params:AuthParams): Promise<AuthResponse> => {
-        const { name, email, uid, accessToken } = params
-        try {
-            const insertId = await this.authRepo.createUser({
-                name: name!,
-                email,
-                roleId: Roles.Admin,
-                active: 1,
-                firebaseId: uid,
-                provider: 'google',
-                accessToken
-            })
-            const newUser = await this.getUserData( insertId )
-            return await UserMapper.toAuthResponse( newUser )
-        } catch ( err ) {
-            console.log( err )
-            throw err
-        }
+    const normalizedProvider = provider === 'google' ? 'google' : 'conventional';
+    const passwordHash = normalizedProvider === 'conventional'
+      ? await hashPassword(uid)
+      : undefined;
+
+    const finalName = name?.trim() || (email.includes('@') ? email.split('@')[0] : email);
+
+    const insertId = await this.authRepo.createUser({
+      name: finalName,
+      email,
+      passwordHash,
+      roleId: Roles.Admin,
+      active: 1,
+      firebaseId: uid,
+      provider: normalizedProvider,
+      accessToken: normalizedProvider === 'google' ? (accessToken ?? '') : undefined,
+    });
+
+    const newUser = await this.getUserData(insertId);
+    return await UserMapper.toAuthResponse(newUser);
+  };
+
+  login = async (params: AuthParams): Promise<AuthResponse> => {
+    const { uid } = params;
+    const existingUser = await this.authRepo.findByFirebaseId(uid);
+
+    if (!existingUser) {
+      throw buildError('not_found_error', 'User not found.');
     }
 
-    checkToken = async (id:string) => {
-        try {
-            const user = await this.authRepo.findByFirebaseId( id )
-            if ( !user )
-                throw new Error('Not a valid user')
-            return await UserMapper.toAuthResponse( user )
-        } catch ( err ) {
-            throw err
-        }
+    if (!existingUser.Activo) {
+      throw buildError('inactive_user', 'User is inactive.');
     }
 
-    private getUserData = async (identifier: number|string): Promise<User> => {
-        const user = typeof identifier === 'number'
-            ? await this.authRepo.findById( identifier )
-            : await this.authRepo.findByEmail( identifier )
+    return await UserMapper.toAuthResponse(existingUser);
+  };
 
-        if ( !user )
-            throw new Error('Not a valid user')
-
-        return user
+  checkToken = async (id: string) => {
+    const user = await this.authRepo.findByFirebaseId(id);
+    if (!user) {
+      throw buildError('not_found_error', 'User not found.');
     }
+    if (!user.Activo) {
+      throw buildError('inactive_user', 'User is inactive.');
+    }
+    return await UserMapper.toAuthResponse(user);
+  };
+
+  private getUserData = async (identifier: number | string): Promise<User> => {
+    const user = typeof identifier === 'number'
+      ? await this.authRepo.findById(identifier)
+      : await this.authRepo.findByEmail(identifier);
+
+    if (!user) {
+      throw buildError('not_found_error', 'User not found.');
+    }
+
+    return user;
+  };
 }
