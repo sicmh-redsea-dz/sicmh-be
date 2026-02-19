@@ -1,41 +1,41 @@
 import { Router } from "express";
-import { PatientsController } from '../controllers/patients.controller'
-import { authMiddleware } from '../middlewares/auth.middleware'
-import { validateGetPatient, validateGetPatients, validatePostPatient, validatePatchPatient, validateDeletePatient } from '../validators/patients.validator'
+import { PatientsController } from '../controllers/patients.controller';
+import { validateGetPatient, validateGetPatients, validatePostPatient, validatePatchPatient, validateDeletePatient } from '../validators/patients.validator';
+import { requirePermissions } from '../middlewares/permission.middleware';
 
-const router = Router()
+const router = Router();
 
-const patientController = new PatientsController()
+const patientController = new PatientsController();
 
 router.get(
-    '/', 
-    authMiddleware, 
-    validateGetPatients, 
-    patientController.getPatients.bind( patientController )
-)
+  '/',
+  requirePermissions('patients.read'),
+  validateGetPatients,
+  patientController.getPatients.bind(patientController)
+);
 router.get(
-    '/:id', 
-    authMiddleware, 
-    validateGetPatient, 
-    patientController.getPatient.bind( patientController )
-)
+  '/:id',
+  requirePermissions('patients.read'),
+  validateGetPatient,
+  patientController.getPatient.bind(patientController)
+);
 router.post(
-    '/new-patient', 
-    authMiddleware, 
-    validatePostPatient, 
-    patientController.insertPatient.bind( patientController )
-)
+  '/new-patient',
+  requirePermissions('patients.create'),
+  validatePostPatient,
+  patientController.insertPatient.bind(patientController)
+);
 router.patch(
-    '/:id', 
-    authMiddleware, 
-    validatePatchPatient, 
-    patientController.updatePatient.bind( patientController )
-)
+  '/:id',
+  requirePermissions('patients.update'),
+  validatePatchPatient,
+  patientController.updatePatient.bind(patientController)
+);
 router.delete(
-    '/:id', 
-    authMiddleware, 
-    validateDeletePatient, 
-    patientController.deletePatient.bind( patientController )
-)
+  '/:id',
+  requirePermissions('patients.delete'),
+  validateDeletePatient,
+  patientController.deletePatient.bind(patientController)
+);
 
-export { router as patientRoutes }
+export { router as patientRoutes };
