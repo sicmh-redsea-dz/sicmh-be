@@ -2,74 +2,85 @@ import { NextFunction, Request, Response } from "express";
 import { AuthService } from "../../application/services/auth.service";
 import { ServiceContainer } from "../../infrastructure/container/service.container";
 
+const throwValidationError = (message: string) => {
+  const error: any = new Error(message);
+  error.name = 'validation_errors';
+  error.errors = [{ msg: message }];
+  throw error;
+};
+
+const resolveProvider = (decoded: any): 'google' | 'conventional' => {
+  return decoded?.firebase?.sign_in_provider === 'google.com' ? 'google' : 'conventional';
+};
+
 export class AuthController {
-    private readonly authService: AuthService
+  private readonly authService: AuthService;
 
-    constructor() {
-        this.authService = ServiceContainer.getAuthService()
-    }
+  constructor() {
+    this.authService = ServiceContainer.getAuthService();
+  }
 
-    register = async (req:Request, res:Response, next:NextFunction) => {
-        const body = req.body
-        try {
-            const registeredUser = await this.authService.register( body )
-            const { ...user } = registeredUser
-            res.status( 202 ).json({
-                user
-            })
-        } catch ( err ) {
-            next( err )
-        }
-    }
+  register = async (req: Request, res: Response, next: NextFunction) => {
+    const body = req.body ?? {};
+    try {
+      const decoded = (req as any).user;
+      if (!decoded?.uid) {
+        throwValidationError('Invalid token payload.');
+      }
 
-    login = async (req:Request, res:Response, next:NextFunction) => {
-        const body = req.body
-        try {
-            const loggedUser = await this.authService.login( body )
-            const { ...user } = loggedUser
-            res.status( 202 ).json({
-                user
-            })
-        } catch ( err ) {
-            next( err )
-        }
-    }
+      const email = decoded.email;
+      if (!email) {
+        throwValidationError('Email not found in token.');
+      }
 
-    checkUser = async (req:Request, res:Response, next:NextFunction) => {
-        const { uid } = req.body
-        try{
-            const { exists, user } = await this.authService.checkUser( uid )
-            res.status( 200 ).json({
-                user,
-                exists
-            })
-        } catch ( err ) {
-            next( err )
-        }
-    }
+      const name =
+        body.name ||
+        decoded.name ||
+        (email.includes('@') ? email.split('@')[0] : email) ||
+        'User';
 
-    googleResgister = async(req:Request, res:Response, next:NextFunction) => {
-        const body = req.body
-        try {
-            const user = await this.authService.googleRegister( body )
-            res.status( 202 ).json({
-                user
-            })
-        } catch ( err ) {
-            next( err )
-        }
-    }
+      const provider = resolveProvider(decoded);
+      const accessToken = body.accessToken;
 
-    checkToken = async (req:Request, res:Response, next:NextFunction) => {
-        const { uid:id } = ( req as any ).user
-        try {
-            const currentUser = await this.authService.checkToken( id )
-            const { ...user } = currentUser
-            res.status( 200 ).json({
-                user
-            })
-        } catch ( err ) {
-            next( err )
-        }
+      const registeredUser = await this.authService.register({
+        name,
+        email,
+        uid: decoded.uid,
+        provider,
+        accessToken,
+      });
+
+      res.status(202).json({ user: registeredUser });
+    } catch (err) {
+      next(err);
     }
+  };
+
+  login = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const decoded = (req as any).user;
+      if (!decoded?.uid) {
+        throwValidationError('Invalid token payload.');
+      }
+
+      const loggedUser = await this.authService.login({
+        uid: decoded.uid,
+        email: decoded.email,
+      });
+
+      res.status(202).json({ user: loggedUser });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  checkToken = async (req: Request, res: Response, next: NextFunction) => {
+    const { uid: id } = (req as any).user;
+    try {
+      const currentUser = await this.authService.checkToken(id);
+      res.status(200).json({ user: currentUser });
+    } catch (err) {
+      next(err);
+    }
+  };
 }
