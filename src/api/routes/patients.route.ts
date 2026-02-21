@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { PatientsController } from '../controllers/patients.controller';
-import { validateGetPatient, validateGetPatients, validatePostPatient, validatePatchPatient, validateDeletePatient } from '../validators/patients.validator';
+import { validateGetPatient, validateGetPatients, validatePostPatient, validatePatchPatient, validateDeletePatient, validatePatientImage } from '../validators/patients.validator';
 import { requirePermissions } from '../middlewares/permission.middleware';
 
 const router = Router();
@@ -19,11 +19,23 @@ router.get(
   validateGetPatient,
   patientController.getPatient.bind(patientController)
 );
+router.get(
+  '/:id/image',
+  requirePermissions('patients.read'),
+  validateGetPatient,
+  patientController.getPatientImage.bind(patientController)
+);
 router.post(
   '/new-patient',
   requirePermissions('patients.create'),
   validatePostPatient,
   patientController.insertPatient.bind(patientController)
+);
+router.post(
+  '/:id/image',
+  requirePermissions('patients.update'),
+  validatePatientImage,
+  patientController.uploadPatientImage.bind(patientController)
 );
 router.patch(
   '/:id',

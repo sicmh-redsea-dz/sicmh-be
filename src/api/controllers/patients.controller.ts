@@ -4,6 +4,7 @@ import { ServiceContainer } from '../../infrastructure/container/service.contain
 
 export class PatientsController {
     private patientsService: PatientsService
+    private patientImagesService = ServiceContainer.getPatientImagesService()
 
     constructor() {
         this.patientsService = ServiceContainer.getPatientsService()
@@ -80,6 +81,49 @@ export class PatientsController {
             })
         } catch ( err ) {
             next ( err )
+        }
+    }
+
+    getPatientImage = async (req:Request, res:Response, next:NextFunction) => {
+        const { id } = req.params
+        try {
+            const image = await this.patientImagesService.getImage(Number(id))
+            if (!image) {
+                const err = new Error(`No image found for patient ${id}`)
+                ;(err as any).name = 'not_found_error'
+                throw err
+            }
+            const dataUrl = `data:${image.contentType};base64,${image.data}`
+            res.status(200).json({
+                data: {
+                    image: {
+                        dataUrl,
+                        updatedAt: image.updatedAt,
+                        contentType: image.contentType,
+                        size: image.size
+                    }
+                }
+            })
+        } catch ( err ) {
+            next( err )
+        }
+    }
+
+    uploadPatientImage = async (req:Request, res:Response, next:NextFunction) => {
+        const { id } = req.params
+        try {
+            const image = await this.patientImagesService.saveImage(Number(id), req.body)
+            res.status(200).json({
+                data: {
+                    image: {
+                        updatedAt: image.updatedAt,
+                        contentType: image.contentType,
+                        size: image.size
+                    }
+                }
+            })
+        } catch ( err ) {
+            next( err )
         }
     }
 }
