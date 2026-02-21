@@ -14,6 +14,7 @@ import { MysqlStaffRepository } from '../repositories/mysql-staff.repository'
 import { MysqlDashboardRepository } from '../repositories/mysql-dashboard.repository'
 import { MysqlInvoiceRepository } from '../repositories/mysql-invoice.repository'
 import { MysqlInvRepository } from '../repositories/mysql-inv.repository'
+import { FileExpedienteRepository } from '../repositories/file-expediente.repository'
 
 export class ServiceContainer {
     private static authService: AuthService
@@ -32,6 +33,7 @@ export class ServiceContainer {
     private static dashbRepo: MysqlDashboardRepository
     private static invoiceRepo: MysqlInvoiceRepository
     private static invRepo: MysqlInvRepository
+    private static expedienteRepo: FileExpedienteRepository
 
     static getAuthService(): AuthService {
         if (!this.authService)
@@ -46,7 +48,8 @@ export class ServiceContainer {
                 this.getPatientsService(),
                 this.getStockService(),
                 this.getInvoiceService(),
-                this.getVisitsRepository()
+                this.getVisitsRepository(),
+                this.getExpedienteRepository()
             )
         return this.visitsService;
     }
@@ -129,6 +132,12 @@ export class ServiceContainer {
         if ( !this.invoiceRepo )
             this.invoiceRepo = new MysqlInvoiceRepository()
         return this.invoiceRepo
+    }
+
+    private static getExpedienteRepository(): FileExpedienteRepository {
+        if ( !this.expedienteRepo )
+            this.expedienteRepo = new FileExpedienteRepository()
+        return this.expedienteRepo
     }
 
     private static getInvRepository(): MysqlInvRepository {
