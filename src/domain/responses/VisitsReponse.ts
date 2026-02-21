@@ -1,3 +1,4 @@
+import { ExpedientePayload } from '../entities/Expediente'
 import { PatientResponse } from './PatientResponse'
 import { StaffResponse } from './StaffResponse'
 import { StockResponse } from './StockResponse'
@@ -49,4 +50,5 @@ export interface HistoryResponse {
     patientName: string
     docName: string
     usedInventory : { stockId: number, stockQty: number}[]
+    expediente?: ExpedientePayload | null
 }
