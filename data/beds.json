@@ -1,0 +1,35 @@
+{
+  "hospitalization": {
+    "beds": [],
+    "updatedAt": ""
+  },
+  "emergency": {
+    "beds": [
+      {
+        "id": 1,
+        "code": "h-101",
+        "area": "Medicina Interna",
+        "status": "available",
+        "currentAssignment": null,
+        "history": [
+          {
+            "eventId": "fd2fa36b-e77c-4e46-9075-0157f657eb98",
+            "type": "create",
+            "timestamp": "2026-02-21T19:51:32.618Z",
+            "actor": {
+              "id": 123,
+              "name": "Raphael Hamato",
+              "role": "Admin"
+            },
+            "details": {
+              "code": "h-101",
+              "area": "Medicina Interna",
+              "status": "available"
+            }
+          }
+        ]
+      }
+    ],
+    "updatedAt": "2026-02-21T19:51:32.615Z"
+  }
+}

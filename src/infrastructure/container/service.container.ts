@@ -6,6 +6,8 @@ import { StaffService } from '../../application/services/staff.service'
 import { DashbService } from '../../application/services/dashboard.service'
 import { InvoiceService } from '../../application/services/invoice.service'
 import { InvService } from '../../application/services/inv.service'
+import { BedsService } from '../../application/services/beds.service'
+import { OrRoomsService } from '../../application/services/or-rooms.service'
 import { MysqlAuthRepository } from '../repositories/mysql-auth.repository'
 import { MysqlPatientsRepository } from '../repositories/mysql-patients.repository'
 import { MysqlVisitsRepository } from '../repositories/mysql-visits.repository'
@@ -15,6 +17,8 @@ import { MysqlDashboardRepository } from '../repositories/mysql-dashboard.reposi
 import { MysqlInvoiceRepository } from '../repositories/mysql-invoice.repository'
 import { MysqlInvRepository } from '../repositories/mysql-inv.repository'
 import { FileExpedienteRepository } from '../repositories/file-expediente.repository'
+import { FileBedsRepository } from '../repositories/file-beds.repository'
+import { FileOrRoomsRepository } from '../repositories/file-or-rooms.repository'
 
 export class ServiceContainer {
     private static authService: AuthService
@@ -25,6 +29,8 @@ export class ServiceContainer {
     private static dashbService: DashbService
     private static invoiceService: InvoiceService
     private static invService: InvService
+    private static bedsService: BedsService
+    private static orRoomsService: OrRoomsService
     private static authRepo: MysqlAuthRepository
     private static patientsRepo: MysqlPatientsRepository
     private static visitsRepo: MysqlVisitsRepository
@@ -34,6 +40,8 @@ export class ServiceContainer {
     private static invoiceRepo: MysqlInvoiceRepository
     private static invRepo: MysqlInvRepository
     private static expedienteRepo: FileExpedienteRepository
+    private static bedsRepo: FileBedsRepository
+    private static orRoomsRepo: FileOrRoomsRepository
 
     static getAuthService(): AuthService {
         if (!this.authService)
@@ -92,6 +100,20 @@ export class ServiceContainer {
         return this.invService
     }
 
+    static getBedsService(): BedsService {
+        if ( !this.bedsService ) {
+            this.bedsService = new BedsService( this.getBedsRepository() )
+        }
+        return this.bedsService
+    }
+
+    static getOrRoomsService(): OrRoomsService {
+        if ( !this.orRoomsService ) {
+            this.orRoomsService = new OrRoomsService( this.getOrRoomsRepository() )
+        }
+        return this.orRoomsService
+    }
+
     private static getAuthRepository(): MysqlAuthRepository {
         if ( !this.authRepo )
             this.authRepo = new MysqlAuthRepository()
@@ -138,6 +160,18 @@ export class ServiceContainer {
         if ( !this.expedienteRepo )
             this.expedienteRepo = new FileExpedienteRepository()
         return this.expedienteRepo
+    }
+
+    private static getBedsRepository(): FileBedsRepository {
+        if ( !this.bedsRepo )
+            this.bedsRepo = new FileBedsRepository()
+        return this.bedsRepo
+    }
+
+    private static getOrRoomsRepository(): FileOrRoomsRepository {
+        if ( !this.orRoomsRepo )
+            this.orRoomsRepo = new FileOrRoomsRepository()
+        return this.orRoomsRepo
     }
 
     private static getInvRepository(): MysqlInvRepository {
