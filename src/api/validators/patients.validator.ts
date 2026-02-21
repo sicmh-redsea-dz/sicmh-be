@@ -112,3 +112,13 @@ export const validateDeletePatient: (ValidationChain | RequestHandler)[] = [
         .withMessage('Id must be a positive integer'),
     handleValidationErrors
 ]
+
+export const validatePatientImage: (ValidationChain | RequestHandler)[] = [
+    param('id')
+        .isInt({ min: 1 })
+        .withMessage('Id must be a positive integer'),
+    body('image')
+        .notEmpty()
+        .withMessage('image is required'),
+    handleValidationErrors
+]

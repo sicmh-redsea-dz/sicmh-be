@@ -9,8 +9,17 @@
         "id": 1,
         "code": "h-101",
         "area": "Medicina Interna",
-        "status": "available",
-        "currentAssignment": null,
+        "status": "occupied",
+        "currentAssignment": {
+          "assignmentId": "29a504e8-8b3f-4422-b160-e8654214ea13",
+          "patientId": 63,
+          "patientName": "Maria Lourdes",
+          "doctorId": 4,
+          "doctorName": "Raphael Hamato",
+          "reason": "x",
+          "expectedDischarge": "2026-02-21",
+          "assignedAt": "2026-02-21T20:01:36.130Z"
+        },
         "history": [
           {
             "eventId": "fd2fa36b-e77c-4e46-9075-0157f657eb98",
@@ -26,10 +35,32 @@
               "area": "Medicina Interna",
               "status": "available"
             }
+          },
+          {
+            "eventId": "ea5517db-5cc7-44cd-98d2-46c5176ef328",
+            "type": "assign",
+            "timestamp": "2026-02-21T20:01:36.131Z",
+            "actor": {
+              "id": 123,
+              "name": "Raphael Hamato",
+              "role": "Admin"
+            },
+            "details": {
+              "assignment": {
+                "assignmentId": "29a504e8-8b3f-4422-b160-e8654214ea13",
+                "patientId": 63,
+                "patientName": "Maria Lourdes",
+                "doctorId": 4,
+                "doctorName": "Raphael Hamato",
+                "reason": "x",
+                "expectedDischarge": "2026-02-21",
+                "assignedAt": "2026-02-21T20:01:36.130Z"
+              }
+            }
           }
         ]
       }
     ],
-    "updatedAt": "2026-02-21T19:51:32.615Z"
+    "updatedAt": "2026-02-21T20:01:36.130Z"
   }
 }
