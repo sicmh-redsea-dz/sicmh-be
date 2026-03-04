@@ -22,7 +22,12 @@ export const validateCreatePatient: (ValidationChain | RequestHandler)[] = [
     body('date')
         .notEmpty()
         .withMessage('Date is required'),
-    optionalString('diagnosis'),
+    body('origin')
+        .notEmpty()
+        .withMessage('Origin is required'),
+    body('diagnosis')
+        .notEmpty()
+        .withMessage('Diagnosis is required'),
     body('doctor')
         .notEmpty()
         .withMessage('Doctor ID is required')
@@ -37,11 +42,12 @@ export const validateCreatePatient: (ValidationChain | RequestHandler)[] = [
         .withMessage('Patient ID is required.')
         .toInt(),
     body('pressure')
-        .optional()
         .notEmpty()
         .withMessage('Pressure is required'),
-        optionalNumeric('temperature', 'i'),
-    optionalString('treatment'),
+    optionalNumeric('temperature', 'i'),
+    body('treatment')
+        .notEmpty()
+        .withMessage('Treatment is required'),
     optionalNumeric('visceralFat', 'f'),
     optionalNumeric('weight', 'f'),
     handleValidationErrors
@@ -56,7 +62,12 @@ export const validateEditPatient: (ValidationChain | RequestHandler)[] = [
     body('date')
         .notEmpty()
         .withMessage('Date is required'),
-    optionalString('diagnosis'),
+    body('origin')
+        .notEmpty()
+        .withMessage('Origin is required'),
+    body('diagnosis')
+        .notEmpty()
+        .withMessage('Diagnosis is required'),
     body('doctor')
         .toInt(),
     optionalNumeric('fatPercentage', 'f'),
@@ -67,9 +78,12 @@ export const validateEditPatient: (ValidationChain | RequestHandler)[] = [
     body('patient')
         .toInt(),
     body('pressure')
-        .optional(),
+        .notEmpty()
+        .withMessage('Pressure is required'),
     optionalNumeric('temperature', 'i'),
-    optionalString('treatment'),
+    body('treatment')
+        .notEmpty()
+        .withMessage('Treatment is required'),
     optionalNumeric('visceralFat', 'f'),
     optionalNumeric('weight', 'f'),
     handleValidationErrors

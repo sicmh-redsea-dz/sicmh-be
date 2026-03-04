@@ -6,6 +6,10 @@ import { StaffService } from '../../application/services/staff.service'
 import { DashbService } from '../../application/services/dashboard.service'
 import { InvoiceService } from '../../application/services/invoice.service'
 import { InvService } from '../../application/services/inv.service'
+import { BedsService } from '../../application/services/beds.service'
+import { OrRoomsService } from '../../application/services/or-rooms.service'
+import { PatientImagesService } from '../../application/services/patient-images.service'
+import { PatientImageCaptureService } from '../../application/services/patient-image-capture.service'
 import { MysqlAuthRepository } from '../repositories/mysql-auth.repository'
 import { MysqlPatientsRepository } from '../repositories/mysql-patients.repository'
 import { MysqlVisitsRepository } from '../repositories/mysql-visits.repository'
@@ -14,6 +18,11 @@ import { MysqlStaffRepository } from '../repositories/mysql-staff.repository'
 import { MysqlDashboardRepository } from '../repositories/mysql-dashboard.repository'
 import { MysqlInvoiceRepository } from '../repositories/mysql-invoice.repository'
 import { MysqlInvRepository } from '../repositories/mysql-inv.repository'
+import { FileExpedienteRepository } from '../repositories/file-expediente.repository'
+import { FileBedsRepository } from '../repositories/file-beds.repository'
+import { FileOrRoomsRepository } from '../repositories/file-or-rooms.repository'
+import { FilePatientImagesRepository } from '../repositories/file-patient-images.repository'
+import { FilePatientImageCaptureRepository } from '../repositories/file-patient-image-capture.repository'
 
 export class ServiceContainer {
     private static authService: AuthService
@@ -24,6 +33,10 @@ export class ServiceContainer {
     private static dashbService: DashbService
     private static invoiceService: InvoiceService
     private static invService: InvService
+    private static bedsService: BedsService
+    private static orRoomsService: OrRoomsService
+    private static patientImagesService: PatientImagesService
+    private static patientImageCaptureService: PatientImageCaptureService
     private static authRepo: MysqlAuthRepository
     private static patientsRepo: MysqlPatientsRepository
     private static visitsRepo: MysqlVisitsRepository
@@ -32,6 +45,11 @@ export class ServiceContainer {
     private static dashbRepo: MysqlDashboardRepository
     private static invoiceRepo: MysqlInvoiceRepository
     private static invRepo: MysqlInvRepository
+    private static expedienteRepo: FileExpedienteRepository
+    private static bedsRepo: FileBedsRepository
+    private static orRoomsRepo: FileOrRoomsRepository
+    private static patientImagesRepo: FilePatientImagesRepository
+    private static patientImageCaptureRepo: FilePatientImageCaptureRepository
 
     static getAuthService(): AuthService {
         if (!this.authService)
@@ -46,7 +64,8 @@ export class ServiceContainer {
                 this.getPatientsService(),
                 this.getStockService(),
                 this.getInvoiceService(),
-                this.getVisitsRepository()
+                this.getVisitsRepository(),
+                this.getExpedienteRepository()
             )
         return this.visitsService;
     }
@@ -89,6 +108,34 @@ export class ServiceContainer {
         return this.invService
     }
 
+    static getBedsService(): BedsService {
+        if ( !this.bedsService ) {
+            this.bedsService = new BedsService( this.getBedsRepository() )
+        }
+        return this.bedsService
+    }
+
+    static getOrRoomsService(): OrRoomsService {
+        if ( !this.orRoomsService ) {
+            this.orRoomsService = new OrRoomsService( this.getOrRoomsRepository() )
+        }
+        return this.orRoomsService
+    }
+
+    static getPatientImagesService(): PatientImagesService {
+        if ( !this.patientImagesService ) {
+            this.patientImagesService = new PatientImagesService( this.getPatientImagesRepository() )
+        }
+        return this.patientImagesService
+    }
+
+    static getPatientImageCaptureService(): PatientImageCaptureService {
+        if (!this.patientImageCaptureService) {
+            this.patientImageCaptureService = new PatientImageCaptureService(this.getPatientImageCaptureRepository())
+        }
+        return this.patientImageCaptureService
+    }
+
     private static getAuthRepository(): MysqlAuthRepository {
         if ( !this.authRepo )
             this.authRepo = new MysqlAuthRepository()
@@ -129,6 +176,37 @@ export class ServiceContainer {
         if ( !this.invoiceRepo )
             this.invoiceRepo = new MysqlInvoiceRepository()
         return this.invoiceRepo
+    }
+
+    private static getExpedienteRepository(): FileExpedienteRepository {
+        if ( !this.expedienteRepo )
+            this.expedienteRepo = new FileExpedienteRepository()
+        return this.expedienteRepo
+    }
+
+    private static getBedsRepository(): FileBedsRepository {
+        if ( !this.bedsRepo )
+            this.bedsRepo = new FileBedsRepository()
+        return this.bedsRepo
+    }
+
+    private static getOrRoomsRepository(): FileOrRoomsRepository {
+        if ( !this.orRoomsRepo )
+            this.orRoomsRepo = new FileOrRoomsRepository()
+        return this.orRoomsRepo
+    }
+
+    private static getPatientImagesRepository(): FilePatientImagesRepository {
+        if ( !this.patientImagesRepo )
+            this.patientImagesRepo = new FilePatientImagesRepository()
+        return this.patientImagesRepo
+    }
+
+    private static getPatientImageCaptureRepository(): FilePatientImageCaptureRepository {
+        if (!this.patientImageCaptureRepo) {
+            this.patientImageCaptureRepo = new FilePatientImageCaptureRepository()
+        }
+        return this.patientImageCaptureRepo
     }
 
     private static getInvRepository(): MysqlInvRepository {
