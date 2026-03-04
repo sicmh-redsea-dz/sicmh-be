@@ -1,0 +1,20 @@
+{
+  "146": {
+    "historyId": 146,
+    "patientId": 58,
+    "origin": "visits",
+    "standard": {
+      "chiefComplaint": "motivo",
+      "currentIllness": "padecimiento",
+      "physicalExam": "exploración",
+      "allergies": "alergias",
+      "currentMeds": "medicamentos"
+    },
+    "module": {
+      "followUpPlan": null,
+      "referrals": null
+    },
+    "createdAt": "2026-02-21T21:41:57.112Z",
+    "updatedAt": "2026-02-21T21:41:57.112Z"
+  }
+}

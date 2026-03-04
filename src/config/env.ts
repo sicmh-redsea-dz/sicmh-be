@@ -2,8 +2,16 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
+const parsePort = (value: string | undefined, fallback: number) => {
+    if (value === undefined) return fallback
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : fallback
+}
+
 export const config = {
-    PORT: process.env.PORT || 3000,
+    PORT: parsePort(process.env.PORT, 3000),
+    PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL || '',
+    HOST: process.env.HOST || '0.0.0.0',
     DB_HOST: process.env.DB_HOST || 'localhost',
     DB_PORT: process.env.DB_PORT || '5432',
     DB_USER: process.env.DB_USER,
