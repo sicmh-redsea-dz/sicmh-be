@@ -59,8 +59,63 @@
             }
           }
         ]
+      },
+      {
+        "id": 2,
+        "code": "h-102",
+        "area": "observacion",
+        "status": "occupied",
+        "currentAssignment": {
+          "assignmentId": "cffebce1-ffbb-4d68-aa93-2dc68e7c179d",
+          "patientId": 91,
+          "patientName": "Jose Roberto Martinez",
+          "doctorId": 1,
+          "doctorName": "Donatelo Hamato",
+          "reason": "herpes",
+          "expectedDischarge": "2026-02-22",
+          "assignedAt": "2026-02-23T00:09:11.425Z"
+        },
+        "history": [
+          {
+            "eventId": "26cc51f2-35a8-4e59-b93f-c40b71558bdf",
+            "type": "create",
+            "timestamp": "2026-02-23T00:08:26.641Z",
+            "actor": {
+              "id": 123,
+              "name": "Raphael Hamato",
+              "role": "Admin"
+            },
+            "details": {
+              "code": "h-102",
+              "area": "observacion",
+              "status": "available"
+            }
+          },
+          {
+            "eventId": "4b91fffc-c6fd-4f5f-85dd-f909b3c5b332",
+            "type": "assign",
+            "timestamp": "2026-02-23T00:09:11.425Z",
+            "actor": {
+              "id": 123,
+              "name": "Raphael Hamato",
+              "role": "Admin"
+            },
+            "details": {
+              "assignment": {
+                "assignmentId": "cffebce1-ffbb-4d68-aa93-2dc68e7c179d",
+                "patientId": 91,
+                "patientName": "Jose Roberto Martinez",
+                "doctorId": 1,
+                "doctorName": "Donatelo Hamato",
+                "reason": "herpes",
+                "expectedDischarge": "2026-02-22",
+                "assignedAt": "2026-02-23T00:09:11.425Z"
+              }
+            }
+          }
+        ]
       }
     ],
-    "updatedAt": "2026-02-21T20:01:36.130Z"
+    "updatedAt": "2026-02-23T00:09:11.425Z"
   }
 }

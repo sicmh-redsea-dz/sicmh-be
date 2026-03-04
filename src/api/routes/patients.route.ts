@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { PatientsController } from '../controllers/patients.controller';
-import { validateGetPatient, validateGetPatients, validatePostPatient, validatePatchPatient, validateDeletePatient, validatePatientImage } from '../validators/patients.validator';
-import { requirePermissions } from '../middlewares/permission.middleware';
+import { validateGetPatient, validateGetPatients, validatePostPatient, validatePatchPatient, validateDeletePatient, validatePatientImage, validateImageCaptureToken } from '../validators/patients.validator';
+import { requireAnyPermission, requirePermissions } from '../middlewares/permission.middleware';
 
 const router = Router();
 
@@ -26,6 +26,23 @@ router.get(
   patientController.getPatientImage.bind(patientController)
 );
 router.post(
+  '/image-capture',
+  requireAnyPermission(['patients.create', 'patients.update']),
+  patientController.createImageCaptureSession.bind(patientController)
+);
+router.get(
+  '/image-capture/:token',
+  requireAnyPermission(['patients.create', 'patients.update']),
+  validateImageCaptureToken,
+  patientController.getImageCaptureStatus.bind(patientController)
+);
+router.delete(
+  '/image-capture/:token',
+  requireAnyPermission(['patients.create', 'patients.update']),
+  validateImageCaptureToken,
+  patientController.deleteImageCaptureSession.bind(patientController)
+);
+router.post(
   '/new-patient',
   requirePermissions('patients.create'),
   validatePostPatient,
@@ -36,6 +53,12 @@ router.post(
   requirePermissions('patients.update'),
   validatePatientImage,
   patientController.uploadPatientImage.bind(patientController)
+);
+router.delete(
+  '/:id/image',
+  requirePermissions('patients.update'),
+  validateGetPatient,
+  patientController.deletePatientImage.bind(patientController)
 );
 router.patch(
   '/:id',
