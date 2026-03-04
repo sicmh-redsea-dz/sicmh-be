@@ -40,6 +40,16 @@ export class PatientImagesService {
     return record
   }
 
+  deleteImage = async (patientId: number): Promise<boolean> => {
+    const store = await this.imagesRepo.load()
+    if (!store.images[String(patientId)]) return false
+
+    delete store.images[String(patientId)]
+    store.updatedAt = new Date().toISOString()
+    await this.imagesRepo.save(store)
+    return true
+  }
+
   private parseImage(payload: ImagePayload) {
     if (!payload.image) {
       throw this.buildValidationError(['La imagen es requerida.'])

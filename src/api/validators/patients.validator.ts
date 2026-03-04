@@ -122,3 +122,24 @@ export const validatePatientImage: (ValidationChain | RequestHandler)[] = [
         .withMessage('image is required'),
     handleValidationErrors
 ]
+
+export const validateImageCaptureToken: (ValidationChain | RequestHandler)[] = [
+    param('token')
+        .isUUID()
+        .withMessage('token must be a valid UUID'),
+    handleValidationErrors
+]
+
+export const validateImageCaptureUpload: (ValidationChain | RequestHandler)[] = [
+    param('token')
+        .isUUID()
+        .withMessage('token must be a valid UUID'),
+    body('image')
+        .notEmpty()
+        .withMessage('image is required'),
+    body('fileName')
+        .optional()
+        .isString()
+        .withMessage('fileName must be a string'),
+    handleValidationErrors
+]
