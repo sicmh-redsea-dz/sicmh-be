@@ -45,6 +45,12 @@ export class InvoiceController {
     }
 
     @asyncHandler()
+    async annulOne( req: Request ): Promise<any> {
+        const { id } = req.params
+        return this.invoiceService.annulInvoiceById( id )
+    }
+
+    @asyncHandler()
     async removeOne( req: Request ): Promise<any> {
         const { id } = req.params
         return this.invoiceService.removeInvoiceById( id )

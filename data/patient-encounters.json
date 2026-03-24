@@ -1,0 +1,17 @@
+{
+  "encounters": [
+    {
+      "id": "5839c5a5-eb8c-42a8-b050-68314af091a0",
+      "patientId": 133,
+      "patientName": "Emmet Brown",
+      "doctorId": 3,
+      "origin": "consulta",
+      "invoiceNumber": "a06319f3-ecc3-431e",
+      "invoiceId": 143,
+      "status": "Pendiente",
+      "createdAt": "2026-03-19",
+      "updatedAt": "2026-03-20T05:50:33.139Z"
+    }
+  ],
+  "updatedAt": "2026-03-20T05:50:33.139Z"
+}

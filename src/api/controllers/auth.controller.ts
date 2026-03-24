@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { AuthService } from "../../application/services/auth.service";
 import { ServiceContainer } from "../../infrastructure/container/service.container";
+import { SettingsService } from "../../application/services/settings.service";
 
 const throwValidationError = (message: string) => {
   const error: any = new Error(message);
@@ -15,9 +16,11 @@ const resolveProvider = (decoded: any): 'google' | 'conventional' => {
 
 export class AuthController {
   private readonly authService: AuthService;
-
+  private readonly settingsService: SettingsService;
+  
   constructor() {
     this.authService = ServiceContainer.getAuthService();
+    this.settingsService = ServiceContainer.getSettingsService();
   }
 
   register = async (req: Request, res: Response, next: NextFunction) => {
@@ -79,6 +82,16 @@ export class AuthController {
     try {
       const currentUser = await this.authService.checkToken(id);
       res.status(200).json({ user: currentUser });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  completePasswordChange = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { uid } = (req as any).user;
+      await this.settingsService.clearPasswordChangeFlag(uid);
+      res.status(200).json({ updated: true });
     } catch (err) {
       next(err);
     }

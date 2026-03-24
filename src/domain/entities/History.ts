@@ -1,9 +1,11 @@
 export interface ShortHistory {
     HistoriaID:         number
+    PacienteID:         number
     NombreDoctor:       string
     NombrePaciente:     string
     IdPaciente:         string
     FechaUltimaVisita:  string
+    TipoVisita:         string
     Diagnostico:        string
     InvoiceNumber:      string
     Estado:             string

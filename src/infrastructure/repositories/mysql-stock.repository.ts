@@ -82,4 +82,19 @@ export class MysqlStockRepository implements StockRepository {
             
         await Database.execute(query)
     }
+
+    async findByInvoiceId(invoiceId: number): Promise<{ id: number; qty: number; name: string; unitPrice: number }[]> {
+        const query = `
+            select 
+                fi.ProductoID as id,
+                fi.Cantidad as qty,
+                inv.NombreProducto as name,
+                inv.PrecioUnidad as unitPrice
+            from Factura_Inventario as fi
+            inner join Inventario as inv
+                on inv.ProductoID = fi.ProductoID
+            where fi.FacturaID = ?;
+        `
+        return Database.execute<any[]>(query, [invoiceId])
+    }
 }

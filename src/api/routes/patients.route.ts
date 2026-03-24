@@ -50,7 +50,7 @@ router.post(
 );
 router.post(
   '/:id/image',
-  requirePermissions('patients.update'),
+  requireAnyPermission(['patients.create', 'patients.update']),
   validatePatientImage,
   patientController.uploadPatientImage.bind(patientController)
 );

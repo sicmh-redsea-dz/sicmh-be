@@ -8,6 +8,8 @@ import { invoiceRoutes } from './invoice.route';
 import { invRoutes } from './inv.route';
 import { bedsRoutes } from './beds.route';
 import { orRoomsRoutes } from './or-rooms.route';
+import { billingRoutes } from './billing.route';
+import { settingsRoutes } from './settings.route';
 
 const router = Router();
 
@@ -19,6 +21,8 @@ router.use('/visits', visitsRoutes);
 router.use('/beds', bedsRoutes);
 router.use('/or-rooms', orRoomsRoutes);
 router.use('/invoice', invoiceRoutes);
+router.use('/billing', billingRoutes);
+router.use('/settings', settingsRoutes);
 router.use('/scheduling', scheduleRoutes);
 router.use('/inventory', invRoutes);
 

@@ -53,6 +53,12 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                     f.FechaFactura,
                     f.Monto,
                     f.Estado,
+                    f.DescuentoElderly,
+                    f.CodigoPromocional,
+                    f.DescuentoPromocional,
+                    f.AseguradoraID,
+                    f.RTN,
+                    f.CAI,
                     f.InvoiceNumber,
                     f.TipoPagoID,
                     hm.TipoVisita
@@ -64,6 +70,27 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                     f.InvoiceNumber = ?
                 group by 
                     f.FacturaID, f.PacienteID, f.PersonalID, f.FechaFactura, f.Monto, f.Estado, f.InvoiceNumber, f.TipoPagoID, hm.TipoVisita;
+            `
+            break
+        case 'find-pending-by-patient':
+            query = `
+                select
+                    f.FacturaID,
+                    f.PacienteID,
+                    f.FechaFactura,
+                    f.Monto,
+                    f.Estado,
+                    f.InvoiceNumber
+                from
+                    facturas as f
+                where
+                    f.IsActive = 1
+                    and f.PacienteID = ?
+                    and f.Estado = 'Pendiente'
+                    and DATE(f.FechaFactura) <= DATE(?)
+                order by
+                    f.FechaFactura desc
+                limit 1;
             `
             break
         case 'get-stock-invoice':
@@ -240,5 +267,3 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
     }
     return query
 }
-
-

@@ -4,6 +4,7 @@ import { StaffService } from './staff.service'
 import { PatientsService } from './patients.service'
 import { StockService } from './stock.services'
 import { InvoiceService } from './invoice.service'
+import { BillingService } from './billing.service'
 import { StaffMapper } from '../../domain/mappers/StaffMapper'
 import { PatientMapper } from '../../domain/mappers/PatientMapper'
 import { StockMapper } from '../../domain/mappers/StockMapper'
@@ -31,7 +32,7 @@ interface CreateVisitPayload {
     backgroundHst:          string
     pathologicalHst:        string
     surgicalHst:            string
-    stockItems?:            { id: number; qty: number; }[]
+    stockItems?:            { id: number; qty: number; subinventoryId?: number }[]
     origin:                 string
     expediente?:            ExpedientePayload
 }
@@ -70,6 +71,7 @@ export class VisitsService {
     private stockService: StockService
     private patientService: PatientsService
     private invoiceService: InvoiceService
+    private billingService: BillingService
     private visitsRepo: VisitsRepository
     private expedienteRepo: ExpedienteRepository
 
@@ -78,6 +80,7 @@ export class VisitsService {
         patientService: PatientsService, 
         stockService: StockService,
         invoiceService: InvoiceService,
+        billingService: BillingService,
         visitsRepo: VisitsRepository,
         expedienteRepo: ExpedienteRepository
     ) {
@@ -85,19 +88,72 @@ export class VisitsService {
         this.patientService = patientService
         this.stockService = stockService
         this.invoiceService = invoiceService
+        this.billingService = billingService
         this.visitsRepo = visitsRepo
         this.expedienteRepo = expedienteRepo
     }
 
     findAllVisits = async (args: DelimitersArgs):Promise<any> => {
         try {
-            const visitHistory = await this.visitsRepo.findAll( args )
-            const totalRecords =  visitHistory.length > 0 ? visitHistory[0].total_registries : 0
+            const originKey = this.parseOriginForList(args.ext)
+            const targetStation = originKey ? this.mapOriginToStation(originKey) : null
+            const movementMap = await this.billingService.getMovementTrailsByInvoice()
+
+            const visitHistory = originKey && originKey !== 'visits'
+                ? await this.visitsRepo.findAllUnbounded({ term: args.term, ext: '' })
+                : await this.visitsRepo.findAll(args)
+
+            const enriched = visitHistory.map((visit) => {
+                const originFromVisit = VISIT_TYPE_TO_ORIGIN[visit.TipoVisita] as VisitOrigin | undefined
+                const originStation = originFromVisit
+                    ? this.mapOriginToStation(originFromVisit)
+                    : this.mapVisitTypeToStation(visit.TipoVisita)
+                const base = HistoryMapper.toHistoryResponse(visit)
+                const invoiceNumber = base.invoiceNumber || (visit as any).InvoiceNumber
+                const movementData = invoiceNumber ? movementMap.get(invoiceNumber) : undefined
+                const movementTrail = this.buildMovementTrail(originStation, movementData?.trail)
+                const lastMovement = movementData?.lastEvent
+                const currentStation = lastMovement?.toStation ?? originStation
+                const movementFrom = lastMovement ? (lastMovement.fromStation ?? originStation ?? '') : ''
+                const movementTo = lastMovement ? (lastMovement.toStation ?? '') : ''
+                const movementAt = lastMovement ? (lastMovement.occurredAt ?? '') : ''
+                const movedTo = this.normalizeStation(originStation) &&
+                    this.normalizeStation(currentStation) &&
+                    this.normalizeStation(originStation) !== this.normalizeStation(currentStation)
+                    ? String(currentStation)
+                    : ''
+
+                return {
+                    ...base,
+                    originStation: originStation ?? '',
+                    currentStation: currentStation ?? '',
+                    movedTo,
+                    movementFrom,
+                    movementTo,
+                    movementAt,
+                    movementTrail
+                }
+            })
+
+            const filtered = targetStation && originKey !== 'visits'
+                ? enriched.filter((visit) =>
+                    this.isStationInTrail(visit.movementTrail, targetStation)
+                )
+                : enriched
+
+            const totalRecords = originKey && originKey !== 'visits'
+                ? filtered.length
+                : visitHistory.length > 0 ? visitHistory[0].total_registries : 0
+
+            const paginated = originKey && originKey !== 'visits'
+                ? filtered.slice(args.offset, args.offset + args.limit)
+                : filtered
+
             const staff = await this.staffService.getAllDocs()
             const patients = await this.patientService.findAllPatients({limit: 100, offset: 0})
             
             return {
-                visits: visitHistory.map( visit => HistoryMapper.toHistoryResponse( visit )),
+                visits: paginated,
                 staff,
                 patients: patients.patients,
                 totalRecords
@@ -147,7 +203,8 @@ export class VisitsService {
             if ( stockItems && stockItems.length > 0 )
                 amount = await this.stockService.readAmountByStockQty( stockItems )
             
-            translatedFields['FacturaID'] = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
+            const invoice = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
+            translatedFields['FacturaID'] = invoice.id
 
             const insertId = await this.visitsRepo.create( translatedFields )
 
@@ -171,9 +228,32 @@ export class VisitsService {
                 await this.expedienteRepo.upsert(insertId, expedienteRecord)
             }
 
-            return {
-                visit: insertId
+            try {
+                const patientInfo = await this.patientService.findOnePatient(patient)
+                const patientName = `${patientInfo.name} ${patientInfo.lastName}`.trim()
+                const encounter = await this.billingService.registerEncounterForInvoice({
+                    patientId: patient,
+                    patientName,
+                    doctorId: Number(doctor) || undefined,
+                    origin: this.mapOriginToStation(originKey),
+                    invoiceNumber: invoice.invoiceNumber,
+                    invoiceId: invoice.id,
+                    createdAt: date
+                })
+                await this.billingService.createMovement({
+                    patientId: patient,
+                    patientName,
+                    encounterId: encounter.id,
+                    toStation: this.mapOriginToStation(originKey),
+                    occurredAt: date,
+                    source: 'visit',
+                    reference: { visitId: insertId }
+                })
+            } catch (err) {
+                console.warn('billing movement error:', (err as any)?.message || err)
             }
+
+            return { visit: insertId }
         } catch (err) {
             console.error('error creating visit: ', err)
             throw err
@@ -186,11 +266,104 @@ export class VisitsService {
         );
     }
 
+    private computeStockDelta(
+        previous: { stockId: number; stockQty: number }[],
+        incoming: { id: number; qty: number; subinventoryId?: number }[]
+    ) {
+        const prevMap = new Map<number, number>()
+        previous.forEach((item) => {
+            const qty = Number(item.stockQty) || 0
+            prevMap.set(item.stockId, qty)
+        })
+
+        const deltaItems: { id: number; qty: number; subinventoryId?: number }[] = []
+        incoming.forEach((item) => {
+            const nextQty = Number(item.qty) || 0
+            if (!nextQty) return
+            const prevQty = prevMap.get(item.id) ?? 0
+            const delta = nextQty - prevQty
+            if (delta > 0) {
+                deltaItems.push({ id: item.id, qty: delta, subinventoryId: item.subinventoryId })
+            }
+        })
+
+        return deltaItems
+    }
+
+    private mapOriginToStation(origin: VisitOrigin) {
+        switch (origin) {
+            case 'emergency':
+                return 'emergencia'
+            case 'hospitalization':
+                return 'hospitalizacion'
+            case 'oroom':
+                return 'quirofano'
+            case 'visits':
+            default:
+                return 'consulta'
+        }
+    }
+
+    private parseOriginForList(origin?: string): VisitOrigin | null {
+        if (!origin) return null
+        const normalized = origin.trim()
+        if (normalized === 'o-room') return 'oroom'
+        const normalizedOrigin = normalized as VisitOrigin
+        return VALID_ORIGINS.includes(normalizedOrigin) ? normalizedOrigin : null
+    }
+
+    private mapVisitTypeToStation(visitType?: string | null) {
+        if (!visitType) return ''
+        const normalized = visitType.toString().toLowerCase()
+        if (normalized.includes('emer')) return 'emergencia'
+        if (normalized.includes('hosp')) return 'hospitalizacion'
+        if (normalized.includes('quiro')) return 'quirofano'
+        if (normalized.includes('consult')) return 'consulta'
+        return ''
+    }
+
+    private buildMovementTrail(originStation?: string | null, trail?: (string | undefined)[]) {
+        const path: string[] = []
+        const push = (value?: string | null) => {
+            const normalized = this.normalizeStation(value)
+            if (!normalized) return
+            if (!path.length || path[path.length - 1] !== normalized) {
+                path.push(normalized)
+            }
+        }
+        push(originStation ?? undefined)
+        if (trail && trail.length > 0) {
+            trail.forEach((value) => push(value))
+        }
+        return path
+    }
+
+    private isStationInTrail(trail: string[] | undefined, station?: string | null) {
+        if (!trail || !trail.length) return false
+        const normalized = this.normalizeStation(station)
+        if (!normalized) return false
+        return trail.some((value) => this.normalizeStation(value) === normalized)
+    }
+
+    private normalizeStation(value?: string | null) {
+        if (!value) return ''
+        return value.toString().trim().toLowerCase()
+    }
+
 
    editVisit = async (editVisitPayload: EditVisitPayload): Promise<any> => {
         const { id, body } = editVisitPayload;
         const originKey = await this.resolveOrigin(body, +id)
         this.validateExpediente(body.expediente, originKey)
+
+        const existingVisit = await this.visitsRepo.findById(+id)
+        if (!existingVisit) {
+            throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`);
+        }
+
+        const existingInventory = HistoryMapper.toHistoryFormResponse(existingVisit).usedInventory ?? []
+        const incomingInventory = Array.isArray(body.stockItems) ? body.stockItems : []
+        const stockDelta = this.computeStockDelta(existingInventory, incomingInventory)
 
         const fieldsForVisit = HistoryMapper.toDbForm(body)
         const translatedFields = this.removeUndefined(fieldsForVisit)
@@ -214,6 +387,20 @@ export class VisitsService {
                     updatedAt: now
                 }
                 await this.expedienteRepo.upsert(+id, expedienteRecord)
+            }
+
+            if (stockDelta.length > 0) {
+                await this.stockService.reduceStockQuantities(stockDelta)
+                await this.stockService.insertStockInvoice(existingVisit.FacturaID, stockDelta)
+                await this.stockService.insertStockHistory(+id, stockDelta)
+
+                const amountDelta = await this.stockService.readAmountByStockQty(
+                    stockDelta.map((item) => ({ id: item.id, qty: item.qty }))
+                )
+
+                if (amountDelta > 0) {
+                    await this.invoiceService.incrementAmountById(existingVisit.FacturaID, amountDelta)
+                }
             }
 
             return this.findVisitById(+id);

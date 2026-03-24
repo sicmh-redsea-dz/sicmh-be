@@ -5,11 +5,14 @@ import { StockService } from '../../application/services/stock.services'
 import { StaffService } from '../../application/services/staff.service'
 import { DashbService } from '../../application/services/dashboard.service'
 import { InvoiceService } from '../../application/services/invoice.service'
+import { BillingService } from '../../application/services/billing.service'
 import { InvService } from '../../application/services/inv.service'
 import { BedsService } from '../../application/services/beds.service'
 import { OrRoomsService } from '../../application/services/or-rooms.service'
 import { PatientImagesService } from '../../application/services/patient-images.service'
 import { PatientImageCaptureService } from '../../application/services/patient-image-capture.service'
+import { SettingsService } from '../../application/services/settings.service'
+import { AccessControlService } from '../../application/services/access-control.service'
 import { MysqlAuthRepository } from '../repositories/mysql-auth.repository'
 import { MysqlPatientsRepository } from '../repositories/mysql-patients.repository'
 import { MysqlVisitsRepository } from '../repositories/mysql-visits.repository'
@@ -17,12 +20,19 @@ import { MysqlStockRepository } from '../repositories/mysql-stock.repository'
 import { MysqlStaffRepository } from '../repositories/mysql-staff.repository'
 import { MysqlDashboardRepository } from '../repositories/mysql-dashboard.repository'
 import { MysqlInvoiceRepository } from '../repositories/mysql-invoice.repository'
+import { MysqlBillingRepository } from '../repositories/mysql-billing.repository'
 import { MysqlInvRepository } from '../repositories/mysql-inv.repository'
 import { FileExpedienteRepository } from '../repositories/file-expediente.repository'
 import { FileBedsRepository } from '../repositories/file-beds.repository'
 import { FileOrRoomsRepository } from '../repositories/file-or-rooms.repository'
+import { FileBillingLedgerRepository } from '../repositories/file-billing-ledger.repository'
+import { FilePatientMovementsRepository } from '../repositories/file-patient-movements.repository'
+import { FilePatientEncountersRepository } from '../repositories/file-patient-encounters.repository'
 import { FilePatientImagesRepository } from '../repositories/file-patient-images.repository'
 import { FilePatientImageCaptureRepository } from '../repositories/file-patient-image-capture.repository'
+import { FileUserProfilesRepository } from '../repositories/file-user-profiles.repository'
+import { FileRolePermissionsRepository } from '../repositories/file-role-permissions.repository'
+import { FileUserPermissionsRepository } from '../repositories/file-user-permissions.repository'
 
 export class ServiceContainer {
     private static authService: AuthService
@@ -32,11 +42,14 @@ export class ServiceContainer {
     private static stockService: StockService
     private static dashbService: DashbService
     private static invoiceService: InvoiceService
+    private static billingService: BillingService
     private static invService: InvService
     private static bedsService: BedsService
     private static orRoomsService: OrRoomsService
     private static patientImagesService: PatientImagesService
     private static patientImageCaptureService: PatientImageCaptureService
+    private static settingsService: SettingsService
+    private static accessControlService: AccessControlService
     private static authRepo: MysqlAuthRepository
     private static patientsRepo: MysqlPatientsRepository
     private static visitsRepo: MysqlVisitsRepository
@@ -44,17 +57,49 @@ export class ServiceContainer {
     private static staffRepo: MysqlStaffRepository
     private static dashbRepo: MysqlDashboardRepository
     private static invoiceRepo: MysqlInvoiceRepository
+    private static billingRepo: MysqlBillingRepository
     private static invRepo: MysqlInvRepository
     private static expedienteRepo: FileExpedienteRepository
     private static bedsRepo: FileBedsRepository
     private static orRoomsRepo: FileOrRoomsRepository
+    private static billingLedgerRepo: FileBillingLedgerRepository
+    private static patientMovementsRepo: FilePatientMovementsRepository
+    private static patientEncountersRepo: FilePatientEncountersRepository
     private static patientImagesRepo: FilePatientImagesRepository
     private static patientImageCaptureRepo: FilePatientImageCaptureRepository
+    private static userProfilesRepo: FileUserProfilesRepository
+    private static rolePermissionsRepo: FileRolePermissionsRepository
+    private static userPermissionsRepo: FileUserPermissionsRepository
 
     static getAuthService(): AuthService {
         if (!this.authService)
-            this.authService = new AuthService( this.getAuthRepository() )
+            this.authService = new AuthService(
+                this.getAuthRepository(),
+                this.getUserProfilesRepository(),
+                this.getAccessControlService()
+            )
         return this.authService
+    }
+
+    static getSettingsService(): SettingsService {
+        if (!this.settingsService) {
+            this.settingsService = new SettingsService(
+                this.getAuthRepository(),
+                this.getUserProfilesRepository(),
+                this.getAccessControlService()
+            )
+        }
+        return this.settingsService
+    }
+
+    static getAccessControlService(): AccessControlService {
+        if (!this.accessControlService) {
+            this.accessControlService = new AccessControlService(
+                this.getRolePermissionsRepository(),
+                this.getUserPermissionsRepository()
+            )
+        }
+        return this.accessControlService
     }
 
     static getVisitsService(): VisitsService {
@@ -64,6 +109,7 @@ export class ServiceContainer {
                 this.getPatientsService(),
                 this.getStockService(),
                 this.getInvoiceService(),
+                this.getBillingService(),
                 this.getVisitsRepository(),
                 this.getExpedienteRepository()
             )
@@ -96,9 +142,28 @@ export class ServiceContainer {
 
     static getInvoiceService(): InvoiceService {
         if (!this.invoiceService) {
-            this.invoiceService = new InvoiceService( this.getPatientsService(), this.getInvoiceRepository() )
+            this.invoiceService = new InvoiceService(
+                this.getPatientsService(),
+                this.getInvoiceRepository(),
+                this.getBillingService()
+            )
         }
         return this.invoiceService
+    }
+
+    static getBillingService(): BillingService {
+        if (!this.billingService) {
+            this.billingService = new BillingService(
+                this.getPatientsService(),
+                this.getStockService(),
+                this.getBillingRepository(),
+                this.getBillingLedgerRepository(),
+                this.getPatientMovementsRepository(),
+                this.getPatientEncountersRepository(),
+                this.getInvoiceRepository()
+            )
+        }
+        return this.billingService
     }
 
     static getInvService(): InvService {
@@ -110,14 +175,14 @@ export class ServiceContainer {
 
     static getBedsService(): BedsService {
         if ( !this.bedsService ) {
-            this.bedsService = new BedsService( this.getBedsRepository() )
+            this.bedsService = new BedsService( this.getBedsRepository(), this.getBillingService() )
         }
         return this.bedsService
     }
 
     static getOrRoomsService(): OrRoomsService {
         if ( !this.orRoomsService ) {
-            this.orRoomsService = new OrRoomsService( this.getOrRoomsRepository() )
+            this.orRoomsService = new OrRoomsService( this.getOrRoomsRepository(), this.getBillingService() )
         }
         return this.orRoomsService
     }
@@ -178,6 +243,12 @@ export class ServiceContainer {
         return this.invoiceRepo
     }
 
+    private static getBillingRepository(): MysqlBillingRepository {
+        if (!this.billingRepo)
+            this.billingRepo = new MysqlBillingRepository()
+        return this.billingRepo
+    }
+
     private static getExpedienteRepository(): FileExpedienteRepository {
         if ( !this.expedienteRepo )
             this.expedienteRepo = new FileExpedienteRepository()
@@ -196,6 +267,25 @@ export class ServiceContainer {
         return this.orRoomsRepo
     }
 
+    private static getBillingLedgerRepository(): FileBillingLedgerRepository {
+        if (!this.billingLedgerRepo)
+            this.billingLedgerRepo = new FileBillingLedgerRepository()
+        return this.billingLedgerRepo
+    }
+
+    private static getPatientMovementsRepository(): FilePatientMovementsRepository {
+        if (!this.patientMovementsRepo)
+            this.patientMovementsRepo = new FilePatientMovementsRepository()
+        return this.patientMovementsRepo
+    }
+
+    private static getPatientEncountersRepository(): FilePatientEncountersRepository {
+        if (!this.patientEncountersRepo) {
+            this.patientEncountersRepo = new FilePatientEncountersRepository()
+        }
+        return this.patientEncountersRepo
+    }
+
     private static getPatientImagesRepository(): FilePatientImagesRepository {
         if ( !this.patientImagesRepo )
             this.patientImagesRepo = new FilePatientImagesRepository()
@@ -207,6 +297,27 @@ export class ServiceContainer {
             this.patientImageCaptureRepo = new FilePatientImageCaptureRepository()
         }
         return this.patientImageCaptureRepo
+    }
+
+    private static getUserProfilesRepository(): FileUserProfilesRepository {
+        if (!this.userProfilesRepo) {
+            this.userProfilesRepo = new FileUserProfilesRepository()
+        }
+        return this.userProfilesRepo
+    }
+
+    private static getRolePermissionsRepository(): FileRolePermissionsRepository {
+        if (!this.rolePermissionsRepo) {
+            this.rolePermissionsRepo = new FileRolePermissionsRepository()
+        }
+        return this.rolePermissionsRepo
+    }
+
+    private static getUserPermissionsRepository(): FileUserPermissionsRepository {
+        if (!this.userPermissionsRepo) {
+            this.userPermissionsRepo = new FileUserPermissionsRepository()
+        }
+        return this.userPermissionsRepo
     }
 
     private static getInvRepository(): MysqlInvRepository {

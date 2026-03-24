@@ -15,6 +15,12 @@ export class MysqlInvoiceRepository implements InvoiceRepository {
         return resp[0] ?? null
     }
 
+    async findLatestPendingByPatientAndDate(patientId: number, occurredAt: string): Promise<Record<string, any> | null> {
+        const query = invoiceQueries('find-pending-by-patient')
+        const resp = await Database.execute<any[]>(query, [patientId, occurredAt])
+        return resp[0] ?? null
+    }
+
     async create(data: Record<string, any>): Promise<number> {
         const { query, values } = this.buildInsertQuery('facturas', data)
         const resp = await Database.execute<ResultSetHeader>(query, values)
@@ -36,6 +42,17 @@ export class MysqlInvoiceRepository implements InvoiceRepository {
         `
 
         await Database.execute(sql, [...values, invoiceNumber])
+    }
+
+    async incrementAmountById(invoiceId: number, delta: number): Promise<void> {
+        const sql = `
+            UPDATE \`cami-vime\`.\`facturas\`
+            SET Monto = GREATEST(0, Monto + ?)
+            WHERE FacturaID = ?
+                AND Estado = 'Pendiente'
+        `
+
+        await Database.execute(sql, [delta, invoiceId])
     }
 
     async softDeleteByInvoiceNumber(invoiceNumber: string): Promise<void> {
