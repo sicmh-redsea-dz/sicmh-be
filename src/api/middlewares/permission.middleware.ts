@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import { ServiceContainer } from '../../infrastructure/container/service.container'
-import { Permission, getPermissionsForRoles } from '../permissions/permissions'
+import { Permission } from '../permissions/permissions'
 
 const resolveUser = async (req: Request) => {
   const currentUser = (req as any).currentUser
@@ -27,7 +27,8 @@ export const requirePermissions = (required: Permission | Permission[]) => {
 
       ;(req as any).currentUser = user
 
-      const permissions = getPermissionsForRoles(user.roles ?? [])
+      const accessControl = ServiceContainer.getAccessControlService()
+      const permissions = await accessControl.resolvePermissions(user.roles ?? [], Number(user._id))
       const allowed = requiredList.every((permission) => permissions.has(permission))
 
       if (!allowed) {
@@ -55,7 +56,8 @@ export const requireAnyPermission = (required: Permission | Permission[]) => {
 
       ;(req as any).currentUser = user
 
-      const permissions = getPermissionsForRoles(user.roles ?? [])
+      const accessControl = ServiceContainer.getAccessControlService()
+      const permissions = await accessControl.resolvePermissions(user.roles ?? [], Number(user._id))
       const allowed = requiredList.some((permission) => permissions.has(permission))
 
       if (!allowed) {

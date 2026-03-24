@@ -9,5 +9,6 @@ const authController = new AuthController();
 router.post('/register', authMiddleware, validateRegister, authController.register.bind(authController));
 router.post('/login', authMiddleware, validateLogin, authController.login.bind(authController));
 router.get('/check-token', authMiddleware, authController.checkToken.bind(authController));
+router.post('/complete-password-change', authMiddleware, authController.completePasswordChange.bind(authController));
 
 export { router as authRoutes };

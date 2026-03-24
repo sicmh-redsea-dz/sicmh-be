@@ -16,5 +16,176 @@
     },
     "createdAt": "2026-02-21T21:41:57.112Z",
     "updatedAt": "2026-02-21T21:41:57.112Z"
+  },
+  "154": {
+    "historyId": 154,
+    "patientId": 92,
+    "origin": "visits",
+    "standard": {
+      "chiefComplaint": "consulta",
+      "currentIllness": "padecimiento",
+      "physicalExam": "exploración",
+      "allergies": "alergias",
+      "currentMeds": "medicamenteos"
+    },
+    "module": {
+      "followUpPlan": "seguimiento",
+      "referrals": "referencias"
+    },
+    "createdAt": "2026-03-11T02:13:11.939Z",
+    "updatedAt": "2026-03-11T02:13:11.939Z"
+  },
+  "155": {
+    "historyId": 155,
+    "patientId": 131,
+    "origin": "visits",
+    "standard": {
+      "chiefComplaint": "Paciente tiene dolor de cabeza ",
+      "currentIllness": "Paciente con hipertension ",
+      "physicalExam": "no hay ",
+      "allergies": "alergico a aines ",
+      "currentMeds": "ibezartan "
+    },
+    "module": {
+      "followUpPlan": "",
+      "referrals": null
+    },
+    "createdAt": "2026-03-13T04:32:40.813Z",
+    "updatedAt": "2026-03-13T04:32:40.813Z"
+  },
+  "156": {
+    "historyId": 156,
+    "patientId": 131,
+    "origin": "emergency",
+    "standard": {
+      "chiefComplaint": "dolor abdominal ",
+      "currentIllness": "paciente refiere dolor abdominal ",
+      "physicalExam": "dolor al tacto abdominal ",
+      "allergies": "aines ",
+      "currentMeds": "iberzartan "
+    },
+    "module": {
+      "followUpPlan": null,
+      "referrals": null,
+      "triageLevel": "Verde",
+      "arrivalMode": "Ambulancia",
+      "painScale": 10,
+      "glasgow": 7,
+      "disposition": "Ingreso",
+      "injuryMechanism": "evento ",
+      "preOpDiagnosis": null,
+      "postOpDiagnosis": null,
+      "procedure": null,
+      "anesthesiaType": null,
+      "surgeryStart": null,
+      "surgeryEnd": null,
+      "findings": null,
+      "complications": null,
+      "admissionDiagnosis": null,
+      "admissionReason": null,
+      "service": null,
+      "bed": null,
+      "evolutionSummary": null,
+      "dischargePlan": null,
+      "dischargeDate": null
+    },
+    "createdAt": "2026-03-13T04:58:18.176Z",
+    "updatedAt": "2026-03-13T04:58:18.176Z"
+  },
+  "157": {
+    "historyId": 157,
+    "patientId": 132,
+    "origin": "visits",
+    "standard": {
+      "chiefComplaint": "oh",
+      "currentIllness": "que bien",
+      "physicalExam": "facil",
+      "allergies": "no",
+      "currentMeds": "si\n\n"
+    },
+    "module": {
+      "followUpPlan": null,
+      "referrals": null
+    },
+    "createdAt": "2026-03-13T05:46:41.670Z",
+    "updatedAt": "2026-03-13T05:46:41.670Z"
+  },
+  "158": {
+    "historyId": 158,
+    "patientId": 132,
+    "origin": "hospitalization",
+    "standard": {
+      "chiefComplaint": "motivo",
+      "currentIllness": "pade",
+      "physicalExam": "expo",
+      "allergies": "ale",
+      "currentMeds": "medi"
+    },
+    "module": {
+      "followUpPlan": null,
+      "referrals": null,
+      "triageLevel": null,
+      "arrivalMode": null,
+      "painScale": null,
+      "glasgow": null,
+      "disposition": null,
+      "injuryMechanism": null,
+      "preOpDiagnosis": null,
+      "postOpDiagnosis": null,
+      "procedure": null,
+      "anesthesiaType": null,
+      "surgeryStart": null,
+      "surgeryEnd": null,
+      "findings": null,
+      "complications": null,
+      "admissionDiagnosis": "diag",
+      "admissionReason": "mot",
+      "service": "ser",
+      "bed": "12b",
+      "evolutionSummary": "res",
+      "dischargePlan": "plan",
+      "dischargeDate": "2026-03-12"
+    },
+    "createdAt": "2026-03-13T05:57:39.149Z",
+    "updatedAt": "2026-03-13T05:57:39.149Z"
+  },
+  "159": {
+    "historyId": 159,
+    "patientId": 133,
+    "origin": "hospitalization",
+    "standard": {
+      "chiefComplaint": "motivo",
+      "currentIllness": "padecimiento",
+      "physicalExam": "exploracion",
+      "allergies": "alergias",
+      "currentMeds": "medicamentos"
+    },
+    "module": {
+      "followUpPlan": "plan",
+      "referrals": "referencias",
+      "triageLevel": "",
+      "arrivalMode": "",
+      "painScale": "",
+      "glasgow": "",
+      "disposition": "",
+      "injuryMechanism": "",
+      "preOpDiagnosis": "",
+      "postOpDiagnosis": "",
+      "procedure": "",
+      "anesthesiaType": "",
+      "surgeryStart": "",
+      "surgeryEnd": "",
+      "findings": "",
+      "complications": "",
+      "admissionDiagnosis": "diagnostico",
+      "admissionReason": "motivo",
+      "service": "servicio",
+      "bed": "h-101",
+      "evolutionSummary": "resumen",
+      "dischargePlan": "plan",
+      "dischargeDate": "2026-03-19"
+    },
+    "createdAt": "2026-03-20T05:45:44.759Z",
+    "updatedAt": "2026-03-20T05:53:27.405Z"
   }
 }

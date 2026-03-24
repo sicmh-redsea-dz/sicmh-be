@@ -6,7 +6,14 @@ export class InvoiceMapper {
             PersonalID: doctorId,
             FechaFactura: date,
             Monto: amount,
-            TipoVisita: visitType
+            TipoVisita: visitType,
+            Estado: status,
+            DescuentoElderly: elderlyDiscount,
+            CodigoPromocional: promoCode,
+            DescuentoPromocional: promoDiscount,
+            AseguradoraID: ensurance,
+            RTN: rtn,
+            CAI: cai
         } = invoice
 
         return {
@@ -15,7 +22,14 @@ export class InvoiceMapper {
             doctorId,
             date,
             amount,
-            visitType
+            visitType,
+            status,
+            elderlyDiscount,
+            promoCode,
+            promoDiscount,
+            ensurance,
+            rtn,
+            cai
         }
     }
 

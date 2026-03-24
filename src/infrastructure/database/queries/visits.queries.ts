@@ -20,6 +20,7 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
             const { limit, offset, term: visitTerm, ext} = delimiters!
             const hasTerm = !!visitTerm
             const normalizedExt = ext ? ext : ''
+            const visitType = validExt[normalizedExt]
             whereClause = `
                 hm.isActive = 1
                 ${hasTerm ? `and (
@@ -29,15 +30,17 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                 pr.Nombre like concat('%', '${visitTerm}', '%') or
                 pr.Apellido like concat('%', '${visitTerm}', '%')
                 )` : ''}
-                ${`and hm.TipoVisita = '${validExt[normalizedExt]}'`}
+                ${visitType ? `and hm.TipoVisita = '${visitType}'` : ''}
             `;
             query = `
                 select 
                     hm.HistoriaID,
+                    hm.PacienteID,
                     concat(pr.Nombre, ' ', pr.Apellido) as NombreDoctor,
                     pc.Identificacion as IdPaciente,
                     concat(pc.Nombre, ' ', pc.Apellido) as NombrePaciente,
                     hm.FechaUltimaVisita,
+                    hm.TipoVisita,
                     hm.Diagnostico,
                     fac.InvoiceNumber,
                     fac.Estado,
@@ -61,6 +64,52 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                 offset ${offset};
             `
             break
+        case 'all-visits-unbounded':
+            const { term: fullTerm, ext: fullExt } = delimiters!
+            const hasFullTerm = !!fullTerm
+            const normalizedFullExt = fullExt ? fullExt : ''
+            const fullVisitType = validExt[normalizedFullExt]
+            whereClause = `
+                hm.isActive = 1
+                ${hasFullTerm ? `and (
+                pc.Identificacion like concat('%', '${fullTerm}', '%') or
+                pc.Nombre like concat('%', '${fullTerm}', '%') or
+                pc.Apellido like concat('%', '${fullTerm}', '%') or
+                pr.Nombre like concat('%', '${fullTerm}', '%') or
+                pr.Apellido like concat('%', '${fullTerm}', '%')
+                )` : ''}
+                ${fullVisitType ? `and hm.TipoVisita = '${fullVisitType}'` : ''}
+            `;
+            query = `
+                select 
+                    hm.HistoriaID,
+                    hm.PacienteID,
+                    concat(pr.Nombre, ' ', pr.Apellido) as NombreDoctor,
+                    pc.Identificacion as IdPaciente,
+                    concat(pc.Nombre, ' ', pc.Apellido) as NombrePaciente,
+                    hm.FechaUltimaVisita,
+                    hm.TipoVisita,
+                    hm.Diagnostico,
+                    fac.InvoiceNumber,
+                    fac.Estado,
+                    count(*) over() as total_registries
+                from 
+                    historia_medica as hm
+                    inner join 
+                        pacientes as pc
+                        on hm.PacienteID = pc.PacienteID
+                    inner join 
+                        personal as pr
+                        on hm.PersonalID = pr.PersonalID
+                    inner join
+                        facturas as fac
+                        on hm.FacturaID = fac.FacturaID
+                where 
+                    ${whereClause}
+                order by 
+                    hm.FechaUltimaVisita desc;
+            `
+            break
         case 'one-visit':
             query = `
                 select 
@@ -82,7 +131,11 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                     personal as pe
                     on pe.PersonalID = hm.PersonalID
                 left join
-                    Inventario_HistoriaMedica as ihmd
+                    (
+                        select HistoriaMedicaID, InventarioID, sum(CantidadUsada) as CantidadUsada
+                        from Inventario_HistoriaMedica
+                        group by HistoriaMedicaID, InventarioID
+                    ) as ihmd
                     on ihmd.HistoriaMedicaID = hm.HistoriaID
                 where 
                     hm.isActive = 1 and
@@ -188,7 +241,8 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                     !!patTerm
                     ? (
                         `p.Nombre like concat('%', '${patTerm}', '%') or
-                        p.Apellido like concat('%', '${patTerm}', '%')`
+                        p.Apellido like concat('%', '${patTerm}', '%') or
+                        p.Identificacion like concat('%', '${patTerm}', '%')`
                     ) : ''
                 }
             `
@@ -220,5 +274,3 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
     }
     return query
 }
-
-

@@ -32,6 +32,11 @@ router.patch(
     requirePermissions('invoice.update'),
     inv.updateOne.bind( inv )
 )
+router.patch(
+    '/:id/annul',
+    requirePermissions('invoice.delete'),
+    inv.annulOne.bind( inv )
+)
 router.post(
     '/create', 
     requirePermissions('invoice.create'),

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { OrRoomsRepository } from '../ports/or-rooms.repository'
 import { AuditActor } from '../../domain/entities/Bed'
 import { OrRoomAssignment, OrRoomHistoryEntry, OrRoomRecord, OrRoomStatus } from '../../domain/entities/OrRoom'
+import { BillingService } from './billing.service'
 
 interface RoomPayload {
   code: string
@@ -29,7 +30,10 @@ interface ReleasePayload {
 }
 
 export class OrRoomsService {
-  constructor(private readonly roomsRepo: OrRoomsRepository) {}
+  constructor(
+    private readonly roomsRepo: OrRoomsRepository,
+    private readonly billingService?: BillingService
+  ) {}
 
   getRooms = async () => {
     const store = await this.roomsRepo.load()
@@ -124,6 +128,21 @@ export class OrRoomsService {
 
     store.updatedAt = now
     await this.roomsRepo.save(store)
+
+    if (this.billingService) {
+      try {
+        await this.billingService.createMovement({
+          patientId: payload.patientId,
+          patientName: payload.patientName,
+          toStation: 'quirofano',
+          occurredAt: now,
+          source: 'oroom',
+          reference: { roomId }
+        }, actor)
+      } catch (err) {
+        console.warn('billing movement error:', (err as any)?.message || err)
+      }
+    }
 
     return { rooms }
   }

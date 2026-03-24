@@ -1,0 +1,198 @@
+{
+  "events": [
+    {
+      "id": "f34af795-027b-4fcb-9d0d-08fa6e23d3f6",
+      "patientId": 133,
+      "patientName": "Emmet Brown",
+      "encounterId": "5839c5a5-eb8c-42a8-b050-68314af091a0",
+      "invoiceNumber": "a06319f3-ecc3-431e",
+      "fromStation": "consulta",
+      "toStation": "hospitalizacion",
+      "occurredAt": "2026-03-19T23:50",
+      "reason": "hule",
+      "actor": {
+        "id": 123,
+        "name": "Raphael Hamato",
+        "role": "Admin"
+      },
+      "source": "manual"
+    },
+    {
+      "id": "36b5e083-2bf3-42fa-90a7-dd8fde3d9eec",
+      "patientId": 133,
+      "patientName": "Emmet Brown",
+      "encounterId": "5839c5a5-eb8c-42a8-b050-68314af091a0",
+      "invoiceNumber": "a06319f3-ecc3-431e",
+      "toStation": "consulta",
+      "occurredAt": "2026-03-19",
+      "source": "visit",
+      "reference": {
+        "visitId": 159
+      }
+    },
+    {
+      "id": "9eff68ab-a201-40a7-aefd-8e5ea81f9c56",
+      "patientId": 132,
+      "patientName": "Claudia  Castro",
+      "fromStation": "emergencia",
+      "toStation": "hospitalizacion",
+      "occurredAt": "2026-03-12",
+      "source": "visit",
+      "reference": {
+        "visitId": 158
+      }
+    },
+    {
+      "id": "c2002f45-e301-4e44-9ad1-ee29208e4d67",
+      "patientId": 132,
+      "patientName": "Claudia  Castro",
+      "fromStation": "quirofano",
+      "toStation": "emergencia",
+      "occurredAt": "2026-03-12T23:54",
+      "reason": "se complico",
+      "actor": {
+        "id": 123,
+        "name": "Raphael Hamato",
+        "role": "Admin"
+      },
+      "source": "manual"
+    },
+    {
+      "id": "3aaf0b19-e781-424b-8be5-0883e0fa9f64",
+      "patientId": 132,
+      "patientName": "Claudia  Castro",
+      "fromStation": "consulta",
+      "toStation": "quirofano",
+      "occurredAt": "2026-03-12T23:47",
+      "actor": {
+        "id": 123,
+        "name": "Raphael Hamato",
+        "role": "Admin"
+      },
+      "source": "manual"
+    },
+    {
+      "id": "69a69658-5f7a-4139-9473-936572366d21",
+      "patientId": 132,
+      "patientName": "Claudia  Castro",
+      "toStation": "consulta",
+      "occurredAt": "2026-03-12",
+      "source": "visit",
+      "reference": {
+        "visitId": 157
+      }
+    },
+    {
+      "id": "d4c9a7e8-22d2-4179-967d-43deac6b3921",
+      "patientId": 131,
+      "patientName": "Khristopher  Lagos",
+      "fromStation": "hospitalizacion",
+      "toStation": "quirofano",
+      "occurredAt": "2026-03-12T23:02",
+      "reason": "ciru de apendice",
+      "notes": "hipertenso",
+      "actor": {
+        "id": 123,
+        "name": "Raphael Hamato",
+        "role": "Admin"
+      },
+      "source": "manual"
+    },
+    {
+      "id": "586e69d4-4322-4ccc-8924-0daadf662769",
+      "patientId": 131,
+      "patientName": "Khristopher  Lagos",
+      "fromStation": "hospitalizacion",
+      "toStation": "emergencia",
+      "occurredAt": "2026-03-12",
+      "source": "visit",
+      "reference": {
+        "visitId": 156
+      }
+    },
+    {
+      "id": "f76e4591-9fff-46ab-a0ec-42e98dd6f2c5",
+      "patientId": 131,
+      "patientName": "Khristopher  Lagos",
+      "fromStation": "consulta",
+      "toStation": "hospitalizacion",
+      "occurredAt": "2026-03-12T22:37",
+      "reason": "paciente con hipertension",
+      "notes": "paciente alergico a aines \nhipertension y glucosa alterada",
+      "actor": {
+        "id": 123,
+        "name": "Raphael Hamato",
+        "role": "Admin"
+      },
+      "source": "manual"
+    },
+    {
+      "id": "eeafb4c9-40f3-4ee3-968a-0c6d97058b37",
+      "patientId": 131,
+      "patientName": "Khristopher  Lagos",
+      "toStation": "consulta",
+      "occurredAt": "2026-03-12",
+      "source": "visit",
+      "reference": {
+        "visitId": 155
+      }
+    },
+    {
+      "id": "b1349b4d-6dce-45ba-b644-27938e32c24c",
+      "patientId": 92,
+      "patientName": "Lourdes  Matute",
+      "fromStation": "hospitalizacion",
+      "toStation": "quirofano",
+      "occurredAt": "2026-03-10T23:41",
+      "reason": "Ta grave el homie",
+      "actor": {
+        "id": 123,
+        "name": "Raphael Hamato",
+        "role": "Admin"
+      },
+      "source": "manual"
+    },
+    {
+      "id": "d81b63e4-8704-46e4-8243-78e6f639da4f",
+      "patientId": 92,
+      "patientName": "Lourdes  Matute",
+      "fromStation": "emergencia",
+      "toStation": "hospitalizacion",
+      "occurredAt": "2026-03-10T21:24",
+      "reason": "x",
+      "actor": {
+        "id": 123,
+        "name": "Raphael Hamato",
+        "role": "Admin"
+      },
+      "source": "manual"
+    },
+    {
+      "id": "dc86bdf2-1ed4-4980-b5a5-014e31e43873",
+      "patientId": 92,
+      "patientName": "Lourdes  Matute",
+      "fromStation": "consulta",
+      "toStation": "emergencia",
+      "occurredAt": "2026-03-10T20:57",
+      "reason": "complicacion",
+      "actor": {
+        "id": 123,
+        "name": "Raphael Hamato",
+        "role": "Admin"
+      },
+      "source": "manual"
+    },
+    {
+      "id": "e37b0ea0-172f-49c9-93f1-5fe4f7555e07",
+      "patientId": 92,
+      "patientName": "Lourdes  Matute",
+      "toStation": "consulta",
+      "occurredAt": "2026-03-10",
+      "source": "visit",
+      "reference": {
+        "visitId": 154
+      }
+    }
+  ],
+  "updatedAt": "2026-03-20T05:50:33.140Z"
+}

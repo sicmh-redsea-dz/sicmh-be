@@ -1,4 +1,6 @@
 import { AuthRepository } from '../ports/auth.repository';
+import { UserProfilesRepository } from '../ports/user-profiles.repository';
+import { AccessControlService } from './access-control.service';
 import { hashPassword } from '../../utils/passwordUtils';
 import { User } from '../../domain/entities/User';
 import { UserMapper } from '../../domain/mappers/UserMapper';
@@ -34,7 +36,11 @@ const buildValidationError = (message: string) => {
 };
 
 export class AuthService {
-  constructor(private readonly authRepo: AuthRepository) {}
+  constructor(
+    private readonly authRepo: AuthRepository,
+    private readonly profileRepo?: UserProfilesRepository,
+    private readonly accessControlService?: AccessControlService
+  ) {}
 
   register = async (params: AuthParams): Promise<AuthResponse> => {
     const { name, email, uid, accessToken, provider } = params;
@@ -72,7 +78,8 @@ export class AuthService {
     });
 
     const newUser = await this.getUserData(insertId);
-    return await UserMapper.toAuthResponse(newUser);
+    const response = await UserMapper.toAuthResponse(newUser);
+    return await this.attachProfile(response);
   };
 
   login = async (params: AuthParams): Promise<AuthResponse> => {
@@ -87,7 +94,8 @@ export class AuthService {
       throw buildError('inactive_user', 'User is inactive.');
     }
 
-    return await UserMapper.toAuthResponse(existingUser);
+    const response = await UserMapper.toAuthResponse(existingUser);
+    return await this.attachProfile(response);
   };
 
   checkToken = async (id: string) => {
@@ -98,7 +106,8 @@ export class AuthService {
     if (!user.Activo) {
       throw buildError('inactive_user', 'User is inactive.');
     }
-    return await UserMapper.toAuthResponse(user);
+    const response = await UserMapper.toAuthResponse(user);
+    return await this.attachProfile(response);
   };
 
   private getUserData = async (identifier: number | string): Promise<User> => {
@@ -112,4 +121,30 @@ export class AuthService {
 
     return user;
   };
+
+  private async attachProfile(response: AuthResponse): Promise<AuthResponse> {
+    let next = { ...response }
+    if (this.profileRepo) {
+      try {
+        const store = await this.profileRepo.load();
+        const profile = store.profiles.find((p) => p.userId === response._id);
+        if (profile) {
+          next = { ...next, profile };
+        }
+      } catch (err) {
+        // ignore profile errors
+      }
+    }
+
+    if (this.accessControlService) {
+      try {
+        const permissions = await this.accessControlService.resolvePermissions(next.roles ?? [], next._id);
+        next = { ...next, permissions: Array.from(permissions) };
+      } catch (err) {
+        // ignore permissions errors
+      }
+    }
+
+    return next;
+  }
 }

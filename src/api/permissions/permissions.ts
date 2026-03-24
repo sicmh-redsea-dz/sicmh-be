@@ -21,7 +21,7 @@ export type Permission =
 
 export type RoleKey = 'admin' | 'doctor' | 'enfermera' | 'recepcionista' | 'asistente'
 
-const ALL_PERMISSIONS: Permission[] = [
+export const ALL_PERMISSIONS: Permission[] = [
   'dashboard.view',
   'patients.read',
   'patients.create',
@@ -106,6 +106,12 @@ export const normalizeRoleName = (role: string | null | undefined): RoleKey | nu
     if (aliases.includes(normalized)) return roleKey
   }
 
+  if (normalized.includes('admin')) return 'admin'
+  if (normalized.includes('doctor') || normalized.includes('medic')) return 'doctor'
+  if (normalized.includes('enfermer') || normalized.includes('nurse')) return 'enfermera'
+  if (normalized.includes('recep')) return 'recepcionista'
+  if (normalized.includes('asisten') || normalized.includes('attendant')) return 'asistente'
+
   return null
 }
 
@@ -113,7 +119,16 @@ export const getPermissionsForRoles = (roles?: string[] | null): Set<Permission>
   const permissions = new Set<Permission>()
   if (!roles || roles.length === 0) return permissions
 
-  roles.forEach((role) => {
+  const roleList = Array.isArray(roles)
+    ? roles
+    : [String(roles)]
+
+  const normalizedRoles = roleList
+    .flatMap((role) => String(role).split(/[|,]/))
+    .map((role) => role.trim())
+    .filter(Boolean)
+
+  normalizedRoles.forEach((role) => {
     const normalizedRole = normalizeRoleName(role)
     if (!normalizedRole) return
 
