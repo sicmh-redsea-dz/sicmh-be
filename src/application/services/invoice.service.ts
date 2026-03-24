@@ -2,6 +2,7 @@ import { generateShortenedUuid } from '../../helper/uuidGen'
 import { InvoiceRepository } from '../ports/invoice.repository'
 import { InvoiceMapper } from '../../domain/mappers/InvoiceMapper'
 import { PatientsService } from './patients.service'
+import { BillingService } from './billing.service'
 import puppeteer from 'puppeteer'
 
 interface Delimiters {
@@ -13,9 +14,11 @@ interface Delimiters {
 export class InvoiceService {
 
     private patientService: PatientsService
+    private billingService?: BillingService
 
-    constructor( patientService: PatientsService, private readonly invoiceRepo: InvoiceRepository ) {
+    constructor( patientService: PatientsService, private readonly invoiceRepo: InvoiceRepository, billingService?: BillingService ) {
         this.patientService = patientService
+        this.billingService = billingService
     }
 
     getInvoices = async( args: Delimiters ): Promise<any> => {
@@ -48,7 +51,8 @@ export class InvoiceService {
         const translatedFields = this.removeUndefined( mappedFields )
         
         try {
-            return await this.invoiceRepo.create( translatedFields )
+            const id = await this.invoiceRepo.create( translatedFields )
+            return { id, invoiceNumber: invoiceNum }
         } catch ( err: any ) {
             console.log('error creating invoice ::: ', err.message)
             throw err
@@ -71,6 +75,26 @@ export class InvoiceService {
     }
 
     updateInvById = async (id: string, updInvoicePayload: Record<string, any>): Promise<any> => {
+        const currentInvoice = await this.invoiceRepo.findByInvoiceNumber(id)
+        if (!currentInvoice) {
+            const error = new Error(`Invoice with Id ${id} not found`)
+            error.name = 'not_found_error'
+            throw error
+        }
+        const normalizedStatus = String(currentInvoice.Estado || '').toLowerCase()
+        if (normalizedStatus.includes('pag')) {
+            const error = new Error('Invoice already paid')
+            error.name = 'validation_errors'
+            ;(error as any).errors = [{ msg: 'No se puede editar una factura pagada.' }]
+            throw error
+        }
+        if (normalizedStatus.includes('anul')) {
+            const error = new Error('Invoice already annulled')
+            error.name = 'validation_errors'
+            ;(error as any).errors = [{ msg: 'No se puede editar una factura anulada.' }]
+            throw error
+        }
+
         const mappedFields = InvoiceMapper.toDbForm({
             ...updInvoicePayload,
             invoiceNum: id,
@@ -84,6 +108,13 @@ export class InvoiceService {
 
         try {
             await this.invoiceRepo.updateByInvoiceNumber( id, translatedFields )
+            if (this.billingService) {
+                try {
+                    await this.billingService.updateEncounterStatusByInvoice(id, 'Pagado')
+                } catch (err) {
+                    console.warn('encounter status update warning:', (err as any)?.message || err)
+                }
+            }
             return {
                 id
             }
@@ -91,6 +122,66 @@ export class InvoiceService {
             console.error('Error en updateInvById:', err)
             throw new Error((err as any)?.message || 'Error desconocido')
         }
+    }
+
+    incrementAmountById = async ( invoiceId: number, delta: number ): Promise<void> => {
+        if (!delta) return
+        try {
+            await this.invoiceRepo.incrementAmountById( invoiceId, delta )
+        } catch ( err: any ) {
+            console.error('Error updating invoice amount ::::: ', err)
+            throw err
+        }
+    }
+
+    annulInvoiceById = async ( invoiceId: string ): Promise<any> => {
+        const invoice = await this.invoiceRepo.findByInvoiceNumber(invoiceId)
+        if (!invoice) {
+            const error = new Error(`Invoice with Id ${invoiceId} not found`)
+            error.name = 'not_found_error'
+            throw error
+        }
+
+        if (String(invoice.Estado || '').toLowerCase().includes('anul')) {
+            return { invoiceId, newInvoiceId: null }
+        }
+
+        await this.invoiceRepo.updateByInvoiceNumber(invoiceId, { Estado: 'Anulado' })
+
+        const payload = {
+            patient: invoice.PacienteID,
+            doctor: invoice.PersonalID,
+            date: new Date().toISOString().split('T')[0],
+            amount: 0,
+            ensurance: invoice.AseguradoraID,
+            elderlyDiscount: invoice.DescuentoElderly,
+            promCode: invoice.CodigoPromocional,
+            discount: invoice.DescuentoPromocional,
+            rtn: invoice.RTN,
+            cai: invoice.CAI,
+            pMethod: invoice.TipoPagoID
+        }
+
+        const created = await this.createInvoice(payload)
+
+        if (this.billingService) {
+            try {
+                const patient = await this.patientService.findOnePatient(invoice.PacienteID)
+                await this.billingService.transferInvoiceContext({
+                    fromInvoiceNumber: invoiceId,
+                    fromInvoiceId: invoice.FacturaID,
+                    toInvoiceNumber: created.invoiceNumber,
+                    toInvoiceId: created.id,
+                    patientId: invoice.PacienteID,
+                    patientName: `${patient.name} ${patient.lastName}`.trim(),
+                    doctorId: invoice.PersonalID
+                })
+            } catch (err) {
+                console.warn('invoice transfer warning:', (err as any)?.message || err)
+            }
+        }
+
+        return { invoiceId, newInvoiceId: created.invoiceNumber }
     }
 
     removeInvoiceById = async ( invoiceId: string ): Promise<any> => {

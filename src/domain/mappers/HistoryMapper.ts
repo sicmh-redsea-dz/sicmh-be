@@ -11,7 +11,8 @@ export class HistoryMapper {
             FechaUltimaVisita: lastVisitDate,
             Diagnostico: diagnosis,
             InvoiceNumber: invoiceNumber,
-            Estado: state
+            Estado: state,
+            TipoVisita: visitType
         } = history
 
         return {
@@ -22,7 +23,8 @@ export class HistoryMapper {
             lastVisitDate,
             invoiceNumber,
             state,
-            diagnosis
+            diagnosis,
+            visitType
         }
     }
 

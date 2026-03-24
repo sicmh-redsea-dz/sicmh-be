@@ -12,6 +12,11 @@ export class MysqlVisitsRepository implements VisitsRepository {
         return Database.execute<ShortHistory[]>(query)
     }
 
+    async findAllUnbounded(args: { term: string; ext?: string }): Promise<ShortHistory[]> {
+        const query = visitsQueries('all-visits-unbounded', args as any)
+        return Database.execute<ShortHistory[]>(query)
+    }
+
     async findById(id: number): Promise<History | null> {
         const query = visitsQueries('one-visit')
         const result = await Database.execute<History[]>(query, [id])

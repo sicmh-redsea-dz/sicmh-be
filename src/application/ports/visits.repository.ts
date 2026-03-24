@@ -4,6 +4,7 @@ import { Staff } from '../../domain/entities/Staff'
 
 export interface VisitsRepository {
     findAll(args: { limit: number; offset: number; term: string; ext: string }): Promise<ShortHistory[]>
+    findAllUnbounded(args: { term: string; ext?: string }): Promise<ShortHistory[]>
     findById(id: number): Promise<History | null>
     create(data: Record<string, any>): Promise<number>
     update(id: number, data: Record<string, any>): Promise<number>

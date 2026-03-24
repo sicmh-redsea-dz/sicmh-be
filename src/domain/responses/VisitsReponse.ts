@@ -20,6 +20,14 @@ export interface ShortHistoryResponse {
     patientId: string
     invoiceNumber: string
     state: string
+    visitType?: string
+    originStation?: string
+    currentStation?: string
+    movedTo?: string
+    movementFrom?: string
+    movementTo?: string
+    movementAt?: string
+    movementTrail?: string[]
 }
 
 export interface HistoryResponse {

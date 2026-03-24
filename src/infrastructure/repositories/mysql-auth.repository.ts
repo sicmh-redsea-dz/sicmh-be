@@ -33,4 +33,30 @@ export class MysqlAuthRepository implements AuthRepository {
         const result = await Database.execute<User[]>(query, [uid])
         return result[0] ?? null
     }
+
+    async listUsers(): Promise<any[]> {
+        const query = authQueries('list-users')
+        return Database.execute<any[]>(query)
+    }
+
+    async listRoles(): Promise<any[]> {
+        const query = authQueries('list-roles')
+        return Database.execute<any[]>(query)
+    }
+
+    async createRole(name: string): Promise<number> {
+        const query = authQueries('insert-role')
+        const result = await Database.execute<ResultSetHeader>(query, [name])
+        return result.insertId
+    }
+
+    async updateUserRole(userId: number, roleId: number): Promise<void> {
+        const query = authQueries('update-role')
+        await Database.execute(query, [roleId, userId])
+    }
+
+    async updateUserProfile(userId: number, payload: { name: string; email: string }): Promise<void> {
+        const query = authQueries('update-profile')
+        await Database.execute(query, [payload.name, payload.email, userId])
+    }
 }

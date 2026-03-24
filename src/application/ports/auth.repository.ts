@@ -16,4 +16,9 @@ export interface AuthRepository {
     findByEmail(email: string): Promise<User | null>
     findById(id: number): Promise<User | null>
     findByFirebaseId(uid: string): Promise<User | null>
+    listUsers(): Promise<any[]>
+    listRoles(): Promise<any[]>
+    createRole(name: string): Promise<number>
+    updateUserRole(userId: number, roleId: number): Promise<void>
+    updateUserProfile(userId: number, payload: { name: string; email: string }): Promise<void>
 }

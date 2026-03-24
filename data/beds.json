@@ -1,7 +1,32 @@
 {
   "hospitalization": {
-    "beds": [],
-    "updatedAt": ""
+    "beds": [
+      {
+        "id": 1,
+        "code": "h-101",
+        "area": "",
+        "status": "available",
+        "currentAssignment": null,
+        "history": [
+          {
+            "eventId": "592427be-d55e-4e90-9830-b879bea41a23",
+            "type": "create",
+            "timestamp": "2026-03-20T05:52:00.163Z",
+            "actor": {
+              "id": 123,
+              "name": "Raphael Hamato",
+              "role": "Admin"
+            },
+            "details": {
+              "code": "h-101",
+              "area": "",
+              "status": "available"
+            }
+          }
+        ]
+      }
+    ],
+    "updatedAt": "2026-03-20T05:52:00.163Z"
   },
   "emergency": {
     "beds": [

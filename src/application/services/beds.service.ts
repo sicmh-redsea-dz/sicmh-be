@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 import { BedsRepository } from '../ports/beds.repository'
 import { AuditActor, BedAssignment, BedHistoryEntry, BedModule, BedRecord, BedStatus } from '../../domain/entities/Bed'
+import { BillingService } from './billing.service'
 
 interface BedPayload {
   code: string
@@ -28,7 +29,10 @@ interface ReleasePayload {
 const VALID_MODULES: BedModule[] = ['hospitalization', 'emergency']
 
 export class BedsService {
-  constructor(private readonly bedsRepo: BedsRepository) {}
+  constructor(
+    private readonly bedsRepo: BedsRepository,
+    private readonly billingService?: BillingService
+  ) {}
 
   getBeds = async (module: string) => {
     const moduleKey = this.assertModule(module)
@@ -125,6 +129,21 @@ export class BedsService {
 
     store[moduleKey].updatedAt = now
     await this.bedsRepo.save(store)
+
+    if (this.billingService) {
+      try {
+        await this.billingService.createMovement({
+          patientId: payload.patientId,
+          patientName: payload.patientName,
+          toStation: moduleKey === 'hospitalization' ? 'hospitalizacion' : 'emergencia',
+          occurredAt: now,
+          source: 'bed',
+          reference: { bedId }
+        }, actor)
+      } catch (err) {
+        console.warn('billing movement error:', (err as any)?.message || err)
+      }
+    }
 
     return { beds }
   }
