@@ -1,17 +1,15 @@
-import { AuthRepository } from '../ports/auth.repository';
-import { UserProfilesRepository } from '../ports/user-profiles.repository';
-import { AccessControlService } from './access-control.service';
-import { hashPassword } from '../../utils/passwordUtils';
-import { User } from '../../domain/entities/User';
-import { UserMapper } from '../../domain/mappers/UserMapper';
-import { AuthResponse } from '../../domain/responses/AuthResponse';
+import { AuthRepository } from '../ports/auth.repository'
+import { UserProfilesRepository } from '../ports/user-profiles.repository'
+import { AccessControlService } from './access-control.service'
+import { hashPassword, comparePassword } from '../../utils/passwordUtils'
+import { User } from '../../domain/entities/User'
+import { UserMapper } from '../../domain/mappers/UserMapper'
+import { AuthResponse } from '../../domain/responses/AuthResponse'
 
 interface AuthParams {
-  name?: string;
-  email?: string;
-  uid: string;
-  accessToken?: string;
-  provider?: 'conventional' | 'google';
+  name?: string
+  email: string
+  password?: string
 }
 
 enum Roles {
@@ -23,17 +21,17 @@ enum Roles {
 }
 
 const buildError = (name: string, message: string) => {
-  const error: any = new Error(message);
-  error.name = name;
-  return error;
-};
+  const error: any = new Error(message)
+  error.name = name
+  return error
+}
 
 const buildValidationError = (message: string) => {
-  const error: any = new Error(message);
-  error.name = 'validation_errors';
-  error.errors = [{ msg: message }];
-  return error;
-};
+  const error: any = new Error(message)
+  error.name = 'validation_errors'
+  error.errors = [{ msg: message }]
+  return error
+}
 
 export class AuthService {
   constructor(
@@ -43,28 +41,15 @@ export class AuthService {
   ) {}
 
   register = async (params: AuthParams): Promise<AuthResponse> => {
-    const { name, email, uid, accessToken, provider } = params;
+    const { name, email, password } = params
 
-    if (!email) {
-      throw buildValidationError('Email is required.');
-    }
+    if (!password) throw buildValidationError('Password is required.')
 
-    const existingByUid = await this.authRepo.findByFirebaseId(uid);
-    if (existingByUid) {
-      throw buildError('duplicate_entry', 'User already exists.');
-    }
+    const existingByEmail = await this.authRepo.findByEmail(email)
+    if (existingByEmail) throw buildError('duplicate_entry', 'Email already registered.')
 
-    const existingByEmail = await this.authRepo.findByEmail(email);
-    if (existingByEmail) {
-      throw buildError('duplicate_entry', 'Email already registered.');
-    }
-
-    const normalizedProvider = provider === 'google' ? 'google' : 'conventional';
-    const passwordHash = normalizedProvider === 'conventional'
-      ? await hashPassword(uid)
-      : undefined;
-
-    const finalName = name?.trim() || (email.includes('@') ? email.split('@')[0] : email);
+    const passwordHash = await hashPassword(password)
+    const finalName = name?.trim() || (email.includes('@') ? email.split('@')[0] : email)
 
     const insertId = await this.authRepo.createUser({
       name: finalName,
@@ -72,79 +57,65 @@ export class AuthService {
       passwordHash,
       roleId: Roles.Admin,
       active: 1,
-      firebaseId: uid,
-      provider: normalizedProvider,
-      accessToken: normalizedProvider === 'google' ? (accessToken ?? '') : undefined,
-    });
+      firebaseId: email,
+      provider: 'conventional',
+    })
 
-    const newUser = await this.getUserData(insertId);
-    const response = await UserMapper.toAuthResponse(newUser);
-    return await this.attachProfile(response);
-  };
+    const newUser = await this.getUserData(insertId)
+    const response = await UserMapper.toAuthResponse(newUser)
+    return await this.attachProfile(response)
+  }
 
   login = async (params: AuthParams): Promise<AuthResponse> => {
-    const { uid } = params;
-    const existingUser = await this.authRepo.findByFirebaseId(uid);
+    const { email, password } = params
 
-    if (!existingUser) {
-      throw buildError('not_found_error', 'User not found.');
-    }
+    const existingUser = await this.authRepo.findByEmail(email)
+    if (!existingUser) throw buildError('not_found_error', 'User not found.')
+    if (!existingUser.Activo) throw buildError('inactive_user', 'User is inactive.')
+    if (!existingUser.ContrasenaHash) throw buildValidationError('This account does not support password login.')
 
-    if (!existingUser.Activo) {
-      throw buildError('inactive_user', 'User is inactive.');
-    }
+    const passwordMatch = await comparePassword(password!, existingUser.ContrasenaHash)
+    if (!passwordMatch) throw buildValidationError('Invalid credentials.')
 
-    const response = await UserMapper.toAuthResponse(existingUser);
-    return await this.attachProfile(response);
-  };
+    const response = await UserMapper.toAuthResponse(existingUser)
+    return await this.attachProfile(response)
+  }
 
-  checkToken = async (id: string) => {
-    const user = await this.authRepo.findByFirebaseId(id);
-    if (!user) {
-      throw buildError('not_found_error', 'User not found.');
-    }
-    if (!user.Activo) {
-      throw buildError('inactive_user', 'User is inactive.');
-    }
-    const response = await UserMapper.toAuthResponse(user);
-    return await this.attachProfile(response);
-  };
+  checkToken = async (id: number): Promise<AuthResponse> => {
+    const user = await this.authRepo.findById(id)
+    if (!user) throw buildError('not_found_error', 'User not found.')
+    if (!user.Activo) throw buildError('inactive_user', 'User is inactive.')
+    const response = await UserMapper.toAuthResponse(user)
+    return await this.attachProfile(response)
+  }
 
   private getUserData = async (identifier: number | string): Promise<User> => {
     const user = typeof identifier === 'number'
       ? await this.authRepo.findById(identifier)
-      : await this.authRepo.findByEmail(identifier);
+      : await this.authRepo.findByEmail(identifier)
 
-    if (!user) {
-      throw buildError('not_found_error', 'User not found.');
-    }
-
-    return user;
-  };
+    if (!user) throw buildError('not_found_error', 'User not found.')
+    return user
+  }
 
   private async attachProfile(response: AuthResponse): Promise<AuthResponse> {
     let next = { ...response }
+
     if (this.profileRepo) {
       try {
-        const store = await this.profileRepo.load();
-        const profile = store.profiles.find((p) => p.userId === response._id);
-        if (profile) {
-          next = { ...next, profile };
-        }
-      } catch (err) {
-        // ignore profile errors
-      }
+        const store = await this.profileRepo.load()
+        const profile = store.profiles.find((p) => p.userId === response._id)
+        if (profile) next = { ...next, profile }
+      } catch (_err) {}
     }
 
     if (this.accessControlService) {
       try {
-        const permissions = await this.accessControlService.resolvePermissions(next.roles ?? [], next._id);
-        next = { ...next, permissions: Array.from(permissions) };
-      } catch (err) {
-        // ignore permissions errors
-      }
+        const permissions = await this.accessControlService.resolvePermissions(next.roles ?? [], next._id)
+        next = { ...next, permissions: Array.from(permissions) }
+      } catch (_err) {}
     }
 
-    return next;
+    return next
   }
 }

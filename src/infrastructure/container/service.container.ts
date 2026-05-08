@@ -13,6 +13,8 @@ import { PatientImagesService } from '../../application/services/patient-images.
 import { PatientImageCaptureService } from '../../application/services/patient-image-capture.service'
 import { SettingsService } from '../../application/services/settings.service'
 import { AccessControlService } from '../../application/services/access-control.service'
+import { CitasService } from '../../application/services/citas.service'
+import { MysqlCitasRepository } from '../repositories/mysql-citas.repository'
 import { MysqlAuthRepository } from '../repositories/mysql-auth.repository'
 import { MysqlPatientsRepository } from '../repositories/mysql-patients.repository'
 import { MysqlVisitsRepository } from '../repositories/mysql-visits.repository'
@@ -50,6 +52,8 @@ export class ServiceContainer {
     private static patientImageCaptureService: PatientImageCaptureService
     private static settingsService: SettingsService
     private static accessControlService: AccessControlService
+    private static citasService: CitasService
+    private static citasRepo: MysqlCitasRepository
     private static authRepo: MysqlAuthRepository
     private static patientsRepo: MysqlPatientsRepository
     private static visitsRepo: MysqlVisitsRepository
@@ -90,6 +94,12 @@ export class ServiceContainer {
             )
         }
         return this.settingsService
+    }
+
+    static getCitasService(): CitasService {
+        if (!this.citasService)
+            this.citasService = new CitasService(this.getCitasRepository())
+        return this.citasService
     }
 
     static getAccessControlService(): AccessControlService {
@@ -318,6 +328,12 @@ export class ServiceContainer {
             this.userPermissionsRepo = new FileUserPermissionsRepository()
         }
         return this.userPermissionsRepo
+    }
+
+    private static getCitasRepository(): MysqlCitasRepository {
+        if (!this.citasRepo)
+            this.citasRepo = new MysqlCitasRepository()
+        return this.citasRepo
     }
 
     private static getInvRepository(): MysqlInvRepository {

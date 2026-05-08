@@ -9,4 +9,13 @@ export class Database {
             throw err
         }
     }
+
+    static async query<T>(query: string): Promise<T> {
+        try {
+            const [result] = await pool.query(query)
+            return result as T
+        } catch ( err:any ) {
+            throw err
+        }
+    }
 }

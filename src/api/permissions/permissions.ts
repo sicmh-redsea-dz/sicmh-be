@@ -16,7 +16,10 @@ export type Permission =
   | 'invoice.create'
   | 'invoice.update'
   | 'invoice.delete'
+  | 'schedule.read'
   | 'schedule.create'
+  | 'schedule.update'
+  | 'schedule.delete'
   | 'settings.permissions.manage'
 
 export type RoleKey = 'admin' | 'doctor' | 'enfermera' | 'recepcionista' | 'asistente'
@@ -39,7 +42,10 @@ export const ALL_PERMISSIONS: Permission[] = [
   'invoice.create',
   'invoice.update',
   'invoice.delete',
+  'schedule.read',
   'schedule.create',
+  'schedule.update',
+  'schedule.delete',
   'settings.permissions.manage'
 ]
 
@@ -68,7 +74,11 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     'visits.create',
     'visits.update',
     'inventory.read',
-    'invoice.read'
+    'invoice.read',
+    'schedule.read',
+    'schedule.create',
+    'schedule.update',
+    'schedule.delete',
   ],
   enfermera: [
     'dashboard.view',
@@ -76,7 +86,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     'visits.read',
     'visits.create',
     'visits.update',
-    'inventory.read'
+    'inventory.read',
+    'schedule.read',
   ],
   recepcionista: [
     'dashboard.view',
@@ -86,7 +97,10 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     'invoice.read',
     'invoice.create',
     'invoice.update',
-    'schedule.create'
+    'schedule.read',
+    'schedule.create',
+    'schedule.update',
+    'schedule.delete',
   ],
   asistente: [
     'dashboard.view',

@@ -11,7 +11,7 @@ const resolveUser = async (req: Request) => {
   if (!uid) return null
 
   const authService = ServiceContainer.getAuthService()
-  return await authService.checkToken(uid)
+  return await authService.checkToken(Number(uid))
 }
 
 export const requirePermissions = (required: Permission | Permission[]) => {
@@ -38,7 +38,8 @@ export const requirePermissions = (required: Permission | Permission[]) => {
 
       next()
     } catch (error) {
-      res.status(403).json({ message: 'Access denied. Unable to validate permissions.' })
+      console.error('[requirePermissions] error:', error)
+      res.status(500).json({ message: 'Unable to validate permissions. Please try again.' })
     }
   }
 }
@@ -67,7 +68,8 @@ export const requireAnyPermission = (required: Permission | Permission[]) => {
 
       next()
     } catch (error) {
-      res.status(403).json({ message: 'Access denied. Unable to validate permissions.' })
+      console.error('[requireAnyPermission] error:', error)
+      res.status(500).json({ message: 'Unable to validate permissions. Please try again.' })
     }
   }
 }

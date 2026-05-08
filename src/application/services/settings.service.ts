@@ -1,5 +1,4 @@
 import crypto from 'crypto'
-import { firebaseAdmin } from '../../config/firebase'
 import { AuthRepository } from '../ports/auth.repository'
 import { UserProfilesRepository } from '../ports/user-profiles.repository'
 import { UserProfile } from '../../domain/entities/UserProfile'
@@ -48,9 +47,7 @@ export class SettingsService {
       await this.seedDefaultRoles()
       roles = await this.authRepo.listRoles()
     }
-    if (!roles.length) {
-      throw buildValidationError('No hay roles configurados.')
-    }
+    if (!roles.length) throw buildValidationError('No hay roles configurados.')
     return roles.map((role) => ({
       id: role.RolID,
       name: role.NombreRol,
@@ -64,9 +61,7 @@ export class SettingsService {
       try {
         await this.authRepo.createRole(name)
       } catch (err: any) {
-        if (err?.code !== 'ER_DUP_ENTRY') {
-          throw err
-        }
+        if (err?.code !== 'ER_DUP_ENTRY') throw err
       }
     }
   }
@@ -90,47 +85,28 @@ export class SettingsService {
 
   getProfile = async (userId: number): Promise<{ user: AuthResponse & { profile?: UserProfile } }> => {
     const user = await this.authRepo.findById(userId)
-    if (!user) {
-      throw buildError('not_found_error', 'User not found.')
-    }
+    if (!user) throw buildError('not_found_error', 'User not found.')
     const authUser = await UserMapper.toAuthResponse(user)
     const store = await this.profileRepo.load()
     const profile = store.profiles.find((p) => p.userId === userId)
-    return {
-      user: {
-        ...authUser,
-        profile
-      }
-    }
+    return { user: { ...authUser, profile } }
   }
 
-  updateProfile = async (userId: number, uid: string, payload: ProfilePayload) => {
+  updateProfile = async (userId: number, _uid: string, payload: ProfilePayload) => {
     const user = await this.authRepo.findById(userId)
-    if (!user) {
-      throw buildError('not_found_error', 'User not found.')
-    }
+    if (!user) throw buildError('not_found_error', 'User not found.')
 
     const name = payload.name?.trim() || user.NombreUsuario
     const email = payload.email?.trim() || user.CorreoElectronico
 
-    if (!name) {
-      throw buildValidationError('Nombre requerido.')
-    }
-
-    if (!email) {
-      throw buildValidationError('Correo requerido.')
-    }
+    if (!name) throw buildValidationError('Nombre requerido.')
+    if (!email) throw buildValidationError('Correo requerido.')
 
     if (email !== user.CorreoElectronico) {
       const existing = await this.authRepo.findByEmail(email)
       if (existing && existing.UsuarioID !== userId) {
         throw buildValidationError('El correo ya está registrado.')
       }
-      await firebaseAdmin.auth().updateUser(uid, { email })
-    }
-
-    if (name !== user.NombreUsuario) {
-      await firebaseAdmin.auth().updateUser(uid, { displayName: name })
     }
 
     await this.authRepo.updateUserProfile(userId, { name, email })
@@ -160,9 +136,7 @@ export class SettingsService {
     await this.profileRepo.save(store)
 
     const refreshed = await this.authRepo.findById(userId)
-    if (!refreshed) {
-      throw buildError('not_found_error', 'User not found.')
-    }
+    if (!refreshed) throw buildError('not_found_error', 'User not found.')
 
     return {
       user: {
@@ -175,10 +149,7 @@ export class SettingsService {
   updateUserRole = async (userId: number, roleId: number) => {
     const roles = await this.listRoles()
     const roleExists = roles.some((role) => role.id === roleId)
-    if (!roleExists) {
-      throw buildValidationError('Rol inválido.')
-    }
-
+    if (!roleExists) throw buildValidationError('Rol inválido.')
     await this.authRepo.updateUserRole(userId, roleId)
     return { updated: true }
   }
@@ -188,7 +159,6 @@ export class SettingsService {
       this.listRoles(),
       this.accessControlService.getRoleOverrides()
     ])
-
     return {
       roles,
       permissions: this.accessControlService.listAllPermissions(),
@@ -206,7 +176,6 @@ export class SettingsService {
       this.listUsers(),
       this.accessControlService.getUserOverrides()
     ])
-
     return {
       users,
       permissions: this.accessControlService.listAllPermissions(),
@@ -224,60 +193,31 @@ export class SettingsService {
     const email = payload.email?.trim().toLowerCase()
     const roleId = payload.roleId
 
-    if (!name || !email) {
-      throw buildValidationError('Nombre y correo son requeridos.')
-    }
-    if (!roleId) {
-      throw buildValidationError('Rol requerido.')
-    }
+    if (!name || !email) throw buildValidationError('Nombre y correo son requeridos.')
+    if (!roleId) throw buildValidationError('Rol requerido.')
 
     const existingByEmail = await this.authRepo.findByEmail(email)
-    if (existingByEmail) {
-      throw buildValidationError('El correo ya está registrado.')
-    }
-
-    try {
-      await firebaseAdmin.auth().getUserByEmail(email)
-      throw buildValidationError('El correo ya está registrado en Firebase.')
-    } catch (err: any) {
-      if (err?.code !== 'auth/user-not-found') {
-        throw err
-      }
-    }
+    if (existingByEmail) throw buildValidationError('El correo ya está registrado.')
 
     const roles = await this.listRoles()
     const roleExists = roles.some((role) => role.id === roleId)
-    if (!roleExists) {
-      throw buildValidationError('Rol inválido.')
-    }
+    if (!roleExists) throw buildValidationError('Rol inválido.')
 
     const tempPassword = this.generateTempPassword()
-
-    let fbUser
-    try {
-      fbUser = await firebaseAdmin.auth().createUser({
-        email,
-        password: tempPassword,
-        displayName: name
-      })
-    } catch (err: any) {
-      throw this.mapFirebaseError(err)
-    }
+    const passwordHash = await hashPassword(tempPassword)
 
     let userId: number
     try {
-      const passwordHash = await hashPassword(fbUser.uid)
       userId = await this.authRepo.createUser({
         name,
         email,
         passwordHash,
         roleId,
         active: 1,
-        firebaseId: fbUser.uid,
+        firebaseId: email,
         provider: 'conventional'
       })
     } catch (err: any) {
-      await firebaseAdmin.auth().deleteUser(fbUser.uid).catch(() => undefined)
       if (err?.code === 'ER_NO_REFERENCED_ROW_2' || err?.code === 'ER_NO_REFERENCED_ROW') {
         throw buildValidationError('Rol inválido.')
       }
@@ -285,15 +225,6 @@ export class SettingsService {
         throw buildValidationError('El correo ya está registrado.')
       }
       throw err
-    }
-
-    try {
-      await firebaseAdmin.auth().setCustomUserClaims(fbUser.uid, {
-        mustChangePassword: true
-      })
-    } catch (err: any) {
-      await firebaseAdmin.auth().deleteUser(fbUser.uid).catch(() => undefined)
-      throw this.mapFirebaseError(err)
     }
 
     if (payload.profile) {
@@ -323,23 +254,8 @@ export class SettingsService {
     }
   }
 
-  clearPasswordChangeFlag = async (uid: string) => {
-    const existing = await firebaseAdmin.auth().getUser(uid)
-    const claims = existing.customClaims ?? {}
-    await firebaseAdmin.auth().setCustomUserClaims(uid, {
-      ...claims,
-      mustChangePassword: false
-    })
+  clearPasswordChangeFlag = async (_uid: string) => {
     return { updated: true }
-  }
-
-  private mapFirebaseError(err: any) {
-    const code = err?.code || err?.errorInfo?.code
-    const message = String(err?.message || '').toLowerCase()
-    if (code == 'app/invalid-credential' || message.includes('invalid_grant') || message.includes('jwt')) {
-      return buildValidationError('Credenciales de Firebase inválidas. Revisa la hora del servidor o genera una nueva llave.')
-    }
-    return err
   }
 
   private generateTempPassword() {
@@ -366,10 +282,7 @@ export class SettingsService {
       host: SMTP_HOST,
       port: Number(SMTP_PORT),
       secure: Number(SMTP_PORT) === 465,
-      auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS
-      }
+      auth: { user: SMTP_USER, pass: SMTP_PASS }
     })
 
     const html = `
