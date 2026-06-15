@@ -1,5 +1,4 @@
 import { v4 as uuidv4 } from 'uuid'
-import puppeteer from 'puppeteer'
 
 import { BillingRepository, BillingFilters } from '../ports/billing.repository'
 import { BillingLedgerRepository } from '../ports/billing-ledger.repository'
@@ -18,6 +17,7 @@ import {
   PatientMovementEvent
 } from '../../domain/entities/Billing'
 import { AuditActor } from '../../domain/entities/Bed'
+import { renderPdfFromHtml } from '../../utils/pdfRenderer'
 
 interface ReportFilters {
   from?: string
@@ -31,6 +31,7 @@ interface ManualChargePayload {
   patientId: number
   patientName?: string
   encounterId?: string
+  invoiceNumber?: string
   station?: BillingStation | string
   category?: BillingItemCategory
   description: string
@@ -188,7 +189,13 @@ export class BillingService {
     if (errors.length > 0) throw this.buildValidationError(errors)
 
     const patientName = await this.resolvePatientName(payload.patientId, payload.patientName)
-    const encounter = await this.resolveEncounter(payload.patientId, payload.encounterId)
+    const encounter = await this.resolveChargeEncounter({
+      patientId: payload.patientId,
+      patientName,
+      encounterId: payload.encounterId,
+      invoiceNumber: payload.invoiceNumber,
+      occurredAt: payload.occurredAt
+    })
     if (!encounter) {
       throw this.buildValidationError(['No hay factura pendiente activa para este paciente.'])
     }
@@ -429,24 +436,9 @@ export class BillingService {
   }
 
   generateReportPdf = async (filters: ReportFilters) => {
-    let browser
-    try {
-      const report = await this.getReport(filters)
-      const html = this.renderReportTemplate(report)
-      browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      })
-      const page = await browser.newPage()
-      await page.setContent(html, { waitUntil: 'networkidle0' })
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true
-      })
-      return pdfBuffer
-    } finally {
-      if (browser) await browser.close().catch(() => {})
-    }
+    const report = await this.getReport(filters)
+    const html = this.renderReportTemplate(report)
+    return renderPdfFromHtml(html)
   }
 
   private async createMovementCharge(
@@ -505,6 +497,51 @@ export class BillingService {
       if (invoice) return invoice
     }
     return this.invoiceRepo.findLatestPendingByPatientAndDate(patientId, occurredAt)
+  }
+
+  private async resolveChargeEncounter(args: {
+    patientId: number
+    patientName: string
+    encounterId?: string
+    invoiceNumber?: string
+    occurredAt?: string
+  }) {
+    const { patientId, patientName, encounterId, invoiceNumber, occurredAt } = args
+
+    if (invoiceNumber) {
+      const invoice = await this.resolvePendingInvoice(
+        patientId,
+        occurredAt ?? new Date().toISOString(),
+        invoiceNumber
+      )
+
+      if (!invoice || Number(invoice.PacienteID) !== Number(patientId)) {
+        return null
+      }
+
+      const status = this.normalizeStatus(invoice.Estado)
+      if (this.normalizeFilter(status) !== this.normalizeFilter('Pendiente')) {
+        return {
+          id: '',
+          patientId,
+          patientName,
+          invoiceNumber,
+          status
+        } as PatientEncounter
+      }
+
+      return this.registerEncounterForInvoice({
+        patientId,
+        patientName,
+        doctorId: invoice.PersonalID,
+        invoiceNumber: invoice.InvoiceNumber,
+        invoiceId: invoice.FacturaID,
+        createdAt: invoice.FechaFactura,
+        status
+      })
+    }
+
+    return this.resolveEncounter(patientId, encounterId)
   }
 
   private async applyInvoiceDeltaSafely(

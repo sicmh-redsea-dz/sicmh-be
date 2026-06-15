@@ -3,7 +3,7 @@ import { InvoiceRepository } from '../ports/invoice.repository'
 import { InvoiceMapper } from '../../domain/mappers/InvoiceMapper'
 import { PatientsService } from './patients.service'
 import { BillingService } from './billing.service'
-import puppeteer from 'puppeteer'
+import { renderPdfFromHtml } from '../../utils/pdfRenderer'
 
 interface Delimiters {
   limit: number,
@@ -209,7 +209,7 @@ export class InvoiceService {
 
             const services = (servicesResp as object[]).map((s: any) => ({
                 id: s.ServicioID,
-                serviceName: s.NombreServicio,
+                serviceName: s.NombreServicio ?? s.Nombre,
                 serviceDescription: s.Descripcion,
                 servicePrice: parseFloat(s.Precio)
             }))
@@ -236,7 +236,6 @@ export class InvoiceService {
     }
 
     generateCloseReportPdf = async ( term?: string ): Promise<any> => {
-        let browser;
         try {
             const [headerData, summaryData, paymentsData, cashbox] = await Promise.all([
                 this.invoiceRepo.fetchReportHeader( term ),
@@ -250,25 +249,11 @@ export class InvoiceService {
                 payments: paymentsData,
                 cashbox: cashbox
             })
-            
-            browser = await puppeteer.launch({
-                headless: true,
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
-            })
-            const page = await browser.newPage()
-            await page.setContent(html, { waitUntil: 'networkidle0' })
-            const pdfBuffer = await page.pdf({
-                format: 'A4',
-                printBackground: true
-            })
 
-            return pdfBuffer
+            return renderPdfFromHtml(html)
         } catch ( err: any ) {
             console.error('Error generando PDF: ', err?.message || err )
             throw err
-        } finally {
-            if ( browser )
-                await browser.close().catch(() => {})
         }
     }
 

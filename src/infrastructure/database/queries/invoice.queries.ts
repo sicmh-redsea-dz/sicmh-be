@@ -111,9 +111,11 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
         case 'getServices':
             query = `
                 select 
-                    s.* 
+                    s.*
                 from 
-                    servicios as s;
+                    servicios as s
+                order by
+                    s.ServicioID asc;
             `
             break;
         case 'getPaymentMethods':

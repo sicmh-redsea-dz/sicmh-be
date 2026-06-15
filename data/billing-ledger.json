@@ -1,6 +1,63 @@
 {
   "items": [
     {
+      "id": "8b95418b-5012-49c3-beec-0e086dd3e106",
+      "patientId": 101,
+      "patientName": "Irma Yolanda Rodriguez hernandez",
+      "encounterId": "394d1a3b-3404-4d27-af2a-49db2c9c03ce",
+      "invoiceNumber": "f621b62a-39ed-41af",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-06-09",
+      "status": "Pendiente",
+      "source": "manual",
+      "reference": {
+        "invoiceNumber": "f621b62a-39ed-41af"
+      }
+    },
+    {
+      "id": "00225e3d-f37a-4205-9f9e-54b40d3ebf72",
+      "patientId": 101,
+      "patientName": "Irma Yolanda Rodriguez hernandez",
+      "encounterId": "394d1a3b-3404-4d27-af2a-49db2c9c03ce",
+      "invoiceNumber": "f621b62a-39ed-41af",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-06-09",
+      "status": "Pendiente",
+      "source": "manual",
+      "reference": {
+        "invoiceNumber": "f621b62a-39ed-41af"
+      }
+    },
+    {
+      "id": "c684552b-f7b3-4d39-b30b-69b99dfb81a2",
+      "patientId": 126,
+      "patientName": "Ovideo  Aguilar",
+      "encounterId": "0813fcde-3830-4a04-bc0a-eedf8ff1fab3",
+      "invoiceNumber": "45e15fcc-d6da-422e",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-03-03",
+      "status": "Pendiente",
+      "source": "manual",
+      "reference": {
+        "invoiceNumber": "45e15fcc-d6da-422e"
+      }
+    },
+    {
       "id": "14d07aac-5a1d-4733-b30f-f0d89c2dca18",
       "patientId": 133,
       "patientName": "Emmet Brown",
@@ -109,5 +166,5 @@
       }
     }
   ],
-  "updatedAt": "2026-03-20T05:48:14.991Z"
+  "updatedAt": "2026-06-09T23:00:00.353Z"
 }

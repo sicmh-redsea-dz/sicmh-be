@@ -1,6 +1,30 @@
 {
   "encounters": [
     {
+      "id": "394d1a3b-3404-4d27-af2a-49db2c9c03ce",
+      "patientId": 101,
+      "patientName": "Irma Yolanda Rodriguez hernandez",
+      "doctorId": 1,
+      "origin": "consulta",
+      "invoiceNumber": "f621b62a-39ed-41af",
+      "invoiceId": 159,
+      "status": "Pendiente",
+      "createdAt": "2026-06-09",
+      "updatedAt": "2026-06-09T23:00:00.257Z"
+    },
+    {
+      "id": "0813fcde-3830-4a04-bc0a-eedf8ff1fab3",
+      "patientId": 126,
+      "patientName": "Ovideo  Aguilar",
+      "doctorId": 5,
+      "invoiceNumber": "45e15fcc-d6da-422e",
+      "invoiceId": 130,
+      "status": "Pagado",
+      "createdAt": "2026-03-03",
+      "updatedAt": "2026-06-09T22:32:42.709Z",
+      "closedAt": "2026-06-09T22:32:42.709Z"
+    },
+    {
       "id": "5839c5a5-eb8c-42a8-b050-68314af091a0",
       "patientId": 133,
       "patientName": "Emmet Brown",
@@ -13,5 +37,5 @@
       "updatedAt": "2026-03-20T05:50:33.139Z"
     }
   ],
-  "updatedAt": "2026-03-20T05:50:33.139Z"
+  "updatedAt": "2026-06-09T23:00:00.257Z"
 }

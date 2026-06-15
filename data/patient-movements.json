@@ -1,6 +1,19 @@
 {
   "events": [
     {
+      "id": "fcd83528-4ca6-4553-84f8-ec8fd3488666",
+      "patientId": 101,
+      "patientName": "Irma Yolanda Rodriguez hernandez",
+      "encounterId": "394d1a3b-3404-4d27-af2a-49db2c9c03ce",
+      "invoiceNumber": "f621b62a-39ed-41af",
+      "toStation": "consulta",
+      "occurredAt": "2026-06-09",
+      "source": "visit",
+      "reference": {
+        "visitId": 174
+      }
+    },
+    {
       "id": "f34af795-027b-4fcb-9d0d-08fa6e23d3f6",
       "patientId": 133,
       "patientName": "Emmet Brown",
@@ -194,5 +207,5 @@
       }
     }
   ],
-  "updatedAt": "2026-03-20T05:50:33.140Z"
+  "updatedAt": "2026-06-09T22:51:00.735Z"
 }
