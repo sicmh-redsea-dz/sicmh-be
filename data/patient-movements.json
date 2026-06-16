@@ -1,6 +1,19 @@
 {
   "events": [
     {
+      "id": "924a92e8-1aa8-4af0-be3f-fd47b71f3f25",
+      "patientId": 136,
+      "patientName": "Prometeus  Max",
+      "encounterId": "98a6fd4e-1022-4fa6-a07c-1253217892ee",
+      "invoiceNumber": "369c88e8-9ecf-4a72",
+      "toStation": "consulta",
+      "occurredAt": "2026-06-16",
+      "source": "visit",
+      "reference": {
+        "visitId": 176
+      }
+    },
+    {
       "id": "fcd83528-4ca6-4553-84f8-ec8fd3488666",
       "patientId": 101,
       "patientName": "Irma Yolanda Rodriguez hernandez",
@@ -207,5 +220,5 @@
       }
     }
   ],
-  "updatedAt": "2026-06-09T22:51:00.735Z"
+  "updatedAt": "2026-06-16T16:52:08.387Z"
 }

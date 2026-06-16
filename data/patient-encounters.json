@@ -1,6 +1,63 @@
 {
   "encounters": [
     {
+      "id": "98a6fd4e-1022-4fa6-a07c-1253217892ee",
+      "patientId": 136,
+      "patientName": "Prometeus  Max",
+      "doctorId": 4,
+      "origin": "consulta",
+      "invoiceNumber": "369c88e8-9ecf-4a72",
+      "invoiceId": 164,
+      "status": "Pendiente",
+      "createdAt": "2026-06-16",
+      "updatedAt": "2026-06-16T16:54:46.131Z",
+      "previousEncounterId": "d56553cb-6f15-473d-b18e-9feb9ba095b1"
+    },
+    {
+      "id": "2f6c5622-53fa-4ebc-b6d1-c49f39e54666",
+      "patientId": 137,
+      "patientName": "Katia Almendarez Almendarez",
+      "doctorId": 1,
+      "invoiceNumber": "ffdfa01b-fbfd-43e1",
+      "invoiceId": 154,
+      "status": "Pendiente",
+      "createdAt": "2026-05-05",
+      "updatedAt": "2026-06-16T16:21:09.422Z"
+    },
+    {
+      "id": "fb7ee26c-5984-4d4e-ad39-3ccd9a73aa24",
+      "patientId": 138,
+      "patientName": "Leida Marcia",
+      "doctorId": 1,
+      "invoiceNumber": "4711c980-cbfa-4d1d",
+      "invoiceId": 155,
+      "status": "Pendiente",
+      "createdAt": "2026-05-12",
+      "updatedAt": "2026-06-16T01:09:33.110Z"
+    },
+    {
+      "id": "e5213ec6-0166-4b4a-ac1f-4c49c000371a",
+      "patientId": 92,
+      "patientName": "Lourdes  Matute",
+      "doctorId": 1,
+      "invoiceNumber": "8f4783d3-46ec-476d",
+      "invoiceId": 156,
+      "status": "Pendiente",
+      "createdAt": "2026-05-12",
+      "updatedAt": "2026-06-16T01:15:33.239Z"
+    },
+    {
+      "id": "d56553cb-6f15-473d-b18e-9feb9ba095b1",
+      "patientId": 136,
+      "patientName": "Prometeus  Max",
+      "doctorId": 4,
+      "invoiceNumber": "18e8fbb0-c2a5-49e8",
+      "invoiceId": 163,
+      "status": "Pendiente",
+      "createdAt": "2026-06-16T00:47:54.073Z",
+      "updatedAt": "2026-06-16T01:10:55.651Z"
+    },
+    {
       "id": "394d1a3b-3404-4d27-af2a-49db2c9c03ce",
       "patientId": 101,
       "patientName": "Irma Yolanda Rodriguez hernandez",
@@ -32,10 +89,11 @@
       "origin": "consulta",
       "invoiceNumber": "a06319f3-ecc3-431e",
       "invoiceId": 143,
-      "status": "Pendiente",
+      "status": "Pagado",
       "createdAt": "2026-03-19",
-      "updatedAt": "2026-03-20T05:50:33.139Z"
+      "updatedAt": "2026-06-16T00:54:24.706Z",
+      "closedAt": "2026-06-16T00:54:24.706Z"
     }
   ],
-  "updatedAt": "2026-06-09T23:00:00.257Z"
+  "updatedAt": "2026-06-16T16:54:46.131Z"
 }

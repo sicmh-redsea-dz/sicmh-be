@@ -148,40 +148,15 @@ export class InvoiceService {
 
         await this.invoiceRepo.updateByInvoiceNumber(invoiceId, { Estado: 'Anulado' })
 
-        const payload = {
-            patient: invoice.PacienteID,
-            doctor: invoice.PersonalID,
-            date: new Date().toISOString().split('T')[0],
-            amount: 0,
-            ensurance: invoice.AseguradoraID,
-            elderlyDiscount: invoice.DescuentoElderly,
-            promCode: invoice.CodigoPromocional,
-            discount: invoice.DescuentoPromocional,
-            rtn: invoice.RTN,
-            cai: invoice.CAI,
-            pMethod: invoice.TipoPagoID
-        }
-
-        const created = await this.createInvoice(payload)
-
         if (this.billingService) {
             try {
-                const patient = await this.patientService.findOnePatient(invoice.PacienteID)
-                await this.billingService.transferInvoiceContext({
-                    fromInvoiceNumber: invoiceId,
-                    fromInvoiceId: invoice.FacturaID,
-                    toInvoiceNumber: created.invoiceNumber,
-                    toInvoiceId: created.id,
-                    patientId: invoice.PacienteID,
-                    patientName: `${patient.name} ${patient.lastName}`.trim(),
-                    doctorId: invoice.PersonalID
-                })
+                await this.billingService.updateEncounterStatusByInvoice(invoiceId, 'Anulado')
             } catch (err) {
-                console.warn('invoice transfer warning:', (err as any)?.message || err)
+                console.warn('billing encounter annul warning:', (err as any)?.message || err)
             }
         }
 
-        return { invoiceId, newInvoiceId: created.invoiceNumber }
+        return { invoiceId, newInvoiceId: null }
     }
 
     removeInvoiceById = async ( invoiceId: string ): Promise<any> => {
@@ -207,12 +182,15 @@ export class InvoiceService {
 
             const [patientsResp, servicesResp, paymentMethodsResp, doctorsResp] = resp 
 
-            const services = (servicesResp as object[]).map((s: any) => ({
-                id: s.ServicioID,
-                serviceName: s.NombreServicio ?? s.Nombre,
-                serviceDescription: s.Descripcion,
-                servicePrice: parseFloat(s.Precio)
-            }))
+            const services = (servicesResp as object[]).map((s: any) => {
+                const price = parseFloat(s.Precio)
+                return {
+                    id: s.ServicioID,
+                    serviceName: s.NombreServicio ?? s.Nombre,
+                    serviceDescription: s.Descripcion,
+                    servicePrice: isNaN(price) ? 0 : price
+                }
+            })
 
             const paymentMethods = (paymentMethodsResp as object[]).map((p: any) => ({
                 id: p.TipoPagoID,
@@ -243,16 +221,29 @@ export class InvoiceService {
                 this.invoiceRepo.fetchReportPayments( term ),
                 this.invoiceRepo.fetchReportCashbox( term ),
             ])
+
+            if (!headerData || !Array.isArray(summaryData) || !Array.isArray(paymentsData) || !Array.isArray(cashbox)) {
+                throw new Error('Invalid data structure received from database - unable to generate report')
+            }
+
             const html = this.renderCloseReportTemplate({
-                header: headerData[0],
-                summary: summaryData,
-                payments: paymentsData,
-                cashbox: cashbox
+                header: headerData[0] || {},
+                summary: summaryData || [],
+                payments: paymentsData || [],
+                cashbox: cashbox || []
             })
+
+            if (!html || html.trim().length === 0) {
+                throw new Error('Failed to render PDF template - HTML content is empty')
+            }
 
             return renderPdfFromHtml(html)
         } catch ( err: any ) {
-            console.error('Error generando PDF: ', err?.message || err )
+            console.error('Error generando PDF: ', {
+                message: err?.message,
+                code: err?.code,
+                stack: err?.stack
+            })
             throw err
         }
     }
@@ -263,37 +254,54 @@ export class InvoiceService {
         );
     }
 
-    private renderCloseReportTemplate = ( args: { 
+    private renderCloseReportTemplate = ( args: {
         header: any,
         summary: any,
         payments: any,
         cashbox: any,
     }) => {
-        const { header, summary, payments, cashbox } = args
-        const summaryRows = summary.map((r: any) => `
-            <tr>
-                <td>${r.estado_factura}</td>
-                <td>${r.cantidad_facturas}</td>
-                <td>${Number(r.total_monto).toFixed(2)}</td>
-            </tr>`
-        ).join('')
+        const { header = {}, summary = [], payments = [], cashbox = [] } = args
 
-        const paymentRows = payments.map((r: any) => `
-            <tr>
-                <td>${r.metodo_pago}</td>
-                <td>${r.cantidad}</td>
-                <td>${Number(r.total_monto).toFixed(2)}</td>
-            </tr>`
-        ).join('');
+        const sanitizeHtml = (str: any): string => {
+            if (!str && str !== 0) return ''
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;')
+        }
 
-        const cashboxRows = cashbox.map((r: any) => `
+        const summaryRows = (Array.isArray(summary) ? summary : []).map((r: any) => {
+            if (!r) return ''
+            return `
             <tr>
-                <td>${r.descripcion}</td>
-                <td>${Number(r.total_sistema).toFixed(2)}</td>
-                <td>${r.conteo_manual ?? ''}</td>
-                <td>${r.diferencia ?? ''}</td>
+                <td>${sanitizeHtml(r.estado_factura || 'N/A')}</td>
+                <td>${sanitizeHtml(r.cantidad_facturas || 0)}</td>
+                <td>${Number(r.total_monto || 0).toFixed(2)}</td>
             </tr>`
-        ).join('');
+        }).join('')
+
+        const paymentRows = (Array.isArray(payments) ? payments : []).map((r: any) => {
+            if (!r) return ''
+            return `
+            <tr>
+                <td>${sanitizeHtml(r.metodo_pago || 'N/A')}</td>
+                <td>${sanitizeHtml(r.cantidad || 0)}</td>
+                <td>${Number(r.total_monto || 0).toFixed(2)}</td>
+            </tr>`
+        }).join('')
+
+        const cashboxRows = (Array.isArray(cashbox) ? cashbox : []).map((r: any) => {
+            if (!r) return ''
+            return `
+            <tr>
+                <td>${sanitizeHtml(r.descripcion || 'N/A')}</td>
+                <td>${Number(r.total_sistema || 0).toFixed(2)}</td>
+                <td>${sanitizeHtml(r.conteo_manual ?? '')}</td>
+                <td>${sanitizeHtml(r.diferencia ?? '')}</td>
+            </tr>`
+        }).join('')
 
         return `
         <!DOCTYPE html>

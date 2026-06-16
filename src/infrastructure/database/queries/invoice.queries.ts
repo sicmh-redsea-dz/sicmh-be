@@ -62,13 +62,13 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                     f.InvoiceNumber,
                     f.TipoPagoID,
                     hm.TipoVisita
-                from 
+                from
                     facturas as f
-                    inner join historia_medica as hm
+                    left join historia_medica as hm
                         on hm.FacturaID = f.FacturaID
                 where
                     f.InvoiceNumber = ?
-                group by 
+                group by
                     f.FacturaID, f.PacienteID, f.PersonalID, f.FechaFactura, f.Monto, f.Estado, f.InvoiceNumber, f.TipoPagoID, hm.TipoVisita;
             `
             break

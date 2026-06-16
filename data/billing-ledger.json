@@ -1,6 +1,158 @@
 {
   "items": [
     {
+      "id": "0ee98082-ae6f-4b28-bd0e-1e93efaebc3f",
+      "patientId": 136,
+      "patientName": "Prometeus  Max",
+      "encounterId": "98a6fd4e-1022-4fa6-a07c-1253217892ee",
+      "invoiceNumber": "369c88e8-9ecf-4a72",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-06-16",
+      "status": "Pendiente",
+      "source": "manual",
+      "reference": {
+        "invoiceNumber": "369c88e8-9ecf-4a72"
+      }
+    },
+    {
+      "id": "3972755d-5e20-48d5-b1f6-b21840e34518",
+      "patientId": 137,
+      "patientName": "Katia Almendarez Almendarez",
+      "encounterId": "2f6c5622-53fa-4ebc-b6d1-c49f39e54666",
+      "invoiceNumber": "ffdfa01b-fbfd-43e1",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-05-05",
+      "status": "Pendiente",
+      "source": "manual",
+      "reference": {
+        "invoiceNumber": "ffdfa01b-fbfd-43e1"
+      }
+    },
+    {
+      "id": "f36a9241-cb84-4f1b-966f-ef250076a9f9",
+      "patientId": 92,
+      "patientName": "Lourdes  Matute",
+      "encounterId": "e5213ec6-0166-4b4a-ac1f-4c49c000371a",
+      "invoiceNumber": "8f4783d3-46ec-476d",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Electrocardiograma",
+      "quantity": 1,
+      "unitPrice": 600,
+      "total": 600,
+      "occurredAt": "2026-05-12",
+      "status": "Pendiente",
+      "source": "manual",
+      "reference": {
+        "invoiceNumber": "8f4783d3-46ec-476d"
+      }
+    },
+    {
+      "id": "1e637726-8231-43de-a4c4-87a57b01312b",
+      "patientId": 136,
+      "patientName": "Prometeus  Max",
+      "encounterId": "d56553cb-6f15-473d-b18e-9feb9ba095b1",
+      "invoiceNumber": "18e8fbb0-c2a5-49e8",
+      "station": "otros",
+      "category": "servicio",
+      "description": "Enfermeria",
+      "quantity": 1,
+      "unitPrice": 500,
+      "total": 500,
+      "occurredAt": "2026-06-16",
+      "status": "Pendiente",
+      "source": "manual",
+      "reference": {
+        "invoiceNumber": "18e8fbb0-c2a5-49e8"
+      }
+    },
+    {
+      "id": "28b9b46e-1c59-4a79-b961-60d854820dca",
+      "patientId": 136,
+      "patientName": "Prometeus  Max",
+      "encounterId": "d56553cb-6f15-473d-b18e-9feb9ba095b1",
+      "invoiceNumber": "18e8fbb0-c2a5-49e8",
+      "station": "otros",
+      "category": "servicio",
+      "description": "Electrocardiograma",
+      "quantity": 1,
+      "unitPrice": 600,
+      "total": 600,
+      "occurredAt": "2026-06-16",
+      "status": "Pendiente",
+      "source": "manual",
+      "reference": {
+        "invoiceNumber": "18e8fbb0-c2a5-49e8"
+      }
+    },
+    {
+      "id": "dbfdea69-c690-4fea-8e5b-139a94cf6ce1",
+      "patientId": 138,
+      "patientName": "Leida Marcia",
+      "encounterId": "fb7ee26c-5984-4d4e-ad39-3ccd9a73aa24",
+      "invoiceNumber": "4711c980-cbfa-4d1d",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Electrocardiograma",
+      "quantity": 1,
+      "unitPrice": 600,
+      "total": 600,
+      "occurredAt": "2026-05-12",
+      "status": "Pendiente",
+      "source": "manual",
+      "reference": {
+        "invoiceNumber": "4711c980-cbfa-4d1d"
+      }
+    },
+    {
+      "id": "c75acfe7-de61-48c6-8a39-a90a254a3e1c",
+      "patientId": 92,
+      "patientName": "Lourdes  Matute",
+      "encounterId": "e5213ec6-0166-4b4a-ac1f-4c49c000371a",
+      "invoiceNumber": "8f4783d3-46ec-476d",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-05-12",
+      "status": "Pendiente",
+      "source": "manual",
+      "reference": {
+        "invoiceNumber": "8f4783d3-46ec-476d"
+      }
+    },
+    {
+      "id": "7412d769-dbcd-406b-a5b1-1dc27e73658f",
+      "patientId": 136,
+      "patientName": "Prometeus  Max",
+      "encounterId": "d56553cb-6f15-473d-b18e-9feb9ba095b1",
+      "invoiceNumber": "18e8fbb0-c2a5-49e8",
+      "station": "otros",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-06-16",
+      "status": "Pendiente",
+      "source": "manual",
+      "reference": {
+        "invoiceNumber": "18e8fbb0-c2a5-49e8"
+      }
+    },
+    {
       "id": "8b95418b-5012-49c3-beec-0e086dd3e106",
       "patientId": 101,
       "patientName": "Irma Yolanda Rodriguez hernandez",
@@ -166,5 +318,5 @@
       }
     }
   ],
-  "updatedAt": "2026-06-09T23:00:00.353Z"
+  "updatedAt": "2026-06-16T17:22:18.848Z"
 }
