@@ -228,22 +228,26 @@ export class VisitsService {
                 await this.expedienteRepo.upsert(insertId, expedienteRecord)
             }
 
+            let billingPatientName = ''
+            let billingEncounterId: string | undefined
+
             try {
                 const patientInfo = await this.patientService.findOnePatient(patient)
-                const patientName = `${patientInfo.name} ${patientInfo.lastName}`.trim()
+                billingPatientName = `${patientInfo.name} ${patientInfo.lastName}`.trim()
                 const encounter = await this.billingService.registerEncounterForInvoice({
                     patientId: patient,
-                    patientName,
+                    patientName: billingPatientName,
                     doctorId: Number(doctor) || undefined,
                     origin: this.mapOriginToStation(originKey),
                     invoiceNumber: invoice.invoiceNumber,
                     invoiceId: invoice.id,
                     createdAt: date
                 })
+                billingEncounterId = encounter.id
                 await this.billingService.createMovement({
                     patientId: patient,
-                    patientName,
-                    encounterId: encounter.id,
+                    patientName: billingPatientName,
+                    encounterId: billingEncounterId,
                     toStation: this.mapOriginToStation(originKey),
                     occurredAt: date,
                     source: 'visit',
@@ -251,6 +255,21 @@ export class VisitsService {
                 })
             } catch (err) {
                 console.warn('billing movement error:', (err as any)?.message || err)
+            }
+
+            if (originKey === 'visits') {
+                try {
+                    await this.billingService.addDefaultConsultaServiceCharge({
+                        invoiceId: invoice.id,
+                        invoiceNumber: invoice.invoiceNumber,
+                        patientId: patient,
+                        patientName: billingPatientName,
+                        encounterId: billingEncounterId,
+                        occurredAt: date
+                    })
+                } catch (err) {
+                    console.warn('consulta service charge error:', (err as any)?.message || err)
+                }
             }
 
             return { visit: insertId }

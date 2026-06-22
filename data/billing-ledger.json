@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "7b058c88-3c84-4f23-9f97-ceffb1c277bd",
+      "patientId": 131,
+      "patientName": "Khristopher  Lagos",
+      "encounterId": "f6726350-5925-42db-82d5-8878a89c1fd6",
+      "invoiceNumber": "f07afc33-5302-44c1",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-06-22",
+      "status": "Pendiente",
+      "source": "invoice"
+    },
+    {
       "id": "0ee98082-ae6f-4b28-bd0e-1e93efaebc3f",
       "patientId": 136,
       "patientName": "Prometeus  Max",
@@ -318,5 +334,5 @@
       }
     }
   ],
-  "updatedAt": "2026-06-16T17:22:18.848Z"
+  "updatedAt": "2026-06-22T16:39:33.777Z"
 }

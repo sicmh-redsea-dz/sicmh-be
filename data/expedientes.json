@@ -223,5 +223,95 @@
     },
     "createdAt": "2026-06-16T16:52:08.200Z",
     "updatedAt": "2026-06-16T16:52:08.200Z"
+  },
+  "178": {
+    "historyId": 178,
+    "patientId": 110,
+    "origin": "visits",
+    "standard": {
+      "chiefComplaint": "motivo",
+      "currentIllness": "padecimiento",
+      "physicalExam": "exploracion",
+      "allergies": "alergias",
+      "currentMeds": "medicamentos"
+    },
+    "module": {
+      "followUpPlan": "seguimiento",
+      "referrals": "referencias"
+    },
+    "createdAt": "2026-06-19T22:50:25.499Z",
+    "updatedAt": "2026-06-19T22:50:25.499Z"
+  },
+  "179": {
+    "historyId": 179,
+    "patientId": 110,
+    "origin": "visits",
+    "standard": {
+      "chiefComplaint": "motivo",
+      "currentIllness": "pad",
+      "physicalExam": "exp",
+      "allergies": "ale",
+      "currentMeds": "med"
+    },
+    "module": {
+      "followUpPlan": "plan",
+      "referrals": "ref"
+    },
+    "createdAt": "2026-06-19T23:01:51.543Z",
+    "updatedAt": "2026-06-19T23:01:51.543Z"
+  },
+  "180": {
+    "historyId": 180,
+    "patientId": 109,
+    "origin": "visits",
+    "standard": {
+      "chiefComplaint": "dfsdfsdg",
+      "currentIllness": "ssdgds",
+      "physicalExam": "sdgsdgsd",
+      "allergies": "gghghjg",
+      "currentMeds": "gjhghjghjh"
+    },
+    "module": {
+      "followUpPlan": "rtyyu",
+      "referrals": "huiyuiy"
+    },
+    "createdAt": "2026-06-22T16:23:55.694Z",
+    "updatedAt": "2026-06-22T16:23:55.694Z"
+  },
+  "181": {
+    "historyId": 181,
+    "patientId": 108,
+    "origin": "visits",
+    "standard": {
+      "chiefComplaint": "gsdgddgs",
+      "currentIllness": "sdsdggd",
+      "physicalExam": "sdgsdgsdgd",
+      "allergies": "dgsgdg",
+      "currentMeds": "sdgsgsd"
+    },
+    "module": {
+      "followUpPlan": "ghfhg",
+      "referrals": "fghf"
+    },
+    "createdAt": "2026-06-22T16:32:35.343Z",
+    "updatedAt": "2026-06-22T16:32:35.343Z"
+  },
+  "182": {
+    "historyId": 182,
+    "patientId": 131,
+    "origin": "visits",
+    "standard": {
+      "chiefComplaint": "wersdfsdfsd",
+      "currentIllness": "dfsdfvxdfvd",
+      "physicalExam": "fdgfhfyghjg",
+      "allergies": "tyhfhtgh",
+      "currentMeds": "fghfghfgh"
+    },
+    "module": {
+      "followUpPlan": "fdgdfgd",
+      "referrals": "dfgdfgg"
+    },
+    "createdAt": "2026-06-22T16:39:33.389Z",
+    "updatedAt": "2026-06-22T16:39:33.389Z"
   }
 }

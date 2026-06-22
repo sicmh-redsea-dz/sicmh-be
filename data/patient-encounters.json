@@ -1,6 +1,68 @@
 {
   "encounters": [
     {
+      "id": "f6726350-5925-42db-82d5-8878a89c1fd6",
+      "patientId": 131,
+      "patientName": "Khristopher  Lagos",
+      "doctorId": 5,
+      "origin": "consulta",
+      "invoiceNumber": "f07afc33-5302-44c1",
+      "invoiceId": 170,
+      "status": "Pendiente",
+      "createdAt": "2026-06-22",
+      "updatedAt": "2026-06-22T16:39:33.591Z"
+    },
+    {
+      "id": "2246cb2c-65cd-455f-9bb7-f21b707a1d88",
+      "patientId": 108,
+      "patientName": "Michiko Aguilar",
+      "doctorId": 5,
+      "origin": "consulta",
+      "invoiceNumber": "1badc2d0-8e8a-45c3",
+      "invoiceId": 169,
+      "status": "Pendiente",
+      "createdAt": "2026-06-22",
+      "updatedAt": "2026-06-22T16:32:35.545Z"
+    },
+    {
+      "id": "48ea38b8-524c-48bf-a7d0-0dd5c92f9401",
+      "patientId": 109,
+      "patientName": "Sachiko aguilar",
+      "doctorId": 5,
+      "origin": "consulta",
+      "invoiceNumber": "547bb6db-886a-465e",
+      "invoiceId": 168,
+      "status": "Pendiente",
+      "createdAt": "2026-06-22",
+      "updatedAt": "2026-06-22T16:23:55.883Z"
+    },
+    {
+      "id": "74bd413e-15f1-4343-b8bb-b5d07b739ab4",
+      "patientId": 110,
+      "patientName": "Cristina  Martinez",
+      "doctorId": 1,
+      "origin": "consulta",
+      "invoiceNumber": "90787d09-7067-4358",
+      "invoiceId": 167,
+      "status": "Pendiente",
+      "createdAt": "2026-06-19",
+      "updatedAt": "2026-06-19T23:03:03.637Z",
+      "previousEncounterId": "5de6d61d-4bf0-4b0b-9eea-5eee02965605"
+    },
+    {
+      "id": "5de6d61d-4bf0-4b0b-9eea-5eee02965605",
+      "patientId": 110,
+      "patientName": "Cristina  Martinez",
+      "doctorId": 1,
+      "origin": "consulta",
+      "invoiceNumber": "5613d0ba-09dc-4d05",
+      "invoiceId": 166,
+      "status": "Anulado",
+      "createdAt": "2026-06-19",
+      "updatedAt": "2026-06-19T23:00:49.756Z",
+      "closedAt": "2026-06-19T23:00:49.756Z"
+    },
+    {
       "id": "98a6fd4e-1022-4fa6-a07c-1253217892ee",
       "patientId": 136,
       "patientName": "Prometeus  Max",
@@ -95,5 +157,5 @@
       "closedAt": "2026-06-16T00:54:24.706Z"
     }
   ],
-  "updatedAt": "2026-06-16T16:54:46.131Z"
+  "updatedAt": "2026-06-22T16:39:33.591Z"
 }

@@ -33,8 +33,8 @@ import { FilePatientEncountersRepository } from '../repositories/file-patient-en
 import { FilePatientImagesRepository } from '../repositories/file-patient-images.repository'
 import { FilePatientImageCaptureRepository } from '../repositories/file-patient-image-capture.repository'
 import { FileUserProfilesRepository } from '../repositories/file-user-profiles.repository'
-import { FileRolePermissionsRepository } from '../repositories/file-role-permissions.repository'
-import { FileUserPermissionsRepository } from '../repositories/file-user-permissions.repository'
+import { MysqlRolePermissionsRepository } from '../repositories/mysql-role-permissions.repository'
+import { MysqlUserPermissionsRepository } from '../repositories/mysql-user-permissions.repository'
 
 export class ServiceContainer {
     private static authService: AuthService
@@ -72,8 +72,8 @@ export class ServiceContainer {
     private static patientImagesRepo: FilePatientImagesRepository
     private static patientImageCaptureRepo: FilePatientImageCaptureRepository
     private static userProfilesRepo: FileUserProfilesRepository
-    private static rolePermissionsRepo: FileRolePermissionsRepository
-    private static userPermissionsRepo: FileUserPermissionsRepository
+    private static rolePermissionsRepo: MysqlRolePermissionsRepository
+    private static userPermissionsRepo: MysqlUserPermissionsRepository
 
     static getAuthService(): AuthService {
         if (!this.authService)
@@ -316,16 +316,16 @@ export class ServiceContainer {
         return this.userProfilesRepo
     }
 
-    private static getRolePermissionsRepository(): FileRolePermissionsRepository {
+    private static getRolePermissionsRepository(): MysqlRolePermissionsRepository {
         if (!this.rolePermissionsRepo) {
-            this.rolePermissionsRepo = new FileRolePermissionsRepository()
+            this.rolePermissionsRepo = new MysqlRolePermissionsRepository()
         }
         return this.rolePermissionsRepo
     }
 
-    private static getUserPermissionsRepository(): FileUserPermissionsRepository {
+    private static getUserPermissionsRepository(): MysqlUserPermissionsRepository {
         if (!this.userPermissionsRepo) {
-            this.userPermissionsRepo = new FileUserPermissionsRepository()
+            this.userPermissionsRepo = new MysqlUserPermissionsRepository()
         }
         return this.userPermissionsRepo
     }

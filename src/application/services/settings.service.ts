@@ -4,6 +4,7 @@ import { UserProfilesRepository } from '../ports/user-profiles.repository'
 import { UserProfile } from '../../domain/entities/UserProfile'
 import { AccessControlService } from './access-control.service'
 import { Permission, normalizeRoleName } from '../../api/permissions/permissions'
+import { auditPermissionChange } from '../../utils/permissionAudit'
 import { UserMapper } from '../../domain/mappers/UserMapper'
 import { AuthResponse } from '../../domain/responses/AuthResponse'
 import { hashPassword } from '../../utils/passwordUtils'
@@ -166,8 +167,9 @@ export class SettingsService {
     }
   }
 
-  updateRolePermissions = async (roleKey: string, grants: Permission[], revokes: Permission[]) => {
+  updateRolePermissions = async (roleKey: string, grants: Permission[], revokes: Permission[], actorId?: number) => {
     const updated = await this.accessControlService.updateRoleOverride(roleKey, grants, revokes)
+    if (actorId) auditPermissionChange(actorId, 'role', roleKey, grants, revokes)
     return { roleKey, override: updated }
   }
 
@@ -183,8 +185,9 @@ export class SettingsService {
     }
   }
 
-  updateUserPermissions = async (userId: number, grants: Permission[], revokes: Permission[]) => {
+  updateUserPermissions = async (userId: number, grants: Permission[], revokes: Permission[], actorId?: number) => {
     const updated = await this.accessControlService.updateUserOverride(userId, grants, revokes)
+    if (actorId) auditPermissionChange(actorId, 'user', String(userId), grants, revokes)
     return { userId, override: updated }
   }
 

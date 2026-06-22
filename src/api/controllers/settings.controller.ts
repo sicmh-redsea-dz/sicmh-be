@@ -57,7 +57,8 @@ export class SettingsController {
   async updateRolePermissions(req: Request): Promise<any> {
     const { roleKey } = req.params as { roleKey: string }
     const { grants = [], revokes = [] } = req.body ?? {}
-    return await this.settingsService.updateRolePermissions(roleKey, grants, revokes)
+    const actorId = Number((req as any).currentUser?._id)
+    return await this.settingsService.updateRolePermissions(roleKey, grants, revokes, actorId || undefined)
   }
 
   @asyncHandler()
@@ -69,6 +70,7 @@ export class SettingsController {
   async updateUserPermissions(req: Request): Promise<any> {
     const { userId } = req.params as { userId: string }
     const { grants = [], revokes = [] } = req.body ?? {}
-    return await this.settingsService.updateUserPermissions(Number(userId), grants, revokes)
+    const actorId = Number((req as any).currentUser?._id)
+    return await this.settingsService.updateUserPermissions(Number(userId), grants, revokes, actorId || undefined)
   }
 }

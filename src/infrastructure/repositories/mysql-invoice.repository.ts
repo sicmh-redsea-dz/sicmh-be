@@ -95,6 +95,12 @@ export class MysqlInvoiceRepository implements InvoiceRepository {
         return Database.execute<any[]>(query, [term, term, term])
     }
 
+    async fetchServiceById(id: number): Promise<{ ServicioID: number; NombreServicio: string; Precio: number } | null> {
+        const sql = `SELECT ServicioID, NombreServicio, Precio FROM \`cami-vime\`.\`servicios\` WHERE ServicioID = ? LIMIT 1`
+        const rows = await Database.execute<any[]>(sql, [id])
+        return rows[0] ?? null
+    }
+
     private buildInsertQuery(table: string, data: Record<string, any>): { query: string; values: any[] } {
         const keys = Object.keys(data)
         const columns = keys.join(', ')

@@ -15,7 +15,17 @@
       "theme": "light",
       "createdAt": "2026-03-21T18:53:08.878Z",
       "updatedAt": "2026-03-21T18:53:08.878Z"
+    },
+    {
+      "userId": 145,
+      "phone": "94949494",
+      "identification": "0801198100001",
+      "department": "Recepcion",
+      "position": "Recepcion",
+      "theme": "light",
+      "createdAt": "2026-06-22T15:51:41.866Z",
+      "updatedAt": "2026-06-22T15:51:41.866Z"
     }
   ],
-  "updatedAt": "2026-03-21T18:53:08.878Z"
+  "updatedAt": "2026-06-22T15:51:41.866Z"
 }
