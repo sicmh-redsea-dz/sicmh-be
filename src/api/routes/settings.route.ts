@@ -41,6 +41,18 @@ router.patch(
   settingsController.updateUserRole.bind(settingsController)
 )
 
+router.delete(
+  '/users/:id',
+  requirePermissions('settings.permissions.manage'),
+  settingsController.deleteUser.bind(settingsController)
+)
+
+router.patch(
+  '/users/:id/password',
+  requirePermissions('settings.permissions.manage'),
+  settingsController.changeUserPassword.bind(settingsController)
+)
+
 router.get(
   '/permissions/roles',
   requirePermissions('settings.permissions.manage'),

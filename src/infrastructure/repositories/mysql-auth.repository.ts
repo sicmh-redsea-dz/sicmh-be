@@ -1,5 +1,5 @@
 import { ResultSetHeader } from 'mysql2'
-import { AuthCreateUserParams, AuthRepository } from '../../application/ports/auth.repository'
+import { AuthCreateUserParams, AuthRepository, PersonalCreateParams } from '../../application/ports/auth.repository'
 import { User } from '../../domain/entities/User'
 import { Database } from '../database/Database'
 import { authQueries } from '../database/queries/auth.queries'
@@ -58,5 +58,33 @@ export class MysqlAuthRepository implements AuthRepository {
     async updateUserProfile(userId: number, payload: { name: string; email: string }): Promise<void> {
         const query = authQueries('update-profile')
         await Database.execute(query, [payload.name, payload.email, userId])
+    }
+
+    async deleteUser(userId: number): Promise<void> {
+        const query = authQueries('delete-user')
+        await Database.execute(query, [userId])
+    }
+
+    async changeUserPassword(userId: number, passwordHash: string): Promise<void> {
+        const query = authQueries('change-password')
+        await Database.execute(query, [passwordHash, userId])
+    }
+
+    async createPersonalRecord(params: PersonalCreateParams): Promise<number> {
+        const query = authQueries('insert-personal')
+        const today = new Date().toISOString().split('T')[0]
+        const values = [
+            params.nombre,
+            params.apellido,
+            params.cargo ?? null,
+            params.telefono ?? null,
+            params.correoElectronico ?? null,
+            today,
+            params.especialidad ?? null,
+            params.usuarioId,
+            params.gCalCalendarId ?? null
+        ]
+        const result = await Database.execute<ResultSetHeader>(query, values)
+        return result.insertId
     }
 }

@@ -112,6 +112,34 @@ export const authQueries = (key: string, caller?:number) => {
                 where UsuarioID = ?;
             `
             break
+        case 'delete-user':
+            query = `
+                delete from usuarios
+                where UsuarioID = ?;
+            `
+            break
+        case 'change-password':
+            query = `
+                update usuarios
+                set ContrasenaHash = ?
+                where UsuarioID = ?;
+            `
+            break
+        case 'insert-personal':
+            query = `
+                insert into personal (
+                    Nombre,
+                    Apellido,
+                    Cargo,
+                    Telefono,
+                    CorreoElectronico,
+                    FechaContratacion,
+                    Especialidad,
+                    UsuarioID,
+                    GCalCalendarId
+                ) values ( ?, ?, ?, ?, ?, ?, ?, ?, ? );
+            `
+            break
         default:
             query = ''
             break

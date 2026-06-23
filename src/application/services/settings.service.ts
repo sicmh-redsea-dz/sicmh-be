@@ -203,8 +203,8 @@ export class SettingsService {
     if (existingByEmail) throw buildValidationError('El correo ya está registrado.')
 
     const roles = await this.listRoles()
-    const roleExists = roles.some((role) => role.id === roleId)
-    if (!roleExists) throw buildValidationError('Rol inválido.')
+    const selectedRole = roles.find((role) => role.id === roleId)
+    if (!selectedRole) throw buildValidationError('Rol inválido.')
 
     const tempPassword = this.generateTempPassword()
     const passwordHash = await hashPassword(tempPassword)
@@ -248,6 +248,26 @@ export class SettingsService {
       await this.profileRepo.save(store)
     }
 
+    if (selectedRole.key === 'doctor') {
+      const nameParts = name.split(' ')
+      const nombre = nameParts[0] ?? name
+      const apellido = nameParts.slice(1).join(' ') || ''
+      try {
+        await this.authRepo.createPersonalRecord({
+          nombre,
+          apellido,
+          cargo: payload.profile?.position || 'Doctor',
+          telefono: payload.profile?.phone,
+          correoElectronico: email,
+          especialidad: payload.profile?.department,
+          usuarioId: userId,
+          gCalCalendarId: null
+        })
+      } catch (err: any) {
+        console.warn('No se pudo crear registro en personal:', err?.message)
+      }
+    }
+
     const emailSent = await this.sendInviteEmail({ name, email, tempPassword })
 
     return {
@@ -255,6 +275,31 @@ export class SettingsService {
       emailSent,
       tempPassword: emailSent ? undefined : tempPassword
     }
+  }
+
+  deleteUser = async (userId: number) => {
+    const user = await this.authRepo.findById(userId)
+    if (!user) throw buildError('not_found_error', 'Usuario no encontrado.')
+    await this.authRepo.deleteUser(userId)
+    const store = await this.profileRepo.load()
+    const idx = store.profiles.findIndex((p) => p.userId === userId)
+    if (idx !== -1) {
+      store.profiles.splice(idx, 1)
+      store.updatedAt = new Date().toISOString()
+      await this.profileRepo.save(store)
+    }
+    return { deleted: true }
+  }
+
+  changeUserPassword = async (userId: number, newPassword: string) => {
+    if (!newPassword || newPassword.length < 6) {
+      throw buildValidationError('La contraseña debe tener al menos 6 caracteres.')
+    }
+    const user = await this.authRepo.findById(userId)
+    if (!user) throw buildError('not_found_error', 'Usuario no encontrado.')
+    const passwordHash = await hashPassword(newPassword)
+    await this.authRepo.changeUserPassword(userId, passwordHash)
+    return { updated: true }
   }
 
   clearPasswordChangeFlag = async (_uid: string) => {

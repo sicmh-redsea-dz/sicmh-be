@@ -11,6 +11,17 @@ export interface AuthCreateUserParams {
     accessToken?: string
 }
 
+export interface PersonalCreateParams {
+    nombre: string
+    apellido: string
+    cargo?: string
+    telefono?: string
+    correoElectronico?: string
+    especialidad?: string
+    usuarioId: number
+    gCalCalendarId?: string | null
+}
+
 export interface AuthRepository {
     createUser(params: AuthCreateUserParams): Promise<number>
     findByEmail(email: string): Promise<User | null>
@@ -21,4 +32,7 @@ export interface AuthRepository {
     createRole(name: string): Promise<number>
     updateUserRole(userId: number, roleId: number): Promise<void>
     updateUserProfile(userId: number, payload: { name: string; email: string }): Promise<void>
+    deleteUser(userId: number): Promise<void>
+    changeUserPassword(userId: number, passwordHash: string): Promise<void>
+    createPersonalRecord(params: PersonalCreateParams): Promise<number>
 }

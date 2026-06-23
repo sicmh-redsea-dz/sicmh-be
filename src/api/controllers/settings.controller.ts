@@ -73,4 +73,17 @@ export class SettingsController {
     const actorId = Number((req as any).currentUser?._id)
     return await this.settingsService.updateUserPermissions(Number(userId), grants, revokes, actorId || undefined)
   }
+
+  @asyncHandler()
+  async deleteUser(req: Request): Promise<any> {
+    const { id } = req.params
+    return await this.settingsService.deleteUser(Number(id))
+  }
+
+  @asyncHandler()
+  async changeUserPassword(req: Request): Promise<any> {
+    const { id } = req.params
+    const { newPassword } = req.body ?? {}
+    return await this.settingsService.changeUserPassword(Number(id), newPassword)
+  }
 }
