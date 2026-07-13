@@ -35,4 +35,6 @@ export interface AuthRepository {
     deleteUser(userId: number): Promise<void>
     changeUserPassword(userId: number, passwordHash: string): Promise<void>
     createPersonalRecord(params: PersonalCreateParams): Promise<number>
+    getSessionVersion(userId: number): Promise<number>
+    incrementSessionVersion(userId: number): Promise<number>
 }

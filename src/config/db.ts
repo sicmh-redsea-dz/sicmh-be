@@ -1,25 +1,12 @@
-import mysql from 'mysql2/promise';
-import { config } from './env'
-
-export const pool = mysql.createPool({
-  host                 : config.DB_HOST || 'localhost',
-  user                 : config.DB_USER || 'redseadb',
-  password             : config.DB_PASSWORD || '',
-  database             : config.DB_SCHEMA || 'cami-vime',
-  port                 : parseInt(config.DB_PORT || '3306', 10),
-  waitForConnections   : true,
-  connectionLimit      : 10,
-  queueLimit           : 0,
-  enableKeepAlive      : true,
-  keepAliveInitialDelay: 0,
-  dateStrings          : true,
-})
+import { PoolManager } from '../infrastructure/database/PoolManager'
 
 export const initializeDb = async () => {
   try {
-    await pool.query('select now()')
-    console.log('Database connected succesfully')
-  } catch( err ) {
-    console.error('Database connection error: ', err)
+    PoolManager.init()
+    await PoolManager.globalPool().query('SELECT NOW()')
+    console.log('Database connected successfully')
+  } catch (err) {
+    console.error('Database connection error:', err)
+    process.exit(1)
   }
 }

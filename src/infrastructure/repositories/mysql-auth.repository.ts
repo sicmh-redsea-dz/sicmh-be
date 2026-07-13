@@ -87,4 +87,15 @@ export class MysqlAuthRepository implements AuthRepository {
         const result = await Database.execute<ResultSetHeader>(query, values)
         return result.insertId
     }
+
+    async getSessionVersion(userId: number): Promise<number> {
+        const query = authQueries('get-session-version')
+        const result = await Database.execute<{ SessionVersion: number }[]>(query, [userId])
+        return result[0]?.SessionVersion ?? 0
+    }
+
+    async incrementSessionVersion(userId: number): Promise<number> {
+        await Database.execute(authQueries('increment-session-version'), [userId])
+        return this.getSessionVersion(userId)
+    }
 }

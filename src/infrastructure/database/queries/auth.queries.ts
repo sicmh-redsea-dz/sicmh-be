@@ -140,6 +140,16 @@ export const authQueries = (key: string, caller?:number) => {
                 ) values ( ?, ?, ?, ?, ?, ?, ?, ?, ? );
             `
             break
+        case 'get-session-version':
+            query = `
+                SELECT SessionVersion FROM usuarios WHERE UsuarioID = ? LIMIT 1;
+            `
+            break
+        case 'increment-session-version':
+            query = `
+                UPDATE usuarios SET SessionVersion = SessionVersion + 1 WHERE UsuarioID = ?;
+            `
+            break
         default:
             query = ''
             break

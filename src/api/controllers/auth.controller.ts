@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from 'express'
 import { AuthService } from '../../application/services/auth.service'
 import { ServiceContainer } from '../../infrastructure/container/service.container'
 import { generateToken } from '../../utils/jwtUtils'
+import { PoolManager } from '../../infrastructure/database/PoolManager'
+import { TenantContext } from '../../infrastructure/database/TenantContext'
 
 const throwValidationError = (message: string) => {
   const error: any = new Error(message)
@@ -18,12 +20,16 @@ export class AuthController {
   }
 
   register = async (req: Request, res: Response, next: NextFunction) => {
-    const { name, email, password } = req.body ?? {}
+    const { name, email, password, codigoEmpresa } = req.body ?? {}
     try {
-      if (!email || !password) throwValidationError('Email and password are required.')
+      if (!email || !password) throwValidationError('El correo y la contraseña son obligatorios.')
+      if (!codigoEmpresa) throwValidationError('El código de empresa es obligatorio.')
 
-      const registeredUser = await this.authService.register({ name, email, password })
-      const token = generateToken(registeredUser._id)
+      const { pool, dbName } = await PoolManager.getPool(codigoEmpresa)
+      const { user: registeredUser, sessionVersion } = await TenantContext.run(pool, () =>
+        this.authService.register({ name, email, password })
+      )
+      const token = generateToken(registeredUser._id, codigoEmpresa.toUpperCase(), dbName, sessionVersion)
       res.status(202).json({ user: registeredUser, token })
     } catch (err) {
       next(err)
@@ -31,12 +37,16 @@ export class AuthController {
   }
 
   login = async (req: Request, res: Response, next: NextFunction) => {
-    const { email, password } = req.body ?? {}
+    const { email, password, codigoEmpresa } = req.body ?? {}
     try {
-      if (!email || !password) throwValidationError('Email and password are required.')
+      if (!email || !password) throwValidationError('El correo y la contraseña son obligatorios.')
+      if (!codigoEmpresa) throwValidationError('El código de empresa es obligatorio.')
 
-      const loggedUser = await this.authService.login({ email, password })
-      const token = generateToken(loggedUser._id)
+      const { pool, dbName } = await PoolManager.getPool(codigoEmpresa)
+      const { user: loggedUser, sessionVersion } = await TenantContext.run(pool, () =>
+        this.authService.login({ email, password })
+      )
+      const token = generateToken(loggedUser._id, codigoEmpresa.toUpperCase(), dbName, sessionVersion)
       res.status(202).json({ user: loggedUser, token })
     } catch (err) {
       next(err)

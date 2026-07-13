@@ -40,7 +40,7 @@ export class AuthService {
     private readonly accessControlService?: AccessControlService
   ) {}
 
-  register = async (params: AuthParams): Promise<AuthResponse> => {
+  register = async (params: AuthParams): Promise<{ user: AuthResponse; sessionVersion: number }> => {
     const { name, email, password } = params
 
     if (!password) throw buildValidationError('Password is required.')
@@ -61,24 +61,25 @@ export class AuthService {
       provider: 'conventional',
     })
 
+    const sessionVersion = await this.authRepo.incrementSessionVersion(insertId)
     const newUser = await this.getUserData(insertId)
     const response = await UserMapper.toAuthResponse(newUser)
-    return await this.attachProfile(response)
+    return { user: await this.attachProfile(response), sessionVersion }
   }
 
-  login = async (params: AuthParams): Promise<AuthResponse> => {
+  login = async (params: AuthParams): Promise<{ user: AuthResponse; sessionVersion: number }> => {
     const { email, password } = params
 
     const existingUser = await this.authRepo.findByEmail(email)
-    if (!existingUser) throw buildError('not_found_error', 'User not found.')
-    if (!existingUser.Activo) throw buildError('inactive_user', 'User is inactive.')
-    if (!existingUser.ContrasenaHash) throw buildValidationError('This account does not support password login.')
+    if (!existingUser || !existingUser.ContrasenaHash) throw buildValidationError('Credenciales incorrectas.')
+    if (!existingUser.Activo) throw buildError('inactive_user', 'El usuario está inactivo.')
 
     const passwordMatch = await comparePassword(password!, existingUser.ContrasenaHash)
-    if (!passwordMatch) throw buildValidationError('Invalid credentials.')
+    if (!passwordMatch) throw buildValidationError('Credenciales incorrectas.')
 
+    const sessionVersion = await this.authRepo.incrementSessionVersion(existingUser.UsuarioID)
     const response = await UserMapper.toAuthResponse(existingUser)
-    return await this.attachProfile(response)
+    return { user: await this.attachProfile(response), sessionVersion }
   }
 
   checkToken = async (id: number): Promise<AuthResponse> => {
