@@ -1,6 +1,19 @@
 {
   "events": [
     {
+      "id": "d3c89f08-cee7-4538-9844-7d664d92d9a6",
+      "patientId": 145,
+      "patientName": "Natalia La Fourcade",
+      "encounterId": "4adcf4cf-c28d-4887-a3a3-6c0712362966",
+      "invoiceNumber": "4e656175-9889-4669",
+      "toStation": "consulta",
+      "occurredAt": "2026-07-13",
+      "source": "visit",
+      "reference": {
+        "visitId": 187
+      }
+    },
+    {
       "id": "34d6da58-8be2-4cae-8702-6d110062a9b1",
       "patientId": 131,
       "patientName": "Khristopher  Lagos",
@@ -285,5 +298,5 @@
       }
     }
   ],
-  "updatedAt": "2026-06-22T16:39:33.597Z"
+  "updatedAt": "2026-07-14T01:34:01.377Z"
 }

@@ -19,4 +19,8 @@ export const config = {
     DB_SCHEMA: process.env.DB_SCHEMA,
     SECRET_JWT_TOKEN: process.env.SECRET_JWT_TOKEN || '',
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '2h',
+    GCS_CLINICAL_BUCKET: process.env.GCS_CLINICAL_BUCKET || 'nubsmart-medit-clinical',
+    GCS_PUBLIC_BUCKET: process.env.GCS_PUBLIC_BUCKET || 'nubsmart-medit-public',
+    // Optional service-account key file; on GCP the default credentials are used.
+    GCS_KEY_FILE: process.env.GCS_KEY_FILE || '',
 }

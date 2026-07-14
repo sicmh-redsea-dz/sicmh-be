@@ -20,6 +20,9 @@ export type Permission =
   | 'schedule.create'
   | 'schedule.update'
   | 'schedule.delete'
+  | 'attachments.read'
+  | 'attachments.create'
+  | 'attachments.delete'
   | 'settings.permissions.manage'
 
 export type RoleKey = 'admin' | 'doctor' | 'enfermera' | 'recepcionista' | 'asistente'
@@ -46,6 +49,9 @@ export const ALL_PERMISSIONS: Permission[] = [
   'schedule.create',
   'schedule.update',
   'schedule.delete',
+  'attachments.read',
+  'attachments.create',
+  'attachments.delete',
   'settings.permissions.manage'
 ]
 
@@ -79,6 +85,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     'schedule.create',
     'schedule.update',
     'schedule.delete',
+    'attachments.read',
+    'attachments.create',
+    'attachments.delete',
   ],
   enfermera: [
     'dashboard.view',
@@ -88,6 +97,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     'visits.update',
     'inventory.read',
     'schedule.read',
+    'attachments.read',
+    'attachments.create',
   ],
   recepcionista: [
     'dashboard.view',
@@ -101,13 +112,15 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
     'schedule.create',
     'schedule.update',
     'schedule.delete',
+    'attachments.read',
   ],
   asistente: [
     'dashboard.view',
     'patients.read',
     'visits.read',
     'inventory.read',
-    'inventory.transfer'
+    'inventory.transfer',
+    'attachments.read',
   ]
 }
 

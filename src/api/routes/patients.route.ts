@@ -1,11 +1,14 @@
 import { Router } from "express";
 import { PatientsController } from '../controllers/patients.controller';
-import { validateGetPatient, validateGetPatients, validatePostPatient, validatePatchPatient, validateDeletePatient, validatePatientImage, validateImageCaptureToken } from '../validators/patients.validator';
-import { requireAnyPermission, requirePermissions } from '../middlewares/permission.middleware';
+import { AttachmentsController } from '../controllers/attachments.controller';
+import { validateGetPatient, validateGetPatients, validatePostPatient, validatePatchPatient, validateDeletePatient } from '../validators/patients.validator';
+import { requirePermissions } from '../middlewares/permission.middleware';
+import { singleFileUpload } from '../middlewares/upload.middleware';
 
 const router = Router();
 
 const patientController = new PatientsController();
+const attachmentsController = new AttachmentsController();
 
 router.get(
   '/',
@@ -20,45 +23,22 @@ router.get(
   patientController.getPatient.bind(patientController)
 );
 router.get(
-  '/:id/image',
-  requirePermissions('patients.read'),
+  '/:id/attachments',
+  requirePermissions('attachments.read'),
   validateGetPatient,
-  patientController.getPatientImage.bind(patientController)
+  attachmentsController.listByPatient.bind(attachmentsController)
 );
 router.post(
-  '/image-capture',
-  requireAnyPermission(['patients.create', 'patients.update']),
-  patientController.createImageCaptureSession.bind(patientController)
-);
-router.get(
-  '/image-capture/:token',
-  requireAnyPermission(['patients.create', 'patients.update']),
-  validateImageCaptureToken,
-  patientController.getImageCaptureStatus.bind(patientController)
-);
-router.delete(
-  '/image-capture/:token',
-  requireAnyPermission(['patients.create', 'patients.update']),
-  validateImageCaptureToken,
-  patientController.deleteImageCaptureSession.bind(patientController)
+  '/:id/attachments',
+  requirePermissions('attachments.create'),
+  singleFileUpload('file'),
+  attachmentsController.upload.bind(attachmentsController)
 );
 router.post(
   '/new-patient',
   requirePermissions('patients.create'),
   validatePostPatient,
   patientController.insertPatient.bind(patientController)
-);
-router.post(
-  '/:id/image',
-  requireAnyPermission(['patients.create', 'patients.update']),
-  validatePatientImage,
-  patientController.uploadPatientImage.bind(patientController)
-);
-router.delete(
-  '/:id/image',
-  requirePermissions('patients.update'),
-  validateGetPatient,
-  patientController.deletePatientImage.bind(patientController)
 );
 router.patch(
   '/:id',

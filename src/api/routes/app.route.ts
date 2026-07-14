@@ -10,6 +10,7 @@ import { orRoomsRoutes } from './or-rooms.route';
 import { billingRoutes } from './billing.route';
 import { settingsRoutes } from './settings.route'
 import { citasRoutes } from './citas.route';
+import { attachmentsRoutes } from './attachments.route';
 
 const router = Router();
 
@@ -25,5 +26,6 @@ router.use('/billing', billingRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/scheduling', citasRoutes);
 router.use('/inventory', invRoutes);
+router.use('/attachments', attachmentsRoutes);
 
 export { router as appRoutes };

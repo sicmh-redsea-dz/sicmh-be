@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "d033229b-fcb2-4f1d-abc3-64cd365fe3de",
+      "patientId": 145,
+      "patientName": "Natalia La Fourcade",
+      "encounterId": "4adcf4cf-c28d-4887-a3a3-6c0712362966",
+      "invoiceNumber": "4e656175-9889-4669",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-07-13",
+      "status": "Pendiente",
+      "source": "invoice"
+    },
+    {
       "id": "7b058c88-3c84-4f23-9f97-ceffb1c277bd",
       "patientId": 131,
       "patientName": "Khristopher  Lagos",
@@ -334,5 +350,5 @@
       }
     }
   ],
-  "updatedAt": "2026-06-22T16:39:33.777Z"
+  "updatedAt": "2026-07-14T01:34:01.563Z"
 }

@@ -113,33 +113,3 @@ export const validateDeletePatient: (ValidationChain | RequestHandler)[] = [
     handleValidationErrors
 ]
 
-export const validatePatientImage: (ValidationChain | RequestHandler)[] = [
-    param('id')
-        .isInt({ min: 1 })
-        .withMessage('Id must be a positive integer'),
-    body('image')
-        .notEmpty()
-        .withMessage('image is required'),
-    handleValidationErrors
-]
-
-export const validateImageCaptureToken: (ValidationChain | RequestHandler)[] = [
-    param('token')
-        .isUUID()
-        .withMessage('token must be a valid UUID'),
-    handleValidationErrors
-]
-
-export const validateImageCaptureUpload: (ValidationChain | RequestHandler)[] = [
-    param('token')
-        .isUUID()
-        .withMessage('token must be a valid UUID'),
-    body('image')
-        .notEmpty()
-        .withMessage('image is required'),
-    body('fileName')
-        .optional()
-        .isString()
-        .withMessage('fileName must be a string'),
-    handleValidationErrors
-]

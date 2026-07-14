@@ -313,5 +313,23 @@
     },
     "createdAt": "2026-06-22T16:39:33.389Z",
     "updatedAt": "2026-06-22T16:39:33.389Z"
+  },
+  "187": {
+    "historyId": 187,
+    "patientId": 145,
+    "origin": "visits",
+    "standard": {
+      "chiefComplaint": "Esta enferma",
+      "currentIllness": "Cuadro febril y dolor de cuerpo",
+      "physicalExam": "Presenta salpullido en el cuerpo",
+      "allergies": "ninguna",
+      "currentMeds": "ninguna"
+    },
+    "module": {
+      "followUpPlan": "benadryl cada 6 horas",
+      "referrals": "ninguna"
+    },
+    "createdAt": "2026-07-14T01:34:01.258Z",
+    "updatedAt": "2026-07-14T13:35:09.935Z"
   }
 }

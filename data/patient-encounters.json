@@ -1,6 +1,18 @@
 {
   "encounters": [
     {
+      "id": "4adcf4cf-c28d-4887-a3a3-6c0712362966",
+      "patientId": 145,
+      "patientName": "Natalia La Fourcade",
+      "doctorId": 7,
+      "origin": "consulta",
+      "invoiceNumber": "4e656175-9889-4669",
+      "invoiceId": 176,
+      "status": "Pendiente",
+      "createdAt": "2026-07-13",
+      "updatedAt": "2026-07-14T01:34:01.374Z"
+    },
+    {
       "id": "f6726350-5925-42db-82d5-8878a89c1fd6",
       "patientId": 131,
       "patientName": "Khristopher  Lagos",
@@ -157,5 +169,5 @@
       "closedAt": "2026-06-16T00:54:24.706Z"
     }
   ],
-  "updatedAt": "2026-06-22T16:39:33.591Z"
+  "updatedAt": "2026-07-14T01:34:01.374Z"
 }

@@ -9,8 +9,6 @@ import { BillingService } from '../../application/services/billing.service'
 import { InvService } from '../../application/services/inv.service'
 import { BedsService } from '../../application/services/beds.service'
 import { OrRoomsService } from '../../application/services/or-rooms.service'
-import { PatientImagesService } from '../../application/services/patient-images.service'
-import { PatientImageCaptureService } from '../../application/services/patient-image-capture.service'
 import { SettingsService } from '../../application/services/settings.service'
 import { AccessControlService } from '../../application/services/access-control.service'
 import { CitasService } from '../../application/services/citas.service'
@@ -30,11 +28,13 @@ import { FileOrRoomsRepository } from '../repositories/file-or-rooms.repository'
 import { FileBillingLedgerRepository } from '../repositories/file-billing-ledger.repository'
 import { FilePatientMovementsRepository } from '../repositories/file-patient-movements.repository'
 import { FilePatientEncountersRepository } from '../repositories/file-patient-encounters.repository'
-import { FilePatientImagesRepository } from '../repositories/file-patient-images.repository'
-import { FilePatientImageCaptureRepository } from '../repositories/file-patient-image-capture.repository'
 import { FileUserProfilesRepository } from '../repositories/file-user-profiles.repository'
 import { MysqlRolePermissionsRepository } from '../repositories/mysql-role-permissions.repository'
 import { MysqlUserPermissionsRepository } from '../repositories/mysql-user-permissions.repository'
+import { ClinicalAttachmentsService } from '../../application/services/clinical-attachments.service'
+import { MysqlClinicalAttachmentsRepository } from '../repositories/mysql-clinical-attachments.repository'
+import { GcsFileStorage } from '../storage/gcs-file-storage'
+import { config } from '../../config/env'
 
 export class ServiceContainer {
     private static authService: AuthService
@@ -48,8 +48,6 @@ export class ServiceContainer {
     private static invService: InvService
     private static bedsService: BedsService
     private static orRoomsService: OrRoomsService
-    private static patientImagesService: PatientImagesService
-    private static patientImageCaptureService: PatientImageCaptureService
     private static settingsService: SettingsService
     private static accessControlService: AccessControlService
     private static citasService: CitasService
@@ -69,11 +67,11 @@ export class ServiceContainer {
     private static billingLedgerRepo: FileBillingLedgerRepository
     private static patientMovementsRepo: FilePatientMovementsRepository
     private static patientEncountersRepo: FilePatientEncountersRepository
-    private static patientImagesRepo: FilePatientImagesRepository
-    private static patientImageCaptureRepo: FilePatientImageCaptureRepository
     private static userProfilesRepo: FileUserProfilesRepository
     private static rolePermissionsRepo: MysqlRolePermissionsRepository
     private static userPermissionsRepo: MysqlUserPermissionsRepository
+    private static clinicalAttachmentsService: ClinicalAttachmentsService
+    private static clinicalAttachmentsRepo: MysqlClinicalAttachmentsRepository
 
     static getAuthService(): AuthService {
         if (!this.authService)
@@ -197,18 +195,22 @@ export class ServiceContainer {
         return this.orRoomsService
     }
 
-    static getPatientImagesService(): PatientImagesService {
-        if ( !this.patientImagesService ) {
-            this.patientImagesService = new PatientImagesService( this.getPatientImagesRepository() )
+    static getClinicalAttachmentsService(): ClinicalAttachmentsService {
+        if (!this.clinicalAttachmentsService) {
+            this.clinicalAttachmentsService = new ClinicalAttachmentsService(
+                this.getClinicalAttachmentsRepository(),
+                new GcsFileStorage(config.GCS_CLINICAL_BUCKET),
+                new GcsFileStorage(config.GCS_PUBLIC_BUCKET)
+            )
         }
-        return this.patientImagesService
+        return this.clinicalAttachmentsService
     }
 
-    static getPatientImageCaptureService(): PatientImageCaptureService {
-        if (!this.patientImageCaptureService) {
-            this.patientImageCaptureService = new PatientImageCaptureService(this.getPatientImageCaptureRepository())
+    private static getClinicalAttachmentsRepository(): MysqlClinicalAttachmentsRepository {
+        if (!this.clinicalAttachmentsRepo) {
+            this.clinicalAttachmentsRepo = new MysqlClinicalAttachmentsRepository()
         }
-        return this.patientImageCaptureService
+        return this.clinicalAttachmentsRepo
     }
 
     private static getAuthRepository(): MysqlAuthRepository {
@@ -294,19 +296,6 @@ export class ServiceContainer {
             this.patientEncountersRepo = new FilePatientEncountersRepository()
         }
         return this.patientEncountersRepo
-    }
-
-    private static getPatientImagesRepository(): FilePatientImagesRepository {
-        if ( !this.patientImagesRepo )
-            this.patientImagesRepo = new FilePatientImagesRepository()
-        return this.patientImagesRepo
-    }
-
-    private static getPatientImageCaptureRepository(): FilePatientImageCaptureRepository {
-        if (!this.patientImageCaptureRepo) {
-            this.patientImageCaptureRepo = new FilePatientImageCaptureRepository()
-        }
-        return this.patientImageCaptureRepo
     }
 
     private static getUserProfilesRepository(): FileUserProfilesRepository {

@@ -1,9 +1,12 @@
 import { Router } from 'express'
 import { SettingsController } from '../controllers/settings.controller'
+import { AttachmentsController } from '../controllers/attachments.controller'
 import { requirePermissions } from '../middlewares/permission.middleware'
+import { singleFileUpload } from '../middlewares/upload.middleware'
 
 const router = Router()
 const settingsController = new SettingsController()
+const attachmentsController = new AttachmentsController()
 
 router.get(
   '/profile',
@@ -75,6 +78,13 @@ router.patch(
   '/permissions/users/:userId',
   requirePermissions('settings.permissions.manage'),
   settingsController.updateUserPermissions.bind(settingsController)
+)
+
+router.post(
+  '/logo',
+  requirePermissions('settings.permissions.manage'),
+  singleFileUpload('file'),
+  attachmentsController.uploadLogo.bind(attachmentsController)
 )
 
 export { router as settingsRoutes }
