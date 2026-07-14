@@ -202,7 +202,22 @@ export class VisitsService {
 
             if ( stockItems && stockItems.length > 0 )
                 amount = await this.stockService.readAmountByStockQty( stockItems )
-            
+
+            // Resolve the default consulta service BEFORE creating the invoice so its
+            // price is part of the initial Monto instead of a follow-up UPDATE that
+            // could silently fail and leave the invoice at 0.00
+            let consultaService: { id: number; name: string; price: number } | null = null
+            if (originKey === 'visits') {
+                try {
+                    consultaService = await this.billingService.getDefaultConsultaService()
+                } catch (err) {
+                    console.warn('default consulta service lookup error:', (err as any)?.message || err)
+                }
+                if (consultaService) {
+                    amount += consultaService.price
+                }
+            }
+
             const invoice = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
             translatedFields['FacturaID'] = invoice.id
 
@@ -257,18 +272,18 @@ export class VisitsService {
                 console.warn('billing movement error:', (err as any)?.message || err)
             }
 
-            if (originKey === 'visits') {
+            if (consultaService) {
                 try {
-                    await this.billingService.addDefaultConsultaServiceCharge({
-                        invoiceId: invoice.id,
+                    await this.billingService.addConsultaServiceLedgerItem({
                         invoiceNumber: invoice.invoiceNumber,
                         patientId: patient,
                         patientName: billingPatientName,
                         encounterId: billingEncounterId,
-                        occurredAt: date
+                        occurredAt: date,
+                        service: consultaService
                     })
                 } catch (err) {
-                    console.warn('consulta service charge error:', (err as any)?.message || err)
+                    console.warn('consulta service ledger error:', (err as any)?.message || err)
                 }
             }
 
@@ -431,14 +446,35 @@ export class VisitsService {
 
     deleteVisit = async ( id: number ): Promise<any> => {
         try {
+            const existingVisit = await this.visitsRepo.findById( id )
+
             const affectedRows = await this.visitsRepo.softDelete( id )
             if ( affectedRows == 0 )
                 throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`)
+
+            if ( existingVisit?.FacturaID ) {
+                try {
+                    await this.annulInvoiceForVisit( existingVisit.FacturaID )
+                } catch (err) {
+                    console.warn('invoice annul on visit delete warning:', (err as any)?.message || err)
+                }
+            }
 
             return `Visit Id: ${id} deleted`
         } catch ( err ) {
             throw err
         }
+    }
+
+    private annulInvoiceForVisit = async ( facturaId: number ): Promise<void> => {
+        const invoice = await this.invoiceService.getInvByFacturaId( facturaId )
+        if ( !invoice ) return
+
+        const status = String(invoice.Estado || '').toLowerCase()
+        // Paid invoices are money already collected; never void those silently
+        if ( status.includes('anul') || status.includes('pag') ) return
+
+        await this.invoiceService.annulInvoiceById( invoice.InvoiceNumber )
     }
 
     getDoctors = async ( term: string ): Promise<any> => {

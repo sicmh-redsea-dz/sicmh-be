@@ -32,7 +32,7 @@ ALTER TABLE citas ADD COLUMN IF NOT EXISTS NombrePaciente VARCHAR(200) NULL AFTE
 -- MedIT: fix facturas.Estado column to support 'Anulado' status
 -- The column was defined as an ENUM without 'Anulado', preventing invoice annulment.
 -- This converts it to VARCHAR(20) to match schema.sql and allow all status values.
-ALTER TABLE `cami-vime`.`facturas`
+ALTER TABLE `facturas`
   MODIFY COLUMN `Estado` VARCHAR(20) NOT NULL DEFAULT 'Pendiente';
 
 -- MedIT: adjuntos clínicos (per-tenant schema)

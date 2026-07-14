@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════
 -- MedIT — Complete Database Schema
--- Run against: cami-vime
+-- Run against the target tenant schema
 -- Order matters — FK dependencies are respected
 -- ═══════════════════════════════════════════════════════════════════
 

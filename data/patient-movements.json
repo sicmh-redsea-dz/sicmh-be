@@ -1,6 +1,19 @@
 {
   "events": [
     {
+      "id": "13e3c7d5-8271-4fdf-bfda-f9069ad3bc09",
+      "patientId": 145,
+      "patientName": "Natalia La Fourcade",
+      "encounterId": "0c705de6-7111-42bd-99b3-fa2f59f9812f",
+      "invoiceNumber": "c87e4974-4901-419d",
+      "toStation": "consulta",
+      "occurredAt": "2026-07-14",
+      "source": "visit",
+      "reference": {
+        "visitId": 193
+      }
+    },
+    {
       "id": "d3c89f08-cee7-4538-9844-7d664d92d9a6",
       "patientId": 145,
       "patientName": "Natalia La Fourcade",
@@ -298,5 +311,5 @@
       }
     }
   ],
-  "updatedAt": "2026-07-14T01:34:01.377Z"
+  "updatedAt": "2026-07-14T22:24:02.996Z"
 }

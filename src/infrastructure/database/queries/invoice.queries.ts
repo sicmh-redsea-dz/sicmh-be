@@ -39,7 +39,8 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                     where 
                         ${whereClause}
                     order by 
-                        f.FechaFactura desc
+                        f.FechaFactura desc,
+                        f.FacturaID desc
                     limit ${limit}
                     offset ${offset};
             `

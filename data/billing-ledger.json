@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "2fc8490e-3009-4a76-bf55-ac5b14022eed",
+      "patientId": 145,
+      "patientName": "Natalia La Fourcade",
+      "encounterId": "0c705de6-7111-42bd-99b3-fa2f59f9812f",
+      "invoiceNumber": "c87e4974-4901-419d",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-07-14",
+      "status": "Pendiente",
+      "source": "invoice"
+    },
+    {
       "id": "d033229b-fcb2-4f1d-abc3-64cd365fe3de",
       "patientId": 145,
       "patientName": "Natalia La Fourcade",
@@ -350,5 +366,5 @@
       }
     }
   ],
-  "updatedAt": "2026-07-14T01:34:01.563Z"
+  "updatedAt": "2026-07-14T22:24:03.002Z"
 }

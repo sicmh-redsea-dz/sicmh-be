@@ -780,33 +780,37 @@ export class BillingService {
     return encounter
   }
 
-  public addDefaultConsultaServiceCharge = async (params: {
-    invoiceId: number
+  public getDefaultConsultaService = async (): Promise<{ id: number; name: string; price: number } | null> => {
+    const service = await this.invoiceRepo.fetchServiceById(1) ?? await this.invoiceRepo.fetchFirstService()
+    if (!service) {
+      console.warn('getDefaultConsultaService: no services found in DB')
+      return null
+    }
+    return {
+      id: service.ServicioID,
+      name: service.NombreServicio,
+      price: parseFloat(String(service.Precio)) || 0
+    }
+  }
+
+  public addConsultaServiceLedgerItem = async (params: {
     invoiceNumber: string
     patientId: number
     patientName?: string
     encounterId?: string
     occurredAt?: string
+    service: { id: number; name: string; price: number }
   }): Promise<void> => {
-    const { invoiceId, invoiceNumber, patientId, patientName, encounterId, occurredAt } = params
+    const { invoiceNumber, patientId, patientName, encounterId, occurredAt, service } = params
 
-    const [service, store] = await Promise.all([
-      this.invoiceRepo.fetchServiceById(1),
-      this.ledgerRepo.load()
-    ])
-
-    if (!service) {
-      console.warn('addDefaultConsultaServiceCharge: ServicioID=1 not found in DB')
-      return
-    }
+    const store = await this.ledgerRepo.load()
 
     const alreadyAdded = store.items.some(
       (item) => (item.invoiceNumber === invoiceNumber || item.reference?.invoiceNumber === invoiceNumber)
-        && item.description === service.NombreServicio
+        && item.description === service.name
     )
     if (alreadyAdded) return
 
-    const price = parseFloat(String(service.Precio)) || 0
     const item: BillingLedgerItem = {
       id: uuidv4(),
       patientId,
@@ -815,10 +819,10 @@ export class BillingService {
       invoiceNumber,
       station: 'consulta',
       category: 'servicio',
-      description: service.NombreServicio,
+      description: service.name,
       quantity: 1,
-      unitPrice: price,
-      total: price,
+      unitPrice: service.price,
+      total: service.price,
       occurredAt: occurredAt ?? new Date().toISOString(),
       status: DEFAULT_STATUS,
       source: 'invoice'
@@ -827,10 +831,21 @@ export class BillingService {
     store.items.unshift(item)
     store.updatedAt = new Date().toISOString()
     await this.ledgerRepo.save(store)
+  }
 
-    if (price > 0) {
-      await this.invoiceRepo.incrementAmountById(invoiceId, price)
-    }
+  public voidLedgerItemsByInvoice = async (invoiceNumber: string): Promise<void> => {
+    const store = await this.ledgerRepo.load()
+    let touched = false
+    store.items.forEach((item) => {
+      const belongsToInvoice = item.invoiceNumber === invoiceNumber || item.reference?.invoiceNumber === invoiceNumber
+      if (belongsToInvoice && item.status !== 'Anulado') {
+        item.status = 'Anulado'
+        touched = true
+      }
+    })
+    if (!touched) return
+    store.updatedAt = new Date().toISOString()
+    await this.ledgerRepo.save(store)
   }
 
   private async resolveEncounter(patientId: number, encounterId?: string) {

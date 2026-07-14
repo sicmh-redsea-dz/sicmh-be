@@ -331,5 +331,23 @@
     },
     "createdAt": "2026-07-14T01:34:01.258Z",
     "updatedAt": "2026-07-14T13:35:09.935Z"
+  },
+  "193": {
+    "historyId": 193,
+    "patientId": 145,
+    "origin": "visits",
+    "standard": {
+      "chiefComplaint": "seguimiento",
+      "currentIllness": "seguimiento",
+      "physicalExam": "seguimiento",
+      "allergies": "seguimiento",
+      "currentMeds": "seguimiento"
+    },
+    "module": {
+      "followUpPlan": "seguimiento",
+      "referrals": "seguimiento"
+    },
+    "createdAt": "2026-07-14T22:24:02.781Z",
+    "updatedAt": "2026-07-14T22:24:02.781Z"
   }
 }

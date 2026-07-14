@@ -1,6 +1,19 @@
 {
   "encounters": [
     {
+      "id": "0c705de6-7111-42bd-99b3-fa2f59f9812f",
+      "patientId": 145,
+      "patientName": "Natalia La Fourcade",
+      "doctorId": 7,
+      "origin": "consulta",
+      "invoiceNumber": "c87e4974-4901-419d",
+      "invoiceId": 182,
+      "status": "Pendiente",
+      "createdAt": "2026-07-14",
+      "updatedAt": "2026-07-14T22:24:02.993Z",
+      "previousEncounterId": "4adcf4cf-c28d-4887-a3a3-6c0712362966"
+    },
+    {
       "id": "4adcf4cf-c28d-4887-a3a3-6c0712362966",
       "patientId": 145,
       "patientName": "Natalia La Fourcade",
@@ -169,5 +182,5 @@
       "closedAt": "2026-06-16T00:54:24.706Z"
     }
   ],
-  "updatedAt": "2026-07-14T01:34:01.374Z"
+  "updatedAt": "2026-07-14T22:24:02.993Z"
 }

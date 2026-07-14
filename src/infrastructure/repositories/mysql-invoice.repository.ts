@@ -36,7 +36,7 @@ export class MysqlInvoiceRepository implements InvoiceRepository {
         const values = entries.map(([, value]) => value ?? null)
 
         const sql = `
-            UPDATE \`cami-vime\`.\`facturas\`
+            UPDATE facturas
             SET ${setClauses}
             WHERE \`InvoiceNumber\` = ?
         `
@@ -46,7 +46,7 @@ export class MysqlInvoiceRepository implements InvoiceRepository {
 
     async incrementAmountById(invoiceId: number, delta: number): Promise<void> {
         const sql = `
-            UPDATE \`cami-vime\`.\`facturas\`
+            UPDATE facturas
             SET Monto = GREATEST(0, Monto + ?)
             WHERE FacturaID = ?
                 AND Estado = 'Pendiente'
@@ -96,8 +96,20 @@ export class MysqlInvoiceRepository implements InvoiceRepository {
     }
 
     async fetchServiceById(id: number): Promise<{ ServicioID: number; NombreServicio: string; Precio: number } | null> {
-        const sql = `SELECT ServicioID, NombreServicio, Precio FROM \`cami-vime\`.\`servicios\` WHERE ServicioID = ? LIMIT 1`
+        const sql = `SELECT ServicioID, NombreServicio, Precio FROM servicios WHERE ServicioID = ? LIMIT 1`
         const rows = await Database.execute<any[]>(sql, [id])
+        return rows[0] ?? null
+    }
+
+    async fetchFirstService(): Promise<{ ServicioID: number; NombreServicio: string; Precio: number } | null> {
+        const sql = `SELECT ServicioID, NombreServicio, Precio FROM servicios ORDER BY ServicioID ASC LIMIT 1`
+        const rows = await Database.execute<any[]>(sql)
+        return rows[0] ?? null
+    }
+
+    async findById(facturaId: number): Promise<Record<string, any> | null> {
+        const sql = `SELECT * FROM facturas WHERE FacturaID = ? LIMIT 1`
+        const rows = await Database.execute<any[]>(sql, [facturaId])
         return rows[0] ?? null
     }
 

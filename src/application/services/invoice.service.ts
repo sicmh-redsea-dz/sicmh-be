@@ -59,6 +59,15 @@ export class InvoiceService {
         }
     }
 
+    getInvByFacturaId = async ( facturaId: number ): Promise<Record<string, any> | null> => {
+        try {
+            return await this.invoiceRepo.findById( facturaId )
+        } catch ( err: any ) {
+            console.log('error reading invoice by FacturaID ::: ', err.message)
+            throw err
+        }
+    }
+
     getInvById = async ( invNumber: string ): Promise<any> => {
         try {
             const invoice = await this.invoiceRepo.findByInvoiceNumber( invNumber )
@@ -153,6 +162,11 @@ export class InvoiceService {
                 await this.billingService.updateEncounterStatusByInvoice(invoiceId, 'Anulado')
             } catch (err) {
                 console.warn('billing encounter annul warning:', (err as any)?.message || err)
+            }
+            try {
+                await this.billingService.voidLedgerItemsByInvoice(invoiceId)
+            } catch (err) {
+                console.warn('billing ledger annul warning:', (err as any)?.message || err)
             }
         }
 

@@ -14,4 +14,6 @@ export interface InvoiceRepository {
     fetchReportPayments(term?: string): Promise<any[]>
     fetchReportCashbox(term?: string): Promise<any[]>
     fetchServiceById(id: number): Promise<{ ServicioID: number; NombreServicio: string; Precio: number } | null>
+    fetchFirstService(): Promise<{ ServicioID: number; NombreServicio: string; Precio: number } | null>
+    findById(facturaId: number): Promise<Record<string, any> | null>
 }
