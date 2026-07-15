@@ -224,9 +224,15 @@ export class VisitsService {
             const insertId = await this.visitsRepo.create( translatedFields )
 
             if ( stockItems && stockItems.length > 0 ) {
+                // The reduction must settle first: it is the step that can fail on
+                // insufficient stock, and the two inserts must not record a
+                // reduction that never happened. The inserts touch unrelated
+                // tables, so they can run in parallel.
                 await this.stockService.reduceStockQuantities( stockItems )
-                await this.stockService.insertStockInvoice(translatedFields['FacturaID'], stockItems)
-                await this.stockService.insertStockHistory( insertId, stockItems )
+                await Promise.all([
+                    this.stockService.insertStockInvoice(translatedFields['FacturaID'], stockItems),
+                    this.stockService.insertStockHistory( insertId, stockItems )
+                ])
             }
 
             if ( expediente ) {
@@ -243,54 +249,79 @@ export class VisitsService {
                 await this.expedienteRepo.upsert(insertId, expedienteRecord)
             }
 
-            let billingPatientName = ''
-            let billingEncounterId: string | undefined
-
-            try {
-                const patientInfo = await this.patientService.findOnePatient(patient)
-                billingPatientName = `${patientInfo.name} ${patientInfo.lastName}`.trim()
-                const encounter = await this.billingService.registerEncounterForInvoice({
-                    patientId: patient,
-                    patientName: billingPatientName,
-                    doctorId: Number(doctor) || undefined,
-                    origin: this.mapOriginToStation(originKey),
-                    invoiceNumber: invoice.invoiceNumber,
-                    invoiceId: invoice.id,
-                    createdAt: date
-                })
-                billingEncounterId = encounter.id
-                await this.billingService.createMovement({
-                    patientId: patient,
-                    patientName: billingPatientName,
-                    encounterId: billingEncounterId,
-                    toStation: this.mapOriginToStation(originKey),
-                    occurredAt: date,
-                    source: 'visit',
-                    reference: { visitId: insertId }
-                })
-            } catch (err) {
-                console.warn('billing movement error:', (err as any)?.message || err)
-            }
-
-            if (consultaService) {
-                try {
-                    await this.billingService.addConsultaServiceLedgerItem({
-                        invoiceNumber: invoice.invoiceNumber,
-                        patientId: patient,
-                        patientName: billingPatientName,
-                        encounterId: billingEncounterId,
-                        occurredAt: date,
-                        service: consultaService
-                    })
-                } catch (err) {
-                    console.warn('consulta service ledger error:', (err as any)?.message || err)
-                }
-            }
+            // Encounter/movement/ledger failures are only warned, never surfaced
+            // to the client, so there is no reason to make the response wait for
+            // them (they rewrite growing JSON files on every save).
+            void this.recordBillingTrail({
+                patient,
+                doctor,
+                originKey,
+                invoice,
+                visitId: insertId,
+                date,
+                consultaService
+            })
 
             return { visit: insertId }
         } catch (err) {
             console.error('error creating visit: ', err)
             throw err
+        }
+    }
+
+    private recordBillingTrail = async (args: {
+        patient: number
+        doctor: string
+        originKey: VisitOrigin
+        invoice: { id: number; invoiceNumber: string }
+        visitId: number
+        date: string
+        consultaService: { id: number; name: string; price: number } | null
+    }): Promise<void> => {
+        const { patient, doctor, originKey, invoice, visitId, date, consultaService } = args
+
+        let billingPatientName = ''
+        let billingEncounterId: string | undefined
+
+        try {
+            const patientInfo = await this.patientService.findOnePatient(patient)
+            billingPatientName = `${patientInfo.name} ${patientInfo.lastName}`.trim()
+            const encounter = await this.billingService.registerEncounterForInvoice({
+                patientId: patient,
+                patientName: billingPatientName,
+                doctorId: Number(doctor) || undefined,
+                origin: this.mapOriginToStation(originKey),
+                invoiceNumber: invoice.invoiceNumber,
+                invoiceId: invoice.id,
+                createdAt: date
+            })
+            billingEncounterId = encounter.id
+            await this.billingService.createMovement({
+                patientId: patient,
+                patientName: billingPatientName,
+                encounterId: billingEncounterId,
+                toStation: this.mapOriginToStation(originKey),
+                occurredAt: date,
+                source: 'visit',
+                reference: { visitId }
+            })
+        } catch (err) {
+            console.warn('billing movement error:', (err as any)?.message || err)
+        }
+
+        if (consultaService) {
+            try {
+                await this.billingService.addConsultaServiceLedgerItem({
+                    invoiceNumber: invoice.invoiceNumber,
+                    patientId: patient,
+                    patientName: billingPatientName,
+                    encounterId: billingEncounterId,
+                    occurredAt: date,
+                    service: consultaService
+                })
+            } catch (err) {
+                console.warn('consulta service ledger error:', (err as any)?.message || err)
+            }
         }
     }
 
@@ -425,8 +456,10 @@ export class VisitsService {
 
             if (stockDelta.length > 0) {
                 await this.stockService.reduceStockQuantities(stockDelta)
-                await this.stockService.insertStockInvoice(existingVisit.FacturaID, stockDelta)
-                await this.stockService.insertStockHistory(+id, stockDelta)
+                await Promise.all([
+                    this.stockService.insertStockInvoice(existingVisit.FacturaID, stockDelta),
+                    this.stockService.insertStockHistory(+id, stockDelta)
+                ])
 
                 const amountDelta = await this.stockService.readAmountByStockQty(
                     stockDelta.map((item) => ({ id: item.id, qty: item.qty }))

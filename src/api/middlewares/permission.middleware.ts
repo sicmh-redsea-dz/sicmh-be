@@ -44,6 +44,21 @@ export const requirePermissions = (required: Permission | Permission[]) => {
   }
 }
 
+export const requirePermissionsIf = (
+  predicate: (req: Request) => boolean,
+  required: Permission | Permission[]
+) => {
+  const guard = requirePermissions(required)
+
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (!predicate(req)) {
+      next()
+      return
+    }
+    await guard(req, res, next)
+  }
+}
+
 export const requireAnyPermission = (required: Permission | Permission[]) => {
   const requiredList = Array.isArray(required) ? required : [required]
 

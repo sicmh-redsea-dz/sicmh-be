@@ -8,6 +8,7 @@ export type Permission =
   | 'visits.create'
   | 'visits.update'
   | 'visits.delete'
+  | 'visits.inventory.manage'
   | 'inventory.read'
   | 'inventory.create'
   | 'inventory.update'
@@ -37,6 +38,7 @@ export const ALL_PERMISSIONS: Permission[] = [
   'visits.create',
   'visits.update',
   'visits.delete',
+  'visits.inventory.manage',
   'inventory.read',
   'inventory.create',
   'inventory.update',
@@ -55,6 +57,17 @@ export const ALL_PERMISSIONS: Permission[] = [
   'settings.permissions.manage'
 ]
 
+// Feature-gated permissions are excluded from every role's defaults (including
+// admin) so they stay off for all tenants until granted per tenant via the
+// permissions overrides.
+export const FEATURE_GATED_PERMISSIONS: Permission[] = [
+  'visits.inventory.manage'
+]
+
+const DEFAULT_ADMIN_PERMISSIONS: Permission[] = ALL_PERMISSIONS.filter(
+  (permission) => !FEATURE_GATED_PERMISSIONS.includes(permission)
+)
+
 const normalize = (value: string): string => {
   return value
     .trim()
@@ -72,7 +85,7 @@ const ROLE_ALIASES: Record<RoleKey, string[]> = {
 }
 
 export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
-  admin: ALL_PERMISSIONS,
+  admin: DEFAULT_ADMIN_PERMISSIONS,
   doctor: [
     'dashboard.view',
     'patients.read',
