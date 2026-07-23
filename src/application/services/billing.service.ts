@@ -145,6 +145,7 @@ export class BillingService {
     })
 
     let ledgerItems = [...invoiceItems, ...inventoryItems, ...manualItems]
+      .filter((item) => item.status !== 'Anulado')
 
     if (stationFilter) {
       ledgerItems = ledgerItems.filter((item) =>
@@ -228,10 +229,10 @@ export class BillingService {
       item.reference = { ...item.reference, invoiceNumber: invoice.InvoiceNumber }
     }
 
-    const store = await this.ledgerRepo.load()
-    store.items.unshift(item)
-    store.updatedAt = new Date().toISOString()
-    await this.ledgerRepo.save(store)
+    await this.ledgerRepo.update((store) => {
+      store.items.unshift(item)
+      store.updatedAt = new Date().toISOString()
+    })
 
     await this.applyInvoiceDeltaSafely(invoice, total, 'manual-charge')
 
@@ -239,58 +240,66 @@ export class BillingService {
   }
 
   updateManualCharge = async (id: string, payload: Partial<ManualChargePayload>) => {
-    const store = await this.ledgerRepo.load()
-    const item = store.items.find((entry) => entry.id === id)
-    if (!item) throw this.buildNotFoundError(`No charge found with id ${id}`)
-    if (!['manual', 'movement'].includes(item.source)) {
-      throw this.buildValidationError(['Solo se pueden editar cargos manuales.'])
-    }
+    let previousTotal = 0
+    let invoice: Record<string, any> | null = null
 
-    const previousTotal = item.total
-    const previousInvoiceNumber = item.reference?.invoiceNumber ?? item.invoiceNumber
+    const item = await this.ledgerRepo.update(async (store) => {
+      const target = store.items.find((entry) => entry.id === id)
+      if (!target) throw this.buildNotFoundError(`No charge found with id ${id}`)
+      if (!['manual', 'movement'].includes(target.source)) {
+        throw this.buildValidationError(['Solo se pueden editar cargos manuales.'])
+      }
 
-    if (payload.description !== undefined) item.description = payload.description.trim()
-    if (payload.station !== undefined) item.station = payload.station
-    if (payload.category !== undefined) item.category = payload.category
-    if (payload.quantity !== undefined) item.quantity = Number(payload.quantity)
-    if (payload.unitPrice !== undefined) item.unitPrice = Number(payload.unitPrice)
-    if (payload.status !== undefined) item.status = payload.status
-    if (payload.occurredAt !== undefined) item.occurredAt = payload.occurredAt
+      previousTotal = target.total
+      const previousInvoiceNumber = target.reference?.invoiceNumber ?? target.invoiceNumber
 
-    item.total = (item.quantity ?? 0) * (item.unitPrice ?? 0)
+      if (payload.description !== undefined) target.description = payload.description.trim()
+      if (payload.station !== undefined) target.station = payload.station
+      if (payload.category !== undefined) target.category = payload.category
+      if (payload.quantity !== undefined) target.quantity = Number(payload.quantity)
+      if (payload.unitPrice !== undefined) target.unitPrice = Number(payload.unitPrice)
+      if (payload.status !== undefined) target.status = payload.status
+      if (payload.occurredAt !== undefined) target.occurredAt = payload.occurredAt
+
+      target.total = (target.quantity ?? 0) * (target.unitPrice ?? 0)
+
+      invoice = await this.resolveInvoiceByNumber(previousInvoiceNumber)
+      if (invoice?.InvoiceNumber) {
+        target.reference = { ...target.reference, invoiceNumber: invoice.InvoiceNumber }
+      }
+
+      store.updatedAt = new Date().toISOString()
+      return target
+    })
 
     const delta = item.total - previousTotal
-    const invoice = await this.resolveInvoiceByNumber(previousInvoiceNumber)
-    if (invoice?.InvoiceNumber) {
-      item.reference = { ...item.reference, invoiceNumber: invoice.InvoiceNumber }
-    }
-
-    store.updatedAt = new Date().toISOString()
-    await this.ledgerRepo.save(store)
-
     await this.applyInvoiceDeltaSafely(invoice, delta, 'manual-update')
 
     return item
   }
 
   removeManualCharge = async (id: string) => {
-    const store = await this.ledgerRepo.load()
-    const index = store.items.findIndex((entry) => entry.id === id)
-    if (index === -1) throw this.buildNotFoundError(`No charge found with id ${id}`)
+    let removedTotal = 0
+    let invoice: Record<string, any> | null = null
 
-    const item = store.items[index]
-    if (!['manual', 'movement'].includes(item.source)) {
-      throw this.buildValidationError(['Solo se pueden eliminar cargos manuales.'])
-    }
+    await this.ledgerRepo.update(async (store) => {
+      const index = store.items.findIndex((entry) => entry.id === id)
+      if (index === -1) throw this.buildNotFoundError(`No charge found with id ${id}`)
 
-    const invoiceNumber = item.reference?.invoiceNumber ?? item.invoiceNumber
-    const invoice = await this.resolveInvoiceByNumber(invoiceNumber)
+      const item = store.items[index]
+      if (!['manual', 'movement'].includes(item.source)) {
+        throw this.buildValidationError(['Solo se pueden eliminar cargos manuales.'])
+      }
 
-    store.items.splice(index, 1)
-    store.updatedAt = new Date().toISOString()
-    await this.ledgerRepo.save(store)
+      const invoiceNumber = item.reference?.invoiceNumber ?? item.invoiceNumber
+      invoice = await this.resolveInvoiceByNumber(invoiceNumber)
 
-    await this.applyInvoiceDeltaSafely(invoice, -item.total, 'manual-remove')
+      removedTotal = item.total
+      store.items.splice(index, 1)
+      store.updatedAt = new Date().toISOString()
+    })
+
+    await this.applyInvoiceDeltaSafely(invoice, -removedTotal, 'manual-remove')
 
     return true
   }
@@ -302,7 +311,6 @@ export class BillingService {
     if (errors.length > 0) throw this.buildValidationError(errors)
 
     const patientName = await this.resolvePatientName(payload.patientId, payload.patientName)
-    const store = await this.movementsRepo.load()
     const occurredAt = payload.occurredAt ?? new Date().toISOString()
     const toStation = payload.toStation
 
@@ -314,41 +322,49 @@ export class BillingService {
       throw this.buildValidationError(['La factura asociada no está pendiente.'])
     }
 
-    const lastEvent = this.getLastMovement(store.events, payload.patientId, encounter.id)
+    let deduped = false
+    const event = await this.movementsRepo.update(async (store) => {
+      const lastEvent = this.getLastMovement(store.events, payload.patientId, encounter.id)
 
-    if (
-      lastEvent &&
-      this.normalizeFilter(lastEvent.toStation) === this.normalizeFilter(toStation) &&
-      this.dateOnly(lastEvent.occurredAt) === this.dateOnly(occurredAt) &&
-      payload.source !== 'manual'
-    ) {
-      return { movement: lastEvent }
+      if (
+        lastEvent &&
+        this.normalizeFilter(lastEvent.toStation) === this.normalizeFilter(toStation) &&
+        this.dateOnly(lastEvent.occurredAt) === this.dateOnly(occurredAt) &&
+        payload.source !== 'manual'
+      ) {
+        deduped = true
+        return lastEvent
+      }
+
+      if (payload.doctorId || payload.doctorName) {
+        await this.updateEncounterDoctor(encounter.id, payload.doctorId, payload.doctorName)
+      }
+      await this.touchEncounter(encounter.id)
+
+      const newEvent: PatientMovementEvent = {
+        id: uuidv4(),
+        patientId: payload.patientId,
+        patientName,
+        encounterId: encounter.id,
+        invoiceNumber: encounter.invoiceNumber,
+        fromStation: payload.fromStation ?? lastEvent?.toStation,
+        toStation,
+        occurredAt,
+        reason: payload.reason?.trim(),
+        notes: payload.notes?.trim(),
+        actor,
+        source: payload.source ?? 'manual',
+        reference: payload.reference
+      }
+
+      store.events.unshift(newEvent)
+      store.updatedAt = new Date().toISOString()
+      return newEvent
+    })
+
+    if (deduped) {
+      return { movement: event }
     }
-
-    if (payload.doctorId || payload.doctorName) {
-      await this.updateEncounterDoctor(encounter.id, payload.doctorId, payload.doctorName)
-    }
-    await this.touchEncounter(encounter.id)
-
-    const event: PatientMovementEvent = {
-      id: uuidv4(),
-      patientId: payload.patientId,
-      patientName,
-      encounterId: encounter.id,
-      invoiceNumber: encounter.invoiceNumber,
-      fromStation: payload.fromStation ?? lastEvent?.toStation,
-      toStation,
-      occurredAt,
-      reason: payload.reason?.trim(),
-      notes: payload.notes?.trim(),
-      actor,
-      source: payload.source ?? 'manual',
-      reference: payload.reference
-    }
-
-    store.events.unshift(event)
-    store.updatedAt = new Date().toISOString()
-    await this.movementsRepo.save(store)
 
     if (payload.charge) {
       const chargePayload: ManualChargePayload = {
@@ -479,10 +495,10 @@ export class BillingService {
       item.reference = { ...item.reference, invoiceNumber: invoice.InvoiceNumber }
     }
 
-    const store = await this.ledgerRepo.load()
-    store.items.unshift(item)
-    store.updatedAt = new Date().toISOString()
-    await this.ledgerRepo.save(store)
+    await this.ledgerRepo.update((store) => {
+      store.items.unshift(item)
+      store.updatedAt = new Date().toISOString()
+    })
     await this.applyInvoiceDeltaSafely(invoice, total, 'movement-charge')
     return item
   }
@@ -595,10 +611,14 @@ export class BillingService {
         total: 0
       }
 
-      if (item.source === 'invoice') patientEntry.invoiceTotal += item.total
-      else if (item.source === 'stock') patientEntry.inventoryTotal += item.total
-      else patientEntry.manualTotal += item.total
-      patientEntry.total += item.total
+      if (item.source === 'invoice') {
+        patientEntry.invoiceTotal += item.total
+        patientEntry.total += item.total
+      } else if (item.source === 'stock') {
+        patientEntry.inventoryTotal += item.total
+      } else {
+        patientEntry.manualTotal += item.total
+      }
       patientMap.set(item.patientId, patientEntry)
 
       const dateKey = this.dateOnly(item.occurredAt)
@@ -609,10 +629,14 @@ export class BillingService {
         manualTotal: 0,
         total: 0
       }
-      if (item.source === 'invoice') dayEntry.invoiceTotal += item.total
-      else if (item.source === 'stock') dayEntry.inventoryTotal += item.total
-      else dayEntry.manualTotal += item.total
-      dayEntry.total += item.total
+      if (item.source === 'invoice') {
+        dayEntry.invoiceTotal += item.total
+        dayEntry.total += item.total
+      } else if (item.source === 'stock') {
+        dayEntry.inventoryTotal += item.total
+      } else {
+        dayEntry.manualTotal += item.total
+      }
       dayMap.set(dateKey, dayEntry)
 
       const categoryKey = item.category ?? 'otros'
@@ -724,60 +748,59 @@ export class BillingService {
     createdAt?: string
     status?: EncounterStatus
   }) => {
-    const store = await this.encountersRepo.load()
-    const existing = store.encounters.find((enc) => enc.invoiceNumber === payload.invoiceNumber)
+    return this.encountersRepo.update((store) => {
+      const existing = store.encounters.find((enc) => enc.invoiceNumber === payload.invoiceNumber)
 
-    if (existing) {
-      let touched = false
-      if (payload.doctorId && !existing.doctorId) {
-        existing.doctorId = payload.doctorId
-        touched = true
+      if (existing) {
+        let touched = false
+        if (payload.doctorId && !existing.doctorId) {
+          existing.doctorId = payload.doctorId
+          touched = true
+        }
+        if (payload.doctorName && !existing.doctorName) {
+          existing.doctorName = payload.doctorName.trim()
+          touched = true
+        }
+        if (payload.origin && !existing.origin) {
+          existing.origin = payload.origin
+          touched = true
+        }
+        if (payload.invoiceId && !existing.invoiceId) {
+          existing.invoiceId = payload.invoiceId
+          touched = true
+        }
+        if (touched) {
+          existing.updatedAt = new Date().toISOString()
+          store.updatedAt = existing.updatedAt
+        }
+        return existing
       }
-      if (payload.doctorName && !existing.doctorName) {
-        existing.doctorName = payload.doctorName.trim()
-        touched = true
-      }
-      if (payload.origin && !existing.origin) {
-        existing.origin = payload.origin
-        touched = true
-      }
-      if (payload.invoiceId && !existing.invoiceId) {
-        existing.invoiceId = payload.invoiceId
-        touched = true
-      }
-      if (touched) {
-        existing.updatedAt = new Date().toISOString()
-        store.updatedAt = existing.updatedAt
-        await this.encountersRepo.save(store)
-      }
-      return existing
-    }
 
-    const now = new Date().toISOString()
-    const previous = store.encounters
-      .filter((enc) => enc.patientId === payload.patientId)
-      .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))[0]
+      const now = new Date().toISOString()
+      const previous = store.encounters
+        .filter((enc) => enc.patientId === payload.patientId)
+        .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))[0]
 
-    const encounter: PatientEncounter = {
-      id: uuidv4(),
-      patientId: payload.patientId,
-      patientName: payload.patientName,
-      doctorId: payload.doctorId,
-      doctorName: payload.doctorName?.trim() || undefined,
-      origin: payload.origin,
-      invoiceNumber: payload.invoiceNumber,
-      invoiceId: payload.invoiceId,
-      status: payload.status ?? 'Pendiente',
-      createdAt: payload.createdAt ?? now,
-      updatedAt: now,
-      previousEncounterId: previous?.id
-    }
+      const encounter: PatientEncounter = {
+        id: uuidv4(),
+        patientId: payload.patientId,
+        patientName: payload.patientName,
+        doctorId: payload.doctorId,
+        doctorName: payload.doctorName?.trim() || undefined,
+        origin: payload.origin,
+        invoiceNumber: payload.invoiceNumber,
+        invoiceId: payload.invoiceId,
+        status: payload.status ?? 'Pendiente',
+        createdAt: payload.createdAt ?? now,
+        updatedAt: now,
+        previousEncounterId: previous?.id
+      }
 
-    store.encounters.unshift(encounter)
-    store.updatedAt = now
-    await this.encountersRepo.save(store)
+      store.encounters.unshift(encounter)
+      store.updatedAt = now
 
-    return encounter
+      return encounter
+    })
   }
 
   public getDefaultConsultaService = async (): Promise<{ id: number; name: string; price: number } | null> => {
@@ -803,49 +826,49 @@ export class BillingService {
   }): Promise<void> => {
     const { invoiceNumber, patientId, patientName, encounterId, occurredAt, service } = params
 
-    const store = await this.ledgerRepo.load()
+    await this.ledgerRepo.update((store) => {
+      const alreadyAdded = store.items.some(
+        (item) => (item.invoiceNumber === invoiceNumber || item.reference?.invoiceNumber === invoiceNumber)
+          && item.description === service.name
+      )
+      if (alreadyAdded) return
 
-    const alreadyAdded = store.items.some(
-      (item) => (item.invoiceNumber === invoiceNumber || item.reference?.invoiceNumber === invoiceNumber)
-        && item.description === service.name
-    )
-    if (alreadyAdded) return
+      const item: BillingLedgerItem = {
+        id: uuidv4(),
+        patientId,
+        patientName: patientName ?? '',
+        encounterId,
+        invoiceNumber,
+        station: 'consulta',
+        category: 'servicio',
+        description: service.name,
+        quantity: 1,
+        unitPrice: service.price,
+        total: service.price,
+        occurredAt: occurredAt ?? new Date().toISOString(),
+        status: DEFAULT_STATUS,
+        source: 'manual'
+      }
 
-    const item: BillingLedgerItem = {
-      id: uuidv4(),
-      patientId,
-      patientName: patientName ?? '',
-      encounterId,
-      invoiceNumber,
-      station: 'consulta',
-      category: 'servicio',
-      description: service.name,
-      quantity: 1,
-      unitPrice: service.price,
-      total: service.price,
-      occurredAt: occurredAt ?? new Date().toISOString(),
-      status: DEFAULT_STATUS,
-      source: 'invoice'
-    }
-
-    store.items.unshift(item)
-    store.updatedAt = new Date().toISOString()
-    await this.ledgerRepo.save(store)
+      store.items.unshift(item)
+      store.updatedAt = new Date().toISOString()
+    })
   }
 
   public voidLedgerItemsByInvoice = async (invoiceNumber: string): Promise<void> => {
-    const store = await this.ledgerRepo.load()
-    let touched = false
-    store.items.forEach((item) => {
-      const belongsToInvoice = item.invoiceNumber === invoiceNumber || item.reference?.invoiceNumber === invoiceNumber
-      if (belongsToInvoice && item.status !== 'Anulado') {
-        item.status = 'Anulado'
-        touched = true
+    await this.ledgerRepo.update((store) => {
+      let touched = false
+      store.items.forEach((item) => {
+        const belongsToInvoice = item.invoiceNumber === invoiceNumber || item.reference?.invoiceNumber === invoiceNumber
+        if (belongsToInvoice && item.status !== 'Anulado') {
+          item.status = 'Anulado'
+          touched = true
+        }
+      })
+      if (touched) {
+        store.updatedAt = new Date().toISOString()
       }
     })
-    if (!touched) return
-    store.updatedAt = new Date().toISOString()
-    await this.ledgerRepo.save(store)
   }
 
   private async resolveEncounter(patientId: number, encounterId?: string) {
@@ -979,73 +1002,74 @@ export class BillingService {
     origin?: BillingStation | string
   }) => {
     const now = new Date().toISOString()
-    const store = await this.encountersRepo.load()
 
-    const previous = store.encounters.find((enc) => enc.invoiceNumber === payload.fromInvoiceNumber)
-    if (previous) {
-      previous.status = 'Anulado'
-      previous.closedAt = now
-      previous.updatedAt = now
-    }
+    const newEncounter = await this.encountersRepo.update(async (store) => {
+      const previous = store.encounters.find((enc) => enc.invoiceNumber === payload.fromInvoiceNumber)
+      if (previous) {
+        previous.status = 'Anulado'
+        previous.closedAt = now
+        previous.updatedAt = now
+      }
 
-    const patientId = payload.patientId ?? previous?.patientId
-    if (!patientId) throw this.buildValidationError(['Paciente requerido para transferir factura.'])
+      const patientId = payload.patientId ?? previous?.patientId
+      if (!patientId) throw this.buildValidationError(['Paciente requerido para transferir factura.'])
 
-    const patientName = payload.patientName
-      ?? previous?.patientName
-      ?? await this.resolvePatientName(patientId)
+      const patientName = payload.patientName
+        ?? previous?.patientName
+        ?? await this.resolvePatientName(patientId)
 
-    const newEncounter: PatientEncounter = {
-      id: uuidv4(),
-      patientId,
-      patientName,
-      doctorId: payload.doctorId ?? previous?.doctorId,
-      doctorName: payload.doctorName ?? previous?.doctorName,
-      origin: payload.origin ?? previous?.origin,
-      invoiceNumber: payload.toInvoiceNumber,
-      invoiceId: payload.toInvoiceId,
-      status: 'Pendiente',
-      createdAt: now,
-      updatedAt: now,
-      previousEncounterId: previous?.id
-    }
+      const encounter: PatientEncounter = {
+        id: uuidv4(),
+        patientId,
+        patientName,
+        doctorId: payload.doctorId ?? previous?.doctorId,
+        doctorName: payload.doctorName ?? previous?.doctorName,
+        origin: payload.origin ?? previous?.origin,
+        invoiceNumber: payload.toInvoiceNumber,
+        invoiceId: payload.toInvoiceId,
+        status: 'Pendiente',
+        createdAt: now,
+        updatedAt: now,
+        previousEncounterId: previous?.id
+      }
 
-    store.encounters.unshift(newEncounter)
-    store.updatedAt = now
-    await this.encountersRepo.save(store)
+      store.encounters.unshift(encounter)
+      store.updatedAt = now
 
-    const ledgerStore = await this.ledgerRepo.load()
+      return encounter
+    })
+
     let manualTotal = 0
-    ledgerStore.items.forEach((item) => {
-      const matchInvoice = item.invoiceNumber === payload.fromInvoiceNumber || item.reference?.invoiceNumber === payload.fromInvoiceNumber
-      const matchEncounter = previous?.id && item.encounterId === previous.id
-      if (!matchInvoice && !matchEncounter) return
+    await this.ledgerRepo.update((ledgerStore) => {
+      ledgerStore.items.forEach((item) => {
+        const matchInvoice = item.invoiceNumber === payload.fromInvoiceNumber || item.reference?.invoiceNumber === payload.fromInvoiceNumber
+        const matchEncounter = newEncounter.previousEncounterId && item.encounterId === newEncounter.previousEncounterId
+        if (!matchInvoice && !matchEncounter) return
 
-      item.encounterId = newEncounter.id
-      item.invoiceNumber = payload.toInvoiceNumber
-      item.reference = { ...item.reference, invoiceNumber: payload.toInvoiceNumber }
-      manualTotal += Number(item.total) || 0
+        item.encounterId = newEncounter.id
+        item.invoiceNumber = payload.toInvoiceNumber
+        item.reference = { ...item.reference, invoiceNumber: payload.toInvoiceNumber }
+        manualTotal += Number(item.total) || 0
+      })
+      ledgerStore.updatedAt = now
     })
 
-    ledgerStore.updatedAt = now
-    await this.ledgerRepo.save(ledgerStore)
+    await this.movementsRepo.update((movementStore) => {
+      let movedEvents = 0
+      movementStore.events.forEach((event) => {
+        const matchInvoice = event.invoiceNumber === payload.fromInvoiceNumber
+        const matchEncounter = newEncounter.previousEncounterId && event.encounterId === newEncounter.previousEncounterId
+        if (!matchInvoice && !matchEncounter) return
 
-    const movementStore = await this.movementsRepo.load()
-    let movedEvents = 0
-    movementStore.events.forEach((event) => {
-      const matchInvoice = event.invoiceNumber === payload.fromInvoiceNumber
-      const matchEncounter = previous?.id && event.encounterId === previous.id
-      if (!matchInvoice && !matchEncounter) return
+        event.encounterId = newEncounter.id
+        event.invoiceNumber = payload.toInvoiceNumber
+        movedEvents += 1
+      })
 
-      event.encounterId = newEncounter.id
-      event.invoiceNumber = payload.toInvoiceNumber
-      movedEvents += 1
+      if (movedEvents > 0) {
+        movementStore.updatedAt = now
+      }
     })
-
-    if (movedEvents > 0) {
-      movementStore.updatedAt = now
-      await this.movementsRepo.save(movementStore)
-    }
 
     let stockTotal = 0
     if (payload.fromInvoiceId && payload.toInvoiceId) {
@@ -1065,41 +1089,41 @@ export class BillingService {
   }
 
   public updateEncounterStatusByInvoice = async (invoiceNumber: string, status: EncounterStatus) => {
-    const store = await this.encountersRepo.load()
-    const encounter = store.encounters.find((enc) => enc.invoiceNumber === invoiceNumber)
-    if (!encounter) return null
-    const now = new Date().toISOString()
-    encounter.status = status
-    encounter.updatedAt = now
-    if (status === 'Pagado' || status === 'Anulado') {
-      encounter.closedAt = now
-    }
-    store.updatedAt = now
-    await this.encountersRepo.save(store)
-    return encounter
+    return this.encountersRepo.update((store) => {
+      const encounter = store.encounters.find((enc) => enc.invoiceNumber === invoiceNumber)
+      if (!encounter) return null
+      const now = new Date().toISOString()
+      encounter.status = status
+      encounter.updatedAt = now
+      if (status === 'Pagado' || status === 'Anulado') {
+        encounter.closedAt = now
+      }
+      store.updatedAt = now
+      return encounter
+    })
   }
 
   private async touchEncounter(encounterId: string) {
-    const store = await this.encountersRepo.load()
-    const target = store.encounters.find((enc) => enc.id === encounterId)
-    if (!target) return
-    const now = new Date().toISOString()
-    target.updatedAt = now
-    store.updatedAt = now
-    await this.encountersRepo.save(store)
+    await this.encountersRepo.update((store) => {
+      const target = store.encounters.find((enc) => enc.id === encounterId)
+      if (!target) return
+      const now = new Date().toISOString()
+      target.updatedAt = now
+      store.updatedAt = now
+    })
   }
 
   private async updateEncounterDoctor(encounterId: string, doctorId?: number, doctorName?: string) {
     if (!doctorId && !doctorName) return
-    const store = await this.encountersRepo.load()
-    const target = store.encounters.find((enc) => enc.id === encounterId)
-    if (!target) return
-    if (doctorId) target.doctorId = doctorId
-    if (doctorName) target.doctorName = doctorName.trim()
-    const now = new Date().toISOString()
-    target.updatedAt = now
-    store.updatedAt = now
-    await this.encountersRepo.save(store)
+    await this.encountersRepo.update((store) => {
+      const target = store.encounters.find((enc) => enc.id === encounterId)
+      if (!target) return
+      if (doctorId) target.doctorId = doctorId
+      if (doctorName) target.doctorName = doctorName.trim()
+      const now = new Date().toISOString()
+      target.updatedAt = now
+      store.updatedAt = now
+    })
   }
 
   private async resolvePatientName(patientId: number, providedName?: string) {
@@ -1132,7 +1156,7 @@ export class BillingService {
       { label: 'Pagado', value: summary.totals.invoicePaid },
       { label: 'Pendiente', value: summary.totals.invoicePending },
       { label: 'Consumo inventario', value: summary.totals.inventoryTotal },
-      { label: 'Cargos manuales', value: summary.totals.manualTotal }
+      { label: 'Cargos por servicios', value: summary.totals.manualTotal }
     ]
       .map(
         (row) => `

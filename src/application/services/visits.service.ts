@@ -196,6 +196,10 @@ export class VisitsService {
         translatedFields['isActive'] = true
         translatedFields['TipoVisita'] = ORIGIN_TO_VISIT_TYPE[originKey]
 
+        let invoice: { id: number; invoiceNumber: string } | undefined
+        let insertId: number | undefined
+        let stockReduced = false
+
         try {
 
             let amount: number = 0.00
@@ -218,10 +222,11 @@ export class VisitsService {
                 }
             }
 
-            const invoice = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
-            translatedFields['FacturaID'] = invoice.id
+            const createdInvoice: { id: number; invoiceNumber: string } = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
+            invoice = createdInvoice
+            translatedFields['FacturaID'] = createdInvoice.id
 
-            const insertId = await this.visitsRepo.create( translatedFields )
+            insertId = await this.visitsRepo.create( translatedFields )
 
             if ( stockItems && stockItems.length > 0 ) {
                 // The reduction must settle first: it is the step that can fail on
@@ -229,6 +234,7 @@ export class VisitsService {
                 // reduction that never happened. The inserts touch unrelated
                 // tables, so they can run in parallel.
                 await this.stockService.reduceStockQuantities( stockItems )
+                stockReduced = true
                 await Promise.all([
                     this.stockService.insertStockInvoice(translatedFields['FacturaID'], stockItems),
                     this.stockService.insertStockHistory( insertId, stockItems )
@@ -256,7 +262,7 @@ export class VisitsService {
                 patient,
                 doctor,
                 originKey,
-                invoice,
+                invoice: createdInvoice,
                 visitId: insertId,
                 date,
                 consultaService
@@ -264,7 +270,25 @@ export class VisitsService {
 
             return { visit: insertId }
         } catch (err) {
-            console.error('error creating visit: ', err)
+            console.error('error creating visit, rolling back partial writes: ', err)
+
+            // invoice/visit rows may already be committed by the time a later
+            // step throws (stock/expediente); undo them so a client retry
+            // doesn't leave an orphaned duplicate visit behind.
+            if (insertId !== undefined) {
+                await this.visitsRepo.softDelete(insertId).catch(cleanupErr =>
+                    console.error(`rollback failed to soft-delete visit ${insertId}:`, cleanupErr))
+            }
+            if (invoice) {
+                await this.invoiceService.removeInvoiceById(invoice.invoiceNumber).catch(cleanupErr =>
+                    console.error(`rollback failed to soft-delete invoice ${invoice!.invoiceNumber}:`, cleanupErr))
+            }
+            if (stockReduced) {
+                // No verified path to reverse sp_mov_inventario('SALIDA', ...); flag
+                // loudly so inventory is corrected manually instead of guessing.
+                console.error(`rollback could not restore stock quantities for items: ${JSON.stringify(stockItems)} - manual inventory correction required`)
+            }
+
             throw err
         }
     }

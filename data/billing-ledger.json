@@ -1,6 +1,41 @@
 {
   "items": [
     {
+      "id": "e5805d84-331a-468b-b6d3-afebf5972d18",
+      "patientId": 8,
+      "patientName": "Sarah Elisa Martinez Rodriguez",
+      "encounterId": "a6b98422-133d-4304-ae90-3af92ad1aa3d",
+      "invoiceNumber": "8d77f3d1-a655-475d",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Enfermeria domicilio",
+      "quantity": 1,
+      "unitPrice": 800,
+      "total": 800,
+      "occurredAt": "2026-07-23",
+      "status": "Pendiente",
+      "source": "manual",
+      "reference": {
+        "invoiceNumber": "8d77f3d1-a655-475d"
+      }
+    },
+    {
+      "id": "0cc9f6a5-e00a-4c08-8ab8-65bfb71402c6",
+      "patientId": 8,
+      "patientName": "Sarah Elisa Martinez Rodriguez",
+      "encounterId": "a6b98422-133d-4304-ae90-3af92ad1aa3d",
+      "invoiceNumber": "8d77f3d1-a655-475d",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-07-23",
+      "status": "Pendiente",
+      "source": "manual"
+    },
+    {
       "id": "2fc8490e-3009-4a76-bf55-ac5b14022eed",
       "patientId": 145,
       "patientName": "Natalia La Fourcade",
@@ -14,7 +49,7 @@
       "total": 1100,
       "occurredAt": "2026-07-14",
       "status": "Pendiente",
-      "source": "invoice"
+      "source": "manual"
     },
     {
       "id": "d033229b-fcb2-4f1d-abc3-64cd365fe3de",
@@ -30,7 +65,7 @@
       "total": 1100,
       "occurredAt": "2026-07-13",
       "status": "Pendiente",
-      "source": "invoice"
+      "source": "manual"
     },
     {
       "id": "7b058c88-3c84-4f23-9f97-ceffb1c277bd",
@@ -46,7 +81,7 @@
       "total": 1100,
       "occurredAt": "2026-06-22",
       "status": "Pendiente",
-      "source": "invoice"
+      "source": "manual"
     },
     {
       "id": "0ee98082-ae6f-4b28-bd0e-1e93efaebc3f",
@@ -366,5 +401,5 @@
       }
     }
   ],
-  "updatedAt": "2026-07-14T22:24:03.002Z"
+  "updatedAt": "2026-07-23T22:55:07.337Z"
 }

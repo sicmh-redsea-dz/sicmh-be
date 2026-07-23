@@ -1,6 +1,19 @@
 {
   "events": [
     {
+      "id": "63cc137a-7ef4-4d3b-8ccb-3ee0f3abe388",
+      "patientId": 8,
+      "patientName": "Sarah Elisa Martinez Rodriguez",
+      "encounterId": "a6b98422-133d-4304-ae90-3af92ad1aa3d",
+      "invoiceNumber": "8d77f3d1-a655-475d",
+      "toStation": "consulta",
+      "occurredAt": "2026-07-23",
+      "source": "visit",
+      "reference": {
+        "visitId": 27
+      }
+    },
+    {
       "id": "13e3c7d5-8271-4fdf-bfda-f9069ad3bc09",
       "patientId": 145,
       "patientName": "Natalia La Fourcade",
@@ -311,5 +324,5 @@
       }
     }
   ],
-  "updatedAt": "2026-07-14T22:24:02.996Z"
+  "updatedAt": "2026-07-23T22:11:13.005Z"
 }

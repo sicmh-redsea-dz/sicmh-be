@@ -1,4 +1,22 @@
 {
+  "27": {
+    "historyId": 27,
+    "patientId": 8,
+    "origin": "visits",
+    "standard": {
+      "chiefComplaint": "Consulta",
+      "currentIllness": "Dolor de cabeza",
+      "physicalExam": "NA",
+      "allergies": "ninguna",
+      "currentMeds": "Ninguno"
+    },
+    "module": {
+      "followUpPlan": "Tomar enamtyum 1 cada 8 horas",
+      "referrals": "ninguna"
+    },
+    "createdAt": "2026-07-23T22:11:12.796Z",
+    "updatedAt": "2026-07-23T22:11:12.796Z"
+  },
   "146": {
     "historyId": 146,
     "patientId": 58,

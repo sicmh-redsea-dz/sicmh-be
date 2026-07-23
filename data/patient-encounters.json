@@ -1,6 +1,19 @@
 {
   "encounters": [
     {
+      "id": "a6b98422-133d-4304-ae90-3af92ad1aa3d",
+      "patientId": 8,
+      "patientName": "Sarah Elisa Martinez Rodriguez",
+      "doctorId": 7,
+      "origin": "consulta",
+      "invoiceNumber": "8d77f3d1-a655-475d",
+      "invoiceId": 27,
+      "status": "Pagado",
+      "createdAt": "2026-07-23",
+      "updatedAt": "2026-07-23T22:48:00.261Z",
+      "closedAt": "2026-07-23T22:48:00.261Z"
+    },
+    {
       "id": "0c705de6-7111-42bd-99b3-fa2f59f9812f",
       "patientId": 145,
       "patientName": "Natalia La Fourcade",
@@ -182,5 +195,5 @@
       "closedAt": "2026-06-16T00:54:24.706Z"
     }
   ],
-  "updatedAt": "2026-07-14T22:24:02.993Z"
+  "updatedAt": "2026-07-23T22:48:00.261Z"
 }
