@@ -13,10 +13,10 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
             const whereClause = `
                 f.FacturaID > 4 and f.IsActive = true
                 ${hasTerm ? `and (
-                    f.InvoiceNumber like concat('%', '${term}', '%') or
-                    p.Nombre like concat('%', '${term}', '%') or
-                    p.Apellido like concat('%', '${term}', '%')
-                )`: ''}    
+                    f.InvoiceNumber like concat('%', ?, '%') or
+                    p.Nombre like concat('%', ?, '%') or
+                    p.Apellido like concat('%', ?, '%')
+                )`: ''}
             `
             query = `
                     select 
@@ -38,7 +38,7 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                             on p.PacienteID = f.PacienteID
                     where 
                         ${whereClause}
-                    order by 
+                    order by
                         f.FechaFactura desc,
                         f.FacturaID desc
                     limit ${limit}
@@ -88,7 +88,7 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                     f.IsActive = 1
                     and f.PacienteID = ?
                     and f.Estado = 'Pendiente'
-                    and DATE(f.FechaFactura) <= DATE(?)
+                    and f.FechaFactura < DATE_ADD(?, INTERVAL 1 DAY)
                 order by
                     f.FechaFactura desc
                 limit 1;
@@ -101,12 +101,6 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                     fi.ProductoID
                 from Factura_Inventario as fi 
                 where fi.FacturaID = ?;
-            `
-            break
-        case 'create':
-            query = `
-                insert into facturas(PacienteID, DoctorID, FechaFactura, Monto, Estado, InvoiceNumber, TipoPagoID)
-                values(?, ?, ?, ?, ?, ?, ?);
             `
             break
         case 'getServices':
@@ -175,11 +169,10 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                     facturas AS f
                 WHERE
                     f.IsActive = 1
-                    AND DATE(f.FechaFactura) BETWEEN
-                        CASE WHEN ?='td' THEN CURDATE()
-                            ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
+                    AND f.FechaFactura >= CASE WHEN ?='td' THEN CURDATE()
+                        ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
                         END
-                        AND CURDATE()
+                        AND f.FechaFactura < CURDATE() + INTERVAL 1 DAY
                 GROUP BY estado_factura
                 ORDER BY estado_factura;
             `;
@@ -198,11 +191,10 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                 WHERE 
                     f.IsActive = 1
                     AND f.Estado = 'Pagado'
-                    AND DATE(f.FechaFactura) BETWEEN
-                        CASE WHEN ?='td' THEN CURDATE()
-                            ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
+                    AND f.FechaFactura >= CASE WHEN ?='td' THEN CURDATE()
+                        ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
                         END
-                        AND CURDATE()
+                        AND f.FechaFactura < CURDATE() + INTERVAL 1 DAY
                 GROUP BY 
                     IFNULL(tp.Descripcion, 'Sin método')
                 ORDER BY 
@@ -222,11 +214,10 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                         WHERE 
                         f.IsActive = 1
                         AND f.Estado = 'Pagado'
-                        AND DATE(f.FechaFactura) BETWEEN
-                            CASE WHEN ?='td' THEN CURDATE()
-                                ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
+                        AND f.FechaFactura >= CASE WHEN ?='td' THEN CURDATE()
+                            ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
                             END
-                            AND CURDATE()
+                            AND f.FechaFactura < CURDATE() + INTERVAL 1 DAY
 
                         UNION ALL
 
@@ -239,11 +230,10 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                         WHERE 
                         f.IsActive = 1
                         AND f.Estado = 'Pagado'
-                        AND DATE(f.FechaFactura) BETWEEN
-                            CASE WHEN ?='td' THEN CURDATE()
-                                ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
+                        AND f.FechaFactura >= CASE WHEN ?='td' THEN CURDATE()
+                            ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
                             END
-                            AND CURDATE()
+                            AND f.FechaFactura < CURDATE() + INTERVAL 1 DAY
 
                         UNION ALL
 
@@ -256,11 +246,10 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                         WHERE 
                         f.IsActive = 1
                         AND f.Estado = 'Pagado'
-                        AND DATE(f.FechaFactura) BETWEEN
-                            CASE WHEN ?='td' THEN CURDATE()
-                                ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
+                        AND f.FechaFactura >= CASE WHEN ?='td' THEN CURDATE()
+                            ELSE CURDATE() - INTERVAL WEEKDAY(CURDATE()) DAY
                             END
-                            AND CURDATE();
+                            AND f.FechaFactura < CURDATE() + INTERVAL 1 DAY;
                 `;
                 break;
 

@@ -31,6 +31,7 @@ router.get(
 router.post(
   '/:id/attachments',
   requirePermissions('attachments.create'),
+  validateGetPatient,
   singleFileUpload('file'),
   attachmentsController.upload.bind(attachmentsController)
 );

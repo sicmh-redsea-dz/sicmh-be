@@ -36,6 +36,21 @@ export class StockService {
         }
     }
 
+    restoreStockQuantities = async (
+        items: {
+            id: number;
+            qty: number,
+            subinventoryId?:number
+        }[]
+    ): Promise<void> => {
+        try {
+            await this.stockRepo.restoreStockQuantities( items )
+        } catch (err) {
+            console.error('error restoring stock quantities: ', err);
+            throw err;
+        }
+    }
+
     insertStockInvoice = async (facturaId: number, items: { id: number; qty: number }[]): Promise<void> => {
         try {
             await this.stockRepo.insertStockInvoice( facturaId, items )

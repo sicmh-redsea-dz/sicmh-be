@@ -46,47 +46,50 @@ export class BedsService {
     if (!payload.code || !payload.code.trim()) errors.push('El codigo de cama es requerido.')
     if (errors.length > 0) throw this.buildValidationError(errors)
 
-    const store = await this.bedsRepo.load()
-    const beds = store[moduleKey].beds
-    const id = beds.length > 0 ? Math.max(...beds.map((b) => b.id)) + 1 : 1
-    const now = new Date().toISOString()
+    const beds = await this.bedsRepo.update((store) => {
+      const moduleBeds = store[moduleKey].beds
+      const id = moduleBeds.length > 0 ? Math.max(...moduleBeds.map((b) => b.id)) + 1 : 1
+      const now = new Date().toISOString()
 
-    const bed: BedRecord = {
-      id,
-      code: payload.code.trim(),
-      area: payload.area?.trim() || '',
-      status: payload.status ?? 'available',
-      currentAssignment: null,
-      history: [this.buildHistory('create', actor, { code: payload.code, area: payload.area, status: payload.status })]
-    }
+      const bed: BedRecord = {
+        id,
+        code: payload.code.trim(),
+        area: payload.area?.trim() || '',
+        status: payload.status ?? 'available',
+        currentAssignment: null,
+        history: [this.buildHistory('create', actor, { code: payload.code, area: payload.area, status: payload.status })]
+      }
 
-    beds.push(bed)
-    store[moduleKey].updatedAt = now
-    await this.bedsRepo.save(store)
+      moduleBeds.push(bed)
+      store[moduleKey].updatedAt = now
+      return moduleBeds
+    })
 
     return { beds }
   }
 
   updateBed = async (module: string, bedId: number, payload: BedPayload, actor?: AuditActor) => {
     const moduleKey = this.assertModule(module)
-    const store = await this.bedsRepo.load()
-    const beds = store[moduleKey].beds
-    const bed = beds.find((b) => b.id === bedId)
-    if (!bed) throw this.buildNotFoundError(`No bed found with id ${bedId}`)
 
-    const prevStatus = bed.status
-    bed.code = payload.code?.trim() || bed.code
-    bed.area = payload.area?.trim() ?? bed.area
-    if (payload.status) bed.status = payload.status
+    const beds = await this.bedsRepo.update((store) => {
+      const moduleBeds = store[moduleKey].beds
+      const bed = moduleBeds.find((b) => b.id === bedId)
+      if (!bed) throw this.buildNotFoundError(`No bed found with id ${bedId}`)
 
-    bed.history.push(this.buildHistory('update', actor, { code: bed.code, area: bed.area, status: bed.status }))
+      const prevStatus = bed.status
+      bed.code = payload.code?.trim() || bed.code
+      bed.area = payload.area?.trim() ?? bed.area
+      if (payload.status) bed.status = payload.status
 
-    if (payload.status && payload.status !== prevStatus) {
-      bed.history.push(this.buildHistory('status_change', actor, { from: prevStatus, to: payload.status }))
-    }
+      bed.history.push(this.buildHistory('update', actor, { code: bed.code, area: bed.area, status: bed.status }))
 
-    store[moduleKey].updatedAt = new Date().toISOString()
-    await this.bedsRepo.save(store)
+      if (payload.status && payload.status !== prevStatus) {
+        bed.history.push(this.buildHistory('status_change', actor, { from: prevStatus, to: payload.status }))
+      }
+
+      store[moduleKey].updatedAt = new Date().toISOString()
+      return moduleBeds
+    })
 
     return { beds }
   }
@@ -98,37 +101,39 @@ export class BedsService {
     if (!payload.patientName || !payload.patientName.trim()) errors.push('Nombre del paciente requerido.')
     if (errors.length > 0) throw this.buildValidationError(errors)
 
-    const store = await this.bedsRepo.load()
-    const beds = store[moduleKey].beds
-    const bed = beds.find((b) => b.id === bedId)
-    if (!bed) throw this.buildNotFoundError(`No bed found with id ${bedId}`)
-
     const now = new Date().toISOString()
-    const payloadData: BedAssignment = {
-      assignmentId: payload.assignmentId || bed.currentAssignment?.assignmentId || uuidv4(),
-      patientId: payload.patientId,
-      patientName: payload.patientName.trim(),
-      doctorId: payload.doctorId,
-      doctorName: payload.doctorName?.trim() || undefined,
-      reason: payload.reason?.trim() || undefined,
-      notes: payload.notes?.trim() || undefined,
-      expectedDischarge: payload.expectedDischarge || undefined,
-      assignedAt: bed.currentAssignment?.assignedAt ?? now,
-      updatedAt: bed.currentAssignment ? now : undefined
-    }
 
-    if (bed.currentAssignment) {
-      const previous = bed.currentAssignment
-      bed.currentAssignment = payloadData
-      bed.history.push(this.buildHistory('update_assignment', actor, { previous, next: payloadData }))
-    } else {
-      bed.currentAssignment = payloadData
-      bed.status = 'occupied'
-      bed.history.push(this.buildHistory('assign', actor, { assignment: payloadData }))
-    }
+    const beds = await this.bedsRepo.update((store) => {
+      const moduleBeds = store[moduleKey].beds
+      const bed = moduleBeds.find((b) => b.id === bedId)
+      if (!bed) throw this.buildNotFoundError(`No bed found with id ${bedId}`)
 
-    store[moduleKey].updatedAt = now
-    await this.bedsRepo.save(store)
+      const payloadData: BedAssignment = {
+        assignmentId: payload.assignmentId || bed.currentAssignment?.assignmentId || uuidv4(),
+        patientId: payload.patientId,
+        patientName: payload.patientName.trim(),
+        doctorId: payload.doctorId,
+        doctorName: payload.doctorName?.trim() || undefined,
+        reason: payload.reason?.trim() || undefined,
+        notes: payload.notes?.trim() || undefined,
+        expectedDischarge: payload.expectedDischarge || undefined,
+        assignedAt: bed.currentAssignment?.assignedAt ?? now,
+        updatedAt: bed.currentAssignment ? now : undefined
+      }
+
+      if (bed.currentAssignment) {
+        const previous = bed.currentAssignment
+        bed.currentAssignment = payloadData
+        bed.history.push(this.buildHistory('update_assignment', actor, { previous, next: payloadData }))
+      } else {
+        bed.currentAssignment = payloadData
+        bed.status = 'occupied'
+        bed.history.push(this.buildHistory('assign', actor, { assignment: payloadData }))
+      }
+
+      store[moduleKey].updatedAt = now
+      return moduleBeds
+    })
 
     if (this.billingService) {
       try {
@@ -150,21 +155,22 @@ export class BedsService {
 
   releaseBed = async (module: string, bedId: number, payload?: ReleasePayload, actor?: AuditActor) => {
     const moduleKey = this.assertModule(module)
-    const store = await this.bedsRepo.load()
-    const beds = store[moduleKey].beds
-    const bed = beds.find((b) => b.id === bedId)
-    if (!bed) throw this.buildNotFoundError(`No bed found with id ${bedId}`)
-    if (!bed.currentAssignment) throw this.buildValidationError(['La cama no tiene asignacion activa.'])
+    const beds = await this.bedsRepo.update((store) => {
+      const moduleBeds = store[moduleKey].beds
+      const bed = moduleBeds.find((b) => b.id === bedId)
+      if (!bed) throw this.buildNotFoundError(`No bed found with id ${bedId}`)
+      if (!bed.currentAssignment) throw this.buildValidationError(['La cama no tiene asignacion activa.'])
 
-    const now = new Date().toISOString()
-    const releasedAssignment = { ...bed.currentAssignment, releasedAt: now }
+      const now = new Date().toISOString()
+      const releasedAssignment = { ...bed.currentAssignment, releasedAt: now }
 
-    bed.currentAssignment = null
-    bed.status = payload?.status ?? 'available'
-    bed.history.push(this.buildHistory('release', actor, { assignment: releasedAssignment, reason: payload?.reason }))
+      bed.currentAssignment = null
+      bed.status = payload?.status ?? 'available'
+      bed.history.push(this.buildHistory('release', actor, { assignment: releasedAssignment, reason: payload?.reason }))
 
-    store[moduleKey].updatedAt = now
-    await this.bedsRepo.save(store)
+      store[moduleKey].updatedAt = now
+      return moduleBeds
+    })
 
     return { beds }
   }

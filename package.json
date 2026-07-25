@@ -16,12 +16,12 @@
     "@google-cloud/storage": "^7.21.0",
     "@node-rs/bcrypt": "^1.10.4",
     "@types/uuid": "^10.0.0",
+    "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
     "express-validator": "^7.2.1",
     "file-type": "^16.5.4",
-    "firebase-admin": "^13.2.0",
     "googleapis": "^146.0.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
@@ -33,6 +33,7 @@
     "uuid": "^11.0.5"
   },
   "devDependencies": {
+    "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.7",

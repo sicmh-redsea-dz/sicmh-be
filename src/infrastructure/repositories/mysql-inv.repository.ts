@@ -6,7 +6,8 @@ import { inventoryQueries } from '../database/queries/inv.queries'
 export class MysqlInvRepository implements InventoryRepository {
     async findAll(pagination: { limit: number; offset: number; term: string }, subinvId: number): Promise<any[]> {
         const query = inventoryQueries('all-inv', { pagDelimeters: pagination })
-        return Database.execute<any[]>(query, [subinvId])
+        const termValues = pagination.term ? [pagination.term] : []
+        return Database.execute<any[]>(query, [...termValues, subinvId])
     }
 
     async findById(id: string): Promise<any | null> {
@@ -17,7 +18,7 @@ export class MysqlInvRepository implements InventoryRepository {
 
     async transfer(data: { prodId: number; prodQty: number; fromLocId: number; toLocId: number }): Promise<any> {
         const query = inventoryQueries('inv-transfer-id', { transferArgs: data })
-        return Database.execute<any>(query)
+        return Database.execute<any>(query, [data.prodId, data.prodQty, data.fromLocId, data.toLocId])
     }
 
     async create(data: Record<string, any>): Promise<number> {

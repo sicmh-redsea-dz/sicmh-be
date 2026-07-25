@@ -51,11 +51,14 @@ export class AuthService {
     const passwordHash = await hashPassword(password)
     const finalName = name?.trim() || (email.includes('@') ? email.split('@')[0] : email)
 
+    const existingUserCount = await this.authRepo.countUsers()
+    const roleId = existingUserCount === 0 ? Roles.Admin : Roles.Asistente
+
     const insertId = await this.authRepo.createUser({
       name: finalName,
       email,
       passwordHash,
-      roleId: Roles.Admin,
+      roleId,
       active: 1,
       firebaseId: email,
       provider: 'conventional',
@@ -77,7 +80,7 @@ export class AuthService {
     const passwordMatch = await comparePassword(password!, existingUser.ContrasenaHash)
     if (!passwordMatch) throw buildValidationError('Credenciales incorrectas.')
 
-    const sessionVersion = await this.authRepo.incrementSessionVersion(existingUser.UsuarioID)
+    const sessionVersion = await this.authRepo.incrementSessionVersion(existingUser.UsuarioID, existingUser.SessionVersion)
     const response = await UserMapper.toAuthResponse(existingUser)
     return { user: await this.attachProfile(response), sessionVersion }
   }
@@ -102,19 +105,20 @@ export class AuthService {
   private async attachProfile(response: AuthResponse): Promise<AuthResponse> {
     let next = { ...response }
 
-    if (this.profileRepo) {
-      try {
-        const store = await this.profileRepo.load()
-        const profile = store.profiles.find((p) => p.userId === response._id)
-        if (profile) next = { ...next, profile }
-      } catch (_err) {}
+    // Independent of each other (both only need the base response), so run
+    // them concurrently instead of serializing two separate DB round-trips.
+    const [profileResult, permissionsResult] = await Promise.allSettled([
+      this.profileRepo?.load(),
+      this.accessControlService?.resolvePermissions(response.roles ?? [], response._id)
+    ])
+
+    if (profileResult.status === 'fulfilled' && profileResult.value) {
+      const profile = profileResult.value.profiles.find((p) => p.userId === response._id)
+      if (profile) next = { ...next, profile }
     }
 
-    if (this.accessControlService) {
-      try {
-        const permissions = await this.accessControlService.resolvePermissions(next.roles ?? [], next._id)
-        next = { ...next, permissions: Array.from(permissions) }
-      } catch (_err) {}
+    if (permissionsResult.status === 'fulfilled' && permissionsResult.value) {
+      next = { ...next, permissions: Array.from(permissionsResult.value) }
     }
 
     return next

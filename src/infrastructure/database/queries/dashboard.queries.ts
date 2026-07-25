@@ -21,10 +21,11 @@ export const dashbQueries = (key: string): string => {
                     inner join 
                         personal as pr
                         on hm.PersonalID = pr.PersonalID
-                where 
+                where
                     hm.isActive = 1
-                order by 
-                    hm.FechaUltimaVisita desc;
+                order by
+                    hm.FechaUltimaVisita desc
+                limit 10;
             `
             break
         default:

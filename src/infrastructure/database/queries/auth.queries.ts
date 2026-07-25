@@ -34,13 +34,14 @@ export const authQueries = (key: string, caller?:number) => {
         case 'get-user':
             const column = caller === 1 ? 'u.CorreoElectronico' : 'u.UsuarioID'
             query = `
-                select 
-                    u.UsuarioID, 
-                    u.NombreUsuario, 
-                    u.CorreoElectronico, 
-                    u.ContrasenaHash, 
-                    u.Activo, 
+                select
+                    u.UsuarioID,
+                    u.NombreUsuario,
+                    u.CorreoElectronico,
+                    u.ContrasenaHash,
+                    u.Activo,
                     u.firebaseID,
+                    u.SessionVersion,
                     r.NombreRol
                 from usuarios as u
                     inner join roles as r
@@ -78,6 +79,11 @@ export const authQueries = (key: string, caller?:number) => {
                     inner join roles as r
                         on u.RolId = r.RolID
                 order by u.UsuarioID desc;
+            `
+            break
+        case 'count-users':
+            query = `
+                select count(*) as total from usuarios;
             `
             break
         case 'list-roles':
@@ -148,6 +154,11 @@ export const authQueries = (key: string, caller?:number) => {
         case 'increment-session-version':
             query = `
                 UPDATE usuarios SET SessionVersion = SessionVersion + 1 WHERE UsuarioID = ?;
+            `
+            break
+        case 'set-session-version':
+            query = `
+                UPDATE usuarios SET SessionVersion = ? WHERE UsuarioID = ?;
             `
             break
         default:

@@ -387,43 +387,6 @@ export class BillingService {
     return { movement: event }
   }
 
-  getLatestMovementsByPatient = async () => {
-    const store = await this.movementsRepo.load()
-    const latest = new Map<number, PatientMovementEvent>()
-    store.events.forEach((event) => {
-      if (!latest.has(event.patientId)) {
-        latest.set(event.patientId, event)
-      }
-    })
-    return latest
-  }
-
-
-  getMovementTrailsByPatient = async () => {
-    const store = await this.movementsRepo.load()
-    const grouped = new Map<number, PatientMovementEvent[]>()
-    store.events.forEach((event) => {
-      const list = grouped.get(event.patientId) ?? []
-      list.push(event)
-      grouped.set(event.patientId, list)
-    })
-    const result = new Map<number, { trail: string[]; lastEvent?: PatientMovementEvent }>()
-    grouped.forEach((events, patientId) => {
-      events.sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
-      const trail: string[] = []
-      events.forEach((event) => {
-        const station = event.toStation ?? event.fromStation
-        if (!station) return
-        if (!trail.length || trail[trail.length - 1] != station) {
-          trail.push(station)
-        }
-      })
-      const lastEvent = events[events.length - 1]
-      result.set(patientId, { trail, lastEvent })
-    })
-    return result
-  }
-
   getMovementTrailsByInvoice = async () => {
     const store = await this.movementsRepo.load()
     const grouped = new Map<string, PatientMovementEvent[]>()
@@ -568,9 +531,10 @@ export class BillingService {
     if (!invoice || !delta) return
     try {
       if (invoice.Estado && this.normalizeFilter(invoice.Estado) !== this.normalizeFilter('Pendiente')) return
-      const currentAmount = Number(invoice.Monto ?? 0)
-      const nextAmount = Math.max(0, currentAmount + delta)
-      await this.invoiceRepo.updateByInvoiceNumber(invoice.InvoiceNumber, { Monto: nextAmount })
+      // Atomic UPDATE (GREATEST(0, Monto + delta) WHERE Estado = 'Pendiente') instead
+      // of read-then-write, so concurrent charges against the same invoice can't
+      // silently drop each other's delta.
+      await this.invoiceRepo.incrementAmountById(invoice.FacturaID, delta)
     } catch (err) {
       console.warn(`invoice sync skipped (${reason})`, (err as any)?.message || err)
     }
@@ -915,24 +879,28 @@ export class BillingService {
     if (!invoice) throw this.buildNotFoundError(`Invoice not found: ${invoiceNumber}`)
 
     const invoiceDate = this.dateOnly(invoice.FechaFactura ?? new Date().toISOString())
-    const invoiceRows = await this.billingRepo.fetchInvoiceLedger({
-      from: invoiceDate,
-      to: invoiceDate,
-      patientIds: [invoice.PacienteID]
-    })
+
+    // These four only depend on `invoice`, not on each other, so fetch them
+    // concurrently instead of four serial round-trips.
+    const [invoiceRows, encounterStore, ledgerStore, stockItems] = await Promise.all([
+      this.billingRepo.fetchInvoiceLedger({
+        from: invoiceDate,
+        to: invoiceDate,
+        patientIds: [invoice.PacienteID]
+      }),
+      this.encountersRepo.load(),
+      this.ledgerRepo.load(),
+      this.stockService.findInvoiceItems(invoice.FacturaID)
+    ])
+
     const invoiceRow = invoiceRows.find((row) => row.InvoiceNumber === invoiceNumber)
-
-    const encounterStore = await this.encountersRepo.load()
     const encounter = encounterStore.encounters.find((enc) => enc.invoiceNumber === invoiceNumber)
-
-    const ledgerStore = await this.ledgerRepo.load()
     const manualItems = ledgerStore.items.filter((item) => {
       const matchInvoice = item.invoiceNumber === invoiceNumber || item.reference?.invoiceNumber === invoiceNumber
       const matchEncounter = encounter?.id && item.encounterId === encounter.id
       return matchInvoice || matchEncounter
     })
 
-    const stockItems = await this.stockService.findInvoiceItems(invoice.FacturaID)
     const stockCharges: BillingLedgerItem[] = stockItems.map((item) => ({
       id: `stock-${invoice.FacturaID}-${item.id}`,
       patientId: invoice.PacienteID,
@@ -987,104 +955,6 @@ export class BillingService {
         total
       },
       charges
-    }
-  }
-
-  public transferInvoiceContext = async (payload: {
-    fromInvoiceNumber: string
-    fromInvoiceId?: number
-    toInvoiceNumber: string
-    toInvoiceId?: number
-    patientId?: number
-    patientName?: string
-    doctorId?: number
-    doctorName?: string
-    origin?: BillingStation | string
-  }) => {
-    const now = new Date().toISOString()
-
-    const newEncounter = await this.encountersRepo.update(async (store) => {
-      const previous = store.encounters.find((enc) => enc.invoiceNumber === payload.fromInvoiceNumber)
-      if (previous) {
-        previous.status = 'Anulado'
-        previous.closedAt = now
-        previous.updatedAt = now
-      }
-
-      const patientId = payload.patientId ?? previous?.patientId
-      if (!patientId) throw this.buildValidationError(['Paciente requerido para transferir factura.'])
-
-      const patientName = payload.patientName
-        ?? previous?.patientName
-        ?? await this.resolvePatientName(patientId)
-
-      const encounter: PatientEncounter = {
-        id: uuidv4(),
-        patientId,
-        patientName,
-        doctorId: payload.doctorId ?? previous?.doctorId,
-        doctorName: payload.doctorName ?? previous?.doctorName,
-        origin: payload.origin ?? previous?.origin,
-        invoiceNumber: payload.toInvoiceNumber,
-        invoiceId: payload.toInvoiceId,
-        status: 'Pendiente',
-        createdAt: now,
-        updatedAt: now,
-        previousEncounterId: previous?.id
-      }
-
-      store.encounters.unshift(encounter)
-      store.updatedAt = now
-
-      return encounter
-    })
-
-    let manualTotal = 0
-    await this.ledgerRepo.update((ledgerStore) => {
-      ledgerStore.items.forEach((item) => {
-        const matchInvoice = item.invoiceNumber === payload.fromInvoiceNumber || item.reference?.invoiceNumber === payload.fromInvoiceNumber
-        const matchEncounter = newEncounter.previousEncounterId && item.encounterId === newEncounter.previousEncounterId
-        if (!matchInvoice && !matchEncounter) return
-
-        item.encounterId = newEncounter.id
-        item.invoiceNumber = payload.toInvoiceNumber
-        item.reference = { ...item.reference, invoiceNumber: payload.toInvoiceNumber }
-        manualTotal += Number(item.total) || 0
-      })
-      ledgerStore.updatedAt = now
-    })
-
-    await this.movementsRepo.update((movementStore) => {
-      let movedEvents = 0
-      movementStore.events.forEach((event) => {
-        const matchInvoice = event.invoiceNumber === payload.fromInvoiceNumber
-        const matchEncounter = newEncounter.previousEncounterId && event.encounterId === newEncounter.previousEncounterId
-        if (!matchInvoice && !matchEncounter) return
-
-        event.encounterId = newEncounter.id
-        event.invoiceNumber = payload.toInvoiceNumber
-        movedEvents += 1
-      })
-
-      if (movedEvents > 0) {
-        movementStore.updatedAt = now
-      }
-    })
-
-    let stockTotal = 0
-    if (payload.fromInvoiceId && payload.toInvoiceId) {
-      const copied = await this.stockService.copyInvoiceItems(payload.fromInvoiceId, payload.toInvoiceId)
-      stockTotal = Number(copied.amount) || 0
-    }
-
-    const nextTotal = manualTotal + stockTotal
-    if (nextTotal > 0) {
-      await this.invoiceRepo.updateByInvoiceNumber(payload.toInvoiceNumber, { Monto: nextTotal })
-    }
-
-    return {
-      encounter: newEncounter,
-      totals: { manualTotal, stockTotal, total: nextTotal }
     }
   }
 

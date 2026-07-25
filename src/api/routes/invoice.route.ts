@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { InvoiceController } from "../controllers/invoice.controller";
 import { requirePermissions } from '../middlewares/permission.middleware';
+import { validateCreateInvoice, validateInvoiceNumberParam, validateUpdateInvoice } from '../validators/invoice.validator';
 
 
 const router = Router()
@@ -25,26 +26,31 @@ router.get(
 router.get(
     '/:id',
     requirePermissions('invoice.read'),
+    validateInvoiceNumberParam,
     inv.readOne.bind( inv )
 )
 router.patch(
-    '/:id', 
+    '/:id',
     requirePermissions('invoice.update'),
+    validateUpdateInvoice,
     inv.updateOne.bind( inv )
 )
 router.patch(
     '/:id/annul',
     requirePermissions('invoice.delete'),
+    validateInvoiceNumberParam,
     inv.annulOne.bind( inv )
 )
 router.post(
-    '/create', 
+    '/create',
     requirePermissions('invoice.create'),
+    validateCreateInvoice,
     inv.create.bind( inv )
 )
 router.delete(
-    '/:id', 
+    '/:id',
     requirePermissions('invoice.delete'),
+    validateInvoiceNumberParam,
     inv.removeOne.bind( inv )
 )
 

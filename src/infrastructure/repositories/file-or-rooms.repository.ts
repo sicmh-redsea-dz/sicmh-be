@@ -3,6 +3,7 @@ import path from 'path'
 
 import { OrRoomsRepository } from '../../application/ports/or-rooms.repository'
 import { OrRoomsStore } from '../../domain/entities/OrRoom'
+import { withFileLock } from '../utils/file-lock'
 
 const DATA_DIR = path.resolve(process.cwd(), 'data')
 const FILE_PATH = path.join(DATA_DIR, 'or-rooms.json')
@@ -39,5 +40,14 @@ export class FileOrRoomsRepository implements OrRoomsRepository {
   async save(store: OrRoomsStore): Promise<void> {
     await fs.mkdir(DATA_DIR, { recursive: true })
     await fs.writeFile(FILE_PATH, JSON.stringify(store, null, 2), 'utf-8')
+  }
+
+  async update<T>(mutator: (store: OrRoomsStore) => T | Promise<T>): Promise<T> {
+    return withFileLock(FILE_PATH, async () => {
+      const store = await this.load()
+      const result = await mutator(store)
+      await this.save(store)
+      return result
+    })
   }
 }

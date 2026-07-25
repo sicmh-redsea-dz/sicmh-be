@@ -35,7 +35,7 @@ export const inventoryQueries = ( key: string, params?: QueryParams ): string =>
                 ExistenciasInventario AS ei
                     on inv.ProductoID = ei.ProductoID
             WHERE 1=1
-                ${hasTerm ? `AND inv.NombreProducto LIKE CONCAT("%", '${term}', "%")` : ''}
+                ${hasTerm ? `AND inv.NombreProducto LIKE CONCAT("%", ?, "%")` : ''}
                 AND inv.Cantidad > 0
                 AND ei.SubinventarioID = ?
             LIMIT ${limit} OFFSET ${offset};
@@ -59,9 +59,8 @@ export const inventoryQueries = ( key: string, params?: QueryParams ): string =>
     }
 
     if ( key === 'inv-transfer-id' ) {
-        const { prodId, prodQty, fromLocId, toLocId } = params!.transferArgs!
         query = `
-            CALL sp_mov_inventario('TRANSFERENCIA', ${prodId}, ${prodQty}, ${fromLocId}, ${toLocId});
+            CALL sp_mov_inventario('TRANSFERENCIA', ?, ?, ?, ?);
         `
     }
 

@@ -14,6 +14,14 @@ const resolveUser = async (req: Request) => {
   return await authService.checkToken(Number(uid))
 }
 
+// checkToken() already resolves and attaches permissions once; reuse that
+// instead of re-querying the permission-override tables a second time.
+const resolveUserPermissions = async (user: any): Promise<Set<Permission>> => {
+  if (Array.isArray(user.permissions)) return new Set(user.permissions)
+  const accessControl = ServiceContainer.getAccessControlService()
+  return accessControl.resolvePermissions(user.roles ?? [], Number(user._id))
+}
+
 export const requirePermissions = (required: Permission | Permission[]) => {
   const requiredList = Array.isArray(required) ? required : [required]
 
@@ -27,8 +35,7 @@ export const requirePermissions = (required: Permission | Permission[]) => {
 
       ;(req as any).currentUser = user
 
-      const accessControl = ServiceContainer.getAccessControlService()
-      const permissions = await accessControl.resolvePermissions(user.roles ?? [], Number(user._id))
+      const permissions = await resolveUserPermissions(user)
       const allowed = requiredList.every((permission) => permissions.has(permission))
 
       if (!allowed) {
@@ -72,8 +79,7 @@ export const requireAnyPermission = (required: Permission | Permission[]) => {
 
       ;(req as any).currentUser = user
 
-      const accessControl = ServiceContainer.getAccessControlService()
-      const permissions = await accessControl.resolvePermissions(user.roles ?? [], Number(user._id))
+      const permissions = await resolveUserPermissions(user)
       const allowed = requiredList.some((permission) => permissions.has(permission))
 
       if (!allowed) {

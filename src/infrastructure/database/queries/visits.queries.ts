@@ -17,18 +17,18 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
     let whereClause: string = ''
     switch( key ) {
         case 'all-visits':
-            const { limit, offset, term: visitTerm, ext} = delimiters!
+            const { term: visitTerm, ext, limit, offset } = delimiters!
             const hasTerm = !!visitTerm
             const normalizedExt = ext ? ext : ''
             const visitType = validExt[normalizedExt]
             whereClause = `
                 hm.isActive = 1
                 ${hasTerm ? `and (
-                pc.Identificacion like concat('%', '${visitTerm}', '%') or
-                pc.Nombre like concat('%', '${visitTerm}', '%') or
-                pc.Apellido like concat('%', '${visitTerm}', '%') or
-                pr.Nombre like concat('%', '${visitTerm}', '%') or
-                pr.Apellido like concat('%', '${visitTerm}', '%')
+                pc.Identificacion like concat('%', ?, '%') or
+                pc.Nombre like concat('%', ?, '%') or
+                pc.Apellido like concat('%', ?, '%') or
+                pr.Nombre like concat('%', ?, '%') or
+                pr.Apellido like concat('%', ?, '%')
                 )` : ''}
                 ${visitType ? `and hm.TipoVisita = '${visitType}'` : ''}
             `;
@@ -58,7 +58,7 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                         on hm.FacturaID = fac.FacturaID
                 where 
                     ${whereClause}
-                order by 
+                order by
                     hm.FechaUltimaVisita desc
                 limit ${limit}
                 offset ${offset};
@@ -72,11 +72,11 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
             whereClause = `
                 hm.isActive = 1
                 ${hasFullTerm ? `and (
-                pc.Identificacion like concat('%', '${fullTerm}', '%') or
-                pc.Nombre like concat('%', '${fullTerm}', '%') or
-                pc.Apellido like concat('%', '${fullTerm}', '%') or
-                pr.Nombre like concat('%', '${fullTerm}', '%') or
-                pr.Apellido like concat('%', '${fullTerm}', '%')
+                pc.Identificacion like concat('%', ?, '%') or
+                pc.Nombre like concat('%', ?, '%') or
+                pc.Apellido like concat('%', ?, '%') or
+                pr.Nombre like concat('%', ?, '%') or
+                pr.Apellido like concat('%', ?, '%')
                 )` : ''}
                 ${fullVisitType ? `and hm.TipoVisita = '${fullVisitType}'` : ''}
             `;
@@ -104,10 +104,11 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                     inner join
                         facturas as fac
                         on hm.FacturaID = fac.FacturaID
-                where 
+                where
                     ${whereClause}
-                order by 
-                    hm.FechaUltimaVisita desc;
+                order by
+                    hm.FechaUltimaVisita desc
+                limit 5000;
             `
             break
         case 'one-visit':
@@ -215,10 +216,10 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
             const { term: doctTerm } = delimiters!
             whereClause = `
                 ${
-                    !!doctTerm 
+                    !!doctTerm
                     ? (
-                        `p.Nombre like concat('%', '${doctTerm}', '%') or
-                        p.Apellido like concat('%', '${doctTerm}', '%')`
+                        `p.Nombre like concat('%', ?, '%') or
+                        p.Apellido like concat('%', ?, '%')`
                     ) : ''
                 }
             `
@@ -227,11 +228,11 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                     p.PersonalID,
                     concat(p.Nombre, ' ', p.Apellido) as NombrePersonal,
                     p.Especialidad
-                from 
+                from
                     personal as p
-                where 
-                    ${whereClause};
-                    
+                where
+                    ${whereClause}
+                limit 20;
             `
             break
         case 'get-patients':
@@ -240,9 +241,9 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                 ${
                     !!patTerm
                     ? (
-                        `p.Nombre like concat('%', '${patTerm}', '%') or
-                        p.Apellido like concat('%', '${patTerm}', '%') or
-                        p.Identificacion like concat('%', '${patTerm}', '%')`
+                        `p.Nombre like concat('%', ?, '%') or
+                        p.Apellido like concat('%', ?, '%') or
+                        p.Identificacion like concat('%', ?, '%')`
                     ) : ''
                 }
             `
@@ -251,9 +252,9 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                     p.PacienteID,
                     concat(p.Nombre, ' ', p.Apellido) as NombrePersonal
                 from pacientes as p
-                where 
-                    ${whereClause};
-                    
+                where
+                    ${whereClause}
+                limit 20;
             `
             break
         case 'get-stock-items':

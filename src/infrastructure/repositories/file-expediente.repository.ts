@@ -3,6 +3,7 @@ import path from 'path'
 
 import { ExpedienteExtra } from '../../domain/entities/Expediente'
 import { ExpedienteRepository } from '../../application/ports/expediente.repository'
+import { withFileLock } from '../utils/file-lock'
 
 type ExpedienteStore = Record<string, ExpedienteExtra>
 
@@ -37,8 +38,10 @@ export class FileExpedienteRepository implements ExpedienteRepository {
   }
 
   async upsert(historyId: number, data: ExpedienteExtra): Promise<void> {
-    const store = await ensureStore()
-    store[String(historyId)] = data
-    await writeStore(store)
+    await withFileLock(FILE_PATH, async () => {
+      const store = await ensureStore()
+      store[String(historyId)] = data
+      await writeStore(store)
+    })
   }
 }

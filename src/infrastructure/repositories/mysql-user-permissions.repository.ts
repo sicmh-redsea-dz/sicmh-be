@@ -1,12 +1,18 @@
+import { Pool } from 'mysql2/promise'
 import { UserPermissionsRepository } from '../../application/ports/user-permissions.repository'
 import { UserPermissionsStore } from '../../domain/entities/AccessControl'
 import { Database } from '../database/Database'
+import { TenantContext } from '../database/TenantContext'
 
 export class MysqlUserPermissionsRepository implements UserPermissionsRepository {
-  private initialized = false
+  // Tracks which tenant pools have already had the table ensured — this repo
+  // is a process-wide singleton but each tenant has its own schema/pool, so a
+  // single boolean would only ever create the table in the first tenant hit.
+  private readonly ensuredPools = new Set<Pool>()
 
   private async ensureTable(): Promise<void> {
-    if (this.initialized) return
+    const pool = TenantContext.getPool()
+    if (this.ensuredPools.has(pool)) return
     await Database.query(
       `CREATE TABLE IF NOT EXISTS permiso_usuario_overrides (
         usuario_id  INT          NOT NULL PRIMARY KEY,
@@ -15,7 +21,7 @@ export class MysqlUserPermissionsRepository implements UserPermissionsRepository
         updated_at  VARCHAR(30)  NOT NULL
       )`
     )
-    this.initialized = true
+    this.ensuredPools.add(pool)
   }
 
   async load(): Promise<UserPermissionsStore> {

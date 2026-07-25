@@ -3,6 +3,7 @@ import path from 'path'
 
 import { UserProfilesRepository } from '../../application/ports/user-profiles.repository'
 import { UserProfileStore } from '../../domain/entities/UserProfile'
+import { withFileLock } from '../utils/file-lock'
 
 const DATA_DIR = path.resolve(process.cwd(), 'data')
 const FILE_PATH = path.join(DATA_DIR, 'user-profiles.json')
@@ -39,5 +40,14 @@ export class FileUserProfilesRepository implements UserProfilesRepository {
   async save(store: UserProfileStore): Promise<void> {
     await fs.mkdir(DATA_DIR, { recursive: true })
     await fs.writeFile(FILE_PATH, JSON.stringify(store, null, 2), 'utf-8')
+  }
+
+  async update<T>(mutator: (store: UserProfileStore) => T | Promise<T>): Promise<T> {
+    return withFileLock(FILE_PATH, async () => {
+      const store = await this.load()
+      const result = await mutator(store)
+      await this.save(store)
+      return result
+    })
   }
 }

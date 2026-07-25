@@ -34,6 +34,12 @@ export class MysqlAuthRepository implements AuthRepository {
         return result[0] ?? null
     }
 
+    async countUsers(): Promise<number> {
+        const query = authQueries('count-users')
+        const result = await Database.execute<{ total: number }[]>(query)
+        return result[0]?.total ?? 0
+    }
+
     async listUsers(): Promise<any[]> {
         const query = authQueries('list-users')
         return Database.execute<any[]>(query)
@@ -94,7 +100,12 @@ export class MysqlAuthRepository implements AuthRepository {
         return result[0]?.SessionVersion ?? 0
     }
 
-    async incrementSessionVersion(userId: number): Promise<number> {
+    async incrementSessionVersion(userId: number, currentVersion?: number): Promise<number> {
+        if (currentVersion !== undefined) {
+            const newVersion = currentVersion + 1
+            await Database.execute(authQueries('set-session-version'), [newVersion, userId])
+            return newVersion
+        }
         await Database.execute(authQueries('increment-session-version'), [userId])
         return this.getSessionVersion(userId)
     }

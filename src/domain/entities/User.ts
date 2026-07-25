@@ -6,4 +6,5 @@ export interface User {
     Activo: number
     NombreRol: string,
     firebaseID: string
+    SessionVersion?: number
 }

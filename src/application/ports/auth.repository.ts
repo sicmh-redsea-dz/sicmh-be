@@ -27,6 +27,7 @@ export interface AuthRepository {
     findByEmail(email: string): Promise<User | null>
     findById(id: number): Promise<User | null>
     findByFirebaseId(uid: string): Promise<User | null>
+    countUsers(): Promise<number>
     listUsers(): Promise<any[]>
     listRoles(): Promise<any[]>
     createRole(name: string): Promise<number>
@@ -36,5 +37,8 @@ export interface AuthRepository {
     changeUserPassword(userId: number, passwordHash: string): Promise<void>
     createPersonalRecord(params: PersonalCreateParams): Promise<number>
     getSessionVersion(userId: number): Promise<number>
-    incrementSessionVersion(userId: number): Promise<number>
+    // Pass the already-known current version (e.g. from a just-fetched User
+    // row) to skip the extra read-back query; omit it to fall back to a
+    // fresh SELECT after the UPDATE.
+    incrementSessionVersion(userId: number, currentVersion?: number): Promise<number>
 }

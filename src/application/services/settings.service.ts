@@ -112,29 +112,30 @@ export class SettingsService {
 
     await this.authRepo.updateUserProfile(userId, { name, email })
 
-    const store = await this.profileRepo.load()
-    const now = new Date().toISOString()
-    const existingProfile = store.profiles.find((p) => p.userId === userId)
-    const updatedProfile: UserProfile = {
-      userId,
-      phone: payload.profile?.phone ?? existingProfile?.phone,
-      identification: payload.profile?.identification ?? existingProfile?.identification,
-      department: payload.profile?.department ?? existingProfile?.department,
-      position: payload.profile?.position ?? existingProfile?.position,
-      theme: payload.profile?.theme ?? existingProfile?.theme,
-      avatarDataUrl: payload.profile?.avatarDataUrl ?? existingProfile?.avatarDataUrl,
-      createdAt: existingProfile?.createdAt ?? now,
-      updatedAt: now
-    }
+    const updatedProfile = await this.profileRepo.update((store) => {
+      const now = new Date().toISOString()
+      const existingProfile = store.profiles.find((p) => p.userId === userId)
+      const nextProfile: UserProfile = {
+        userId,
+        phone: payload.profile?.phone ?? existingProfile?.phone,
+        identification: payload.profile?.identification ?? existingProfile?.identification,
+        department: payload.profile?.department ?? existingProfile?.department,
+        position: payload.profile?.position ?? existingProfile?.position,
+        theme: payload.profile?.theme ?? existingProfile?.theme,
+        avatarDataUrl: payload.profile?.avatarDataUrl ?? existingProfile?.avatarDataUrl,
+        createdAt: existingProfile?.createdAt ?? now,
+        updatedAt: now
+      }
 
-    if (existingProfile) {
-      Object.assign(existingProfile, updatedProfile)
-    } else {
-      store.profiles.push(updatedProfile)
-    }
+      if (existingProfile) {
+        Object.assign(existingProfile, nextProfile)
+      } else {
+        store.profiles.push(nextProfile)
+      }
 
-    store.updatedAt = now
-    await this.profileRepo.save(store)
+      store.updatedAt = now
+      return nextProfile
+    })
 
     const refreshed = await this.authRepo.findById(userId)
     if (!refreshed) throw buildError('not_found_error', 'User not found.')
@@ -231,21 +232,21 @@ export class SettingsService {
     }
 
     if (payload.profile) {
-      const store = await this.profileRepo.load()
-      const now = new Date().toISOString()
-      store.profiles.push({
-        userId,
-        phone: payload.profile.phone,
-        identification: payload.profile.identification,
-        department: payload.profile.department,
-        position: payload.profile.position,
-        theme: payload.profile.theme ?? 'light',
-        avatarDataUrl: payload.profile.avatarDataUrl,
-        createdAt: now,
-        updatedAt: now
+      await this.profileRepo.update((store) => {
+        const now = new Date().toISOString()
+        store.profiles.push({
+          userId,
+          phone: payload.profile!.phone,
+          identification: payload.profile!.identification,
+          department: payload.profile!.department,
+          position: payload.profile!.position,
+          theme: payload.profile!.theme ?? 'light',
+          avatarDataUrl: payload.profile!.avatarDataUrl,
+          createdAt: now,
+          updatedAt: now
+        })
+        store.updatedAt = now
       })
-      store.updatedAt = now
-      await this.profileRepo.save(store)
     }
 
     if (selectedRole.key === 'doctor') {
@@ -281,13 +282,13 @@ export class SettingsService {
     const user = await this.authRepo.findById(userId)
     if (!user) throw buildError('not_found_error', 'Usuario no encontrado.')
     await this.authRepo.deleteUser(userId)
-    const store = await this.profileRepo.load()
-    const idx = store.profiles.findIndex((p) => p.userId === userId)
-    if (idx !== -1) {
-      store.profiles.splice(idx, 1)
-      store.updatedAt = new Date().toISOString()
-      await this.profileRepo.save(store)
-    }
+    await this.profileRepo.update((store) => {
+      const idx = store.profiles.findIndex((p) => p.userId === userId)
+      if (idx !== -1) {
+        store.profiles.splice(idx, 1)
+        store.updatedAt = new Date().toISOString()
+      }
+    })
     return { deleted: true }
   }
 

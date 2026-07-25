@@ -73,8 +73,10 @@ export class AccessControlService {
 
   async resolvePermissions(roles: string[] | null | undefined, userId?: number) {
     const permissions = getPermissionsForRoles(roles)
-    const roleOverrides = await this.roleRepo.load()
-    const userOverrides = await this.userRepo.load()
+    const [roleOverrides, userOverrides] = await Promise.all([
+      this.roleRepo.load(),
+      this.userRepo.load()
+    ])
 
     const roleList = Array.isArray(roles) ? roles : roles ? [String(roles)] : []
     roleList.forEach((role) => {

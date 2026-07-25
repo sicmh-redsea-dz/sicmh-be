@@ -16,23 +16,23 @@ export const patientQueries = (key: string, pagination?: {limit:number, offset:n
         const whereClause = `
           p.isActive = 1
           ${
-            hasTerm 
+            hasTerm
             ? `
               and (
-                p.Nombre like concat('%', '${term}', '%') or
-                p.Apellido like concat('%', '${term}', '%') or
-                p.Identificacion like concat('%', '${term}', '%')
+                p.Nombre like concat('%', ?, '%') or
+                p.Apellido like concat('%', ?, '%') or
+                p.Identificacion like concat('%', ?, '%')
               )
             ` : ''
           }
         `
         query = `
-          select 
+          select
             p.*,
             count(*) over() as total_registries
-          from 
+          from
             pacientes as p
-          where 
+          where
             ${whereClause}
           limit ${limit}
           offset ${offset};

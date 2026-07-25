@@ -9,12 +9,14 @@ import { visitsQueries } from '../database/queries/visits.queries'
 export class MysqlVisitsRepository implements VisitsRepository {
     async findAll(args: { limit: number; offset: number; term: string; ext: string }): Promise<ShortHistory[]> {
         const query = visitsQueries('all-visits', args)
-        return Database.execute<ShortHistory[]>(query)
+        const termValues = args.term ? [args.term, args.term, args.term, args.term, args.term] : []
+        return Database.execute<ShortHistory[]>(query, termValues)
     }
 
     async findAllUnbounded(args: { term: string; ext?: string }): Promise<ShortHistory[]> {
         const query = visitsQueries('all-visits-unbounded', args as any)
-        return Database.execute<ShortHistory[]>(query)
+        const values = args.term ? [args.term, args.term, args.term, args.term, args.term] : []
+        return Database.execute<ShortHistory[]>(query, values)
     }
 
     async findById(id: number): Promise<History | null> {
@@ -44,12 +46,14 @@ export class MysqlVisitsRepository implements VisitsRepository {
 
     async findDoctors(term: string): Promise<Staff[]> {
         const query = visitsQueries('get-doctor', { term })
-        return Database.execute<Staff[]>(query)
+        const values = term ? [term, term] : []
+        return Database.execute<Staff[]>(query, values)
     }
 
     async findPatients(term: string): Promise<ShortPatient[]> {
         const query = visitsQueries('get-patients', { term })
-        return Database.execute<ShortPatient[]>(query)
+        const values = term ? [term, term, term] : []
+        return Database.execute<ShortPatient[]>(query, values)
     }
 
     async findStockItems(subinventoryId: number): Promise<any[]> {

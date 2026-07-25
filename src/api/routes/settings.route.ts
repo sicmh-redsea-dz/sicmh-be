@@ -3,6 +3,7 @@ import { SettingsController } from '../controllers/settings.controller'
 import { AttachmentsController } from '../controllers/attachments.controller'
 import { requirePermissions } from '../middlewares/permission.middleware'
 import { singleFileUpload } from '../middlewares/upload.middleware'
+import { validateChangeUserPassword } from '../validators/settings.validator'
 
 const router = Router()
 const settingsController = new SettingsController()
@@ -53,6 +54,7 @@ router.delete(
 router.patch(
   '/users/:id/password',
   requirePermissions('settings.permissions.manage'),
+  validateChangeUserPassword,
   settingsController.changeUserPassword.bind(settingsController)
 )
 

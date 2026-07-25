@@ -71,3 +71,54 @@ CREATE TABLE IF NOT EXISTS adjuntos_clinicos_accesos (
 -- Run these instead if the tables were already created with the English names:
 -- RENAME TABLE clinical_attachments TO adjuntos_clinicos;
 -- RENAME TABLE clinical_attachment_access_log TO adjuntos_clinicos_accesos;
+
+-- MedIT: performance indexes for existing tenant databases (schema.sql already
+-- has these for newly-provisioned tenants). Billing/invoice report and search
+-- queries filter/sort on these columns without an index today.
+ALTER TABLE `facturas` ADD INDEX `idx_facturas_active_fecha` (`IsActive`, `FechaFactura`);
+ALTER TABLE `facturas` ADD INDEX `idx_facturas_estado` (`Estado`);
+ALTER TABLE `pacientes` ADD INDEX `idx_pacientes_identificacion` (`Identificacion`);
+ALTER TABLE `historia_medica` ADD INDEX `idx_historia_medica_active_fecha` (`isActive`, `FechaVisita`);
+
+-- MedIT: redefine fn_dashboard_stats to drop a dead redundant SELECT (the
+-- first pacientes query used MONTH(PacienteID), which is nonsensical, and its
+-- result was immediately discarded) and replace MONTH()/YEAR() comparisons
+-- with sargable date-range comparisons that can use the indexes above.
+DROP FUNCTION IF EXISTS fn_dashboard_stats;
+DELIMITER $$
+CREATE FUNCTION fn_dashboard_stats()
+RETURNS JSON
+READS SQL DATA
+BEGIN
+  DECLARE v_pac_actual   INT DEFAULT 0;
+  DECLARE v_pac_ant      INT DEFAULT 0;
+  DECLARE v_fac_actual   INT DEFAULT 0;
+  DECLARE v_fac_ant      INT DEFAULT 0;
+  DECLARE v_vis_actual   INT DEFAULT 0;
+  DECLARE v_vis_ant      INT DEFAULT 0;
+  DECLARE v_month_start      DATE DEFAULT DATE_FORMAT(CURDATE(), '%Y-%m-01');
+  DECLARE v_prev_month_start DATE DEFAULT DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m-01');
+
+  SELECT COUNT(*) INTO v_pac_actual FROM pacientes WHERE isActive = 1;
+  SELECT COUNT(*) INTO v_pac_ant    FROM pacientes WHERE isActive = 1;
+
+  SELECT COUNT(*) INTO v_fac_actual FROM facturas
+    WHERE IsActive = 1 AND FechaFactura >= v_month_start AND FechaFactura < DATE_ADD(v_month_start, INTERVAL 1 MONTH);
+  SELECT COUNT(*) INTO v_fac_ant FROM facturas
+    WHERE IsActive = 1 AND FechaFactura >= v_prev_month_start AND FechaFactura < v_month_start;
+
+  SELECT COUNT(*) INTO v_vis_actual FROM historia_medica
+    WHERE isActive = 1 AND FechaVisita >= v_month_start AND FechaVisita < DATE_ADD(v_month_start, INTERVAL 1 MONTH);
+  SELECT COUNT(*) INTO v_vis_ant FROM historia_medica
+    WHERE isActive = 1 AND FechaVisita >= v_prev_month_start AND FechaVisita < v_month_start;
+
+  RETURN JSON_OBJECT(
+    'pacientes_actuales',  v_pac_actual,
+    'pacientes_variacion', IF(v_pac_ant = 0, NULL, ROUND((v_pac_actual - v_pac_ant) * 100.0 / v_pac_ant, 1)),
+    'facturas_actuales',   v_fac_actual,
+    'facturas_variacion',  IF(v_fac_ant = 0, NULL, ROUND((v_fac_actual - v_fac_ant) * 100.0 / v_fac_ant, 1)),
+    'visitas_actuales',    v_vis_actual,
+    'visitas_variacion',   IF(v_vis_ant = 0, NULL, ROUND((v_vis_actual - v_vis_ant) * 100.0 / v_vis_ant, 1))
+  );
+END$$
+DELIMITER ;

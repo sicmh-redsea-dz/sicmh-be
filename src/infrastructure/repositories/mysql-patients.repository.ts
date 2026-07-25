@@ -7,7 +7,8 @@ import { patientQueries } from '../database/queries/patients.queries'
 export class MysqlPatientsRepository implements PatientsRepository {
     async findAll(args: { limit: number; offset: number; term?: string }): Promise<Patient[]> {
         const query = patientQueries('read', args)
-        return Database.execute<Patient[]>(query)
+        const values = args.term ? [args.term, args.term, args.term] : []
+        return Database.execute<Patient[]>(query, values)
     }
 
     async findById(id: number): Promise<Patient | null> {

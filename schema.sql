@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   firebaseID         VARCHAR(128)  NOT NULL DEFAULT '',
   provider           VARCHAR(20)   NOT NULL DEFAULT 'conventional',
   access_token       TEXT          NULL,
+  SessionVersion     INT           NOT NULL DEFAULT 0,
   PRIMARY KEY (UsuarioID),
   UNIQUE KEY uq_usuarios_email    (CorreoElectronico),
   UNIQUE KEY uq_usuarios_firebase (firebaseID),
@@ -69,7 +70,8 @@ CREATE TABLE IF NOT EXISTS pacientes (
   Identificacion    VARCHAR(50)   NULL,
   Genero            VARCHAR(20)   NULL,
   isActive          TINYINT(1)    NOT NULL DEFAULT 1,
-  PRIMARY KEY (PacienteID)
+  PRIMARY KEY (PacienteID),
+  KEY idx_pacientes_identificacion (Identificacion)
 );
 
 -- ── 6. personal (staff / doctors) ───────────────────────────────────
@@ -132,6 +134,8 @@ CREATE TABLE IF NOT EXISTS facturas (
   CAI                  VARCHAR(50)    NULL,
   PRIMARY KEY (FacturaID),
   UNIQUE KEY uq_facturas_invoice (InvoiceNumber),
+  KEY idx_facturas_active_fecha (IsActive, FechaFactura),
+  KEY idx_facturas_estado (Estado),
   CONSTRAINT fk_facturas_paciente  FOREIGN KEY (PacienteID)  REFERENCES pacientes  (PacienteID)  ON DELETE SET NULL,
   CONSTRAINT fk_facturas_personal  FOREIGN KEY (PersonalID)  REFERENCES personal   (PersonalID)  ON DELETE SET NULL,
   CONSTRAINT fk_facturas_tipopago  FOREIGN KEY (TipoPagoID)  REFERENCES tipo_pago  (TipoPagoID)  ON DELETE SET NULL
@@ -165,6 +169,7 @@ CREATE TABLE IF NOT EXISTS historia_medica (
   Ant_Patologico   TEXT           NULL,
   Ant_Quirurgico   TEXT           NULL,
   PRIMARY KEY (HistoriaID),
+  KEY idx_historia_medica_active_fecha (isActive, FechaVisita),
   CONSTRAINT fk_hm_paciente FOREIGN KEY (PacienteID) REFERENCES pacientes      (PacienteID) ON DELETE SET NULL,
   CONSTRAINT fk_hm_personal FOREIGN KEY (PersonalID) REFERENCES personal       (PersonalID) ON DELETE SET NULL,
   CONSTRAINT fk_hm_factura  FOREIGN KEY (FacturaID)  REFERENCES facturas       (FacturaID)  ON DELETE SET NULL
@@ -219,6 +224,22 @@ CREATE TABLE IF NOT EXISTS citas (
   CONSTRAINT fk_citas_usuario  FOREIGN KEY (CreadoPor)  REFERENCES usuarios  (UsuarioID)  ON DELETE SET NULL
 );
 
+-- ── 15. permiso_rol_overrides ── created at runtime by MysqlRolePermissionsRepository ──
+CREATE TABLE IF NOT EXISTS permiso_rol_overrides (
+  rol_key    VARCHAR(50)  NOT NULL PRIMARY KEY,
+  grants     JSON         NOT NULL,
+  revokes    JSON         NOT NULL,
+  updated_at VARCHAR(30)  NOT NULL
+);
+
+-- ── 16. permiso_usuario_overrides ── created at runtime by MysqlUserPermissionsRepository ──
+CREATE TABLE IF NOT EXISTS permiso_usuario_overrides (
+  usuario_id INT          NOT NULL PRIMARY KEY,
+  grants     JSON         NOT NULL,
+  revokes    JSON         NOT NULL,
+  updated_at VARCHAR(30)  NOT NULL
+);
+
 -- ═══════════════════════════════════════════════════════════════════
 -- Stored procedure: sp_mov_inventario
 -- Called by inventory transfer feature
@@ -261,26 +282,26 @@ BEGIN
   DECLARE v_fac_ant      INT DEFAULT 0;
   DECLARE v_vis_actual   INT DEFAULT 0;
   DECLARE v_vis_ant      INT DEFAULT 0;
+  DECLARE v_month_start      DATE DEFAULT DATE_FORMAT(CURDATE(), '%Y-%m-01');
+  DECLARE v_prev_month_start DATE DEFAULT DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m-01');
 
-  -- Patients this month vs last month
-  SELECT COUNT(*) INTO v_pac_actual FROM pacientes
-    WHERE isActive = 1 AND MONTH(PacienteID) = MONTH(CURDATE());  -- fallback: all active
+  -- Patients: no created-at column to compare month-over-month against, so
+  -- both counts are simply all active patients (variation is always 0%).
   SELECT COUNT(*) INTO v_pac_actual FROM pacientes WHERE isActive = 1;
   SELECT COUNT(*) INTO v_pac_ant    FROM pacientes WHERE isActive = 1;
 
-  -- Invoices this month
+  -- Invoices this month vs last month (sargable range comparisons instead of
+  -- MONTH()/YEAR(), so this can use idx_facturas_active_fecha).
   SELECT COUNT(*) INTO v_fac_actual FROM facturas
-    WHERE IsActive = 1 AND MONTH(FechaFactura) = MONTH(CURDATE()) AND YEAR(FechaFactura) = YEAR(CURDATE());
+    WHERE IsActive = 1 AND FechaFactura >= v_month_start AND FechaFactura < DATE_ADD(v_month_start, INTERVAL 1 MONTH);
   SELECT COUNT(*) INTO v_fac_ant FROM facturas
-    WHERE IsActive = 1 AND MONTH(FechaFactura) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
-      AND YEAR(FechaFactura) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH));
+    WHERE IsActive = 1 AND FechaFactura >= v_prev_month_start AND FechaFactura < v_month_start;
 
-  -- Visits this month
+  -- Visits this month vs last month (same sargable-range treatment).
   SELECT COUNT(*) INTO v_vis_actual FROM historia_medica
-    WHERE isActive = 1 AND MONTH(FechaVisita) = MONTH(CURDATE()) AND YEAR(FechaVisita) = YEAR(CURDATE());
+    WHERE isActive = 1 AND FechaVisita >= v_month_start AND FechaVisita < DATE_ADD(v_month_start, INTERVAL 1 MONTH);
   SELECT COUNT(*) INTO v_vis_ant FROM historia_medica
-    WHERE isActive = 1 AND MONTH(FechaVisita) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
-      AND YEAR(FechaVisita) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH));
+    WHERE isActive = 1 AND FechaVisita >= v_prev_month_start AND FechaVisita < v_month_start;
 
   RETURN JSON_OBJECT(
     'pacientes_actuales',  v_pac_actual,

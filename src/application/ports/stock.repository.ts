@@ -4,6 +4,7 @@ export interface StockRepository {
     findAll(): Promise<Stock[]>
     readAmountByStockQty(items: { id: number; qty: number }[]): Promise<number>
     reduceStockQuantities(items: { id: number; qty: number; subinventoryId?: number }[]): Promise<void>
+    restoreStockQuantities(items: { id: number; qty: number; subinventoryId?: number }[]): Promise<void>
     insertStockInvoice(invoiceId: number, items: { id: number; qty: number }[]): Promise<void>
     insertStockHistory(historyId: number, items: { id: number; qty: number }[]): Promise<void>
     findByInvoiceId(invoiceId: number): Promise<{ id: number; qty: number; name: string; unitPrice: number }[]>

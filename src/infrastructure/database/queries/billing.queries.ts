@@ -40,7 +40,7 @@ export const billingQueries = (
         LEFT JOIN historia_medica AS hm ON hm.FacturaID = f.FacturaID
         WHERE
           f.IsActive = 1
-          AND DATE(f.FechaFactura) BETWEEN ? AND ?
+          AND f.FechaFactura >= ? AND f.FechaFactura < DATE_ADD(?, INTERVAL 1 DAY)
           ${patientClause.clause}
         ORDER BY f.FechaFactura DESC;
       `
@@ -69,7 +69,7 @@ export const billingQueries = (
         LEFT JOIN historia_medica AS hm ON hm.FacturaID = f.FacturaID
         WHERE
           f.IsActive = 1
-          AND DATE(f.FechaFactura) BETWEEN ? AND ?
+          AND f.FechaFactura >= ? AND f.FechaFactura < DATE_ADD(?, INTERVAL 1 DAY)
           ${patientClause.clause}
         ORDER BY f.FechaFactura DESC;
       `

@@ -10,6 +10,7 @@ import { PatientMapper } from '../../domain/mappers/PatientMapper'
 import { StockMapper } from '../../domain/mappers/StockMapper'
 import { ExpedientePayload, ExpedienteExtra, VisitOrigin } from '../../domain/entities/Expediente'
 import { ExpedienteRepository } from '../ports/expediente.repository'
+import { Database } from '../../infrastructure/database/Database'
 
 interface CreateVisitPayload {
     BMI:                    number
@@ -97,11 +98,21 @@ export class VisitsService {
         try {
             const originKey = this.parseOriginForList(args.ext)
             const targetStation = originKey ? this.mapOriginToStation(originKey) : null
-            const movementMap = await this.billingService.getMovementTrailsByInvoice()
 
-            const visitHistory = originKey && originKey !== 'visits'
-                ? await this.visitsRepo.findAllUnbounded({ term: args.term, ext: '' })
-                : await this.visitsRepo.findAll(args)
+            // These four are independent of each other, so fetch them concurrently
+            // instead of serializing four separate round-trips.
+            const [movementMap, visitHistory, staff, patients] = await Promise.all([
+                this.billingService.getMovementTrailsByInvoice(),
+                // Station filtering (emergency/hospitalization/oroom) happens below against
+                // movement-trail data from the JSON movements store, which can't be pushed
+                // into this SQL query — so this fetches all active visits (capped at 5000
+                // as a safety net, see visits.queries.ts) rather than a true DB-level page.
+                originKey && originKey !== 'visits'
+                    ? this.visitsRepo.findAllUnbounded({ term: args.term, ext: '' })
+                    : this.visitsRepo.findAll(args),
+                this.staffService.getAllDocs(),
+                this.patientService.findAllPatients({ limit: 100, offset: 0 })
+            ])
 
             const enriched = visitHistory.map((visit) => {
                 const originFromVisit = VISIT_TYPE_TO_ORIGIN[visit.TipoVisita] as VisitOrigin | undefined
@@ -149,9 +160,6 @@ export class VisitsService {
                 ? filtered.slice(args.offset, args.offset + args.limit)
                 : filtered
 
-            const staff = await this.staffService.getAllDocs()
-            const patients = await this.patientService.findAllPatients({limit: 100, offset: 0})
-            
             return {
                 visits: paginated,
                 staff,
@@ -196,51 +204,59 @@ export class VisitsService {
         translatedFields['isActive'] = true
         translatedFields['TipoVisita'] = ORIGIN_TO_VISIT_TYPE[originKey]
 
-        let invoice: { id: number; invoiceNumber: string } | undefined
-        let insertId: number | undefined
-        let stockReduced = false
+        // Resolve the default consulta service BEFORE creating the invoice so its
+        // price is part of the initial Monto instead of a follow-up UPDATE that
+        // could silently fail and leave the invoice at 0.00
+        let consultaService: { id: number; name: string; price: number } | null = null
+
+        let invoice: { id: number; invoiceNumber: string }
+        let insertId: number
 
         try {
+            // Invoice + visit + stock reduction + stock inserts all run on one
+            // connection: if any step fails (e.g. insufficient stock), the whole
+            // set rolls back atomically instead of leaving partial writes behind.
+            const result = await Database.transaction(async () => {
+                let amount: number = 0.00
 
-            let amount: number = 0.00
+                if ( stockItems && stockItems.length > 0 )
+                    amount = await this.stockService.readAmountByStockQty( stockItems )
 
-            if ( stockItems && stockItems.length > 0 )
-                amount = await this.stockService.readAmountByStockQty( stockItems )
-
-            // Resolve the default consulta service BEFORE creating the invoice so its
-            // price is part of the initial Monto instead of a follow-up UPDATE that
-            // could silently fail and leave the invoice at 0.00
-            let consultaService: { id: number; name: string; price: number } | null = null
-            if (originKey === 'visits') {
-                try {
-                    consultaService = await this.billingService.getDefaultConsultaService()
-                } catch (err) {
-                    console.warn('default consulta service lookup error:', (err as any)?.message || err)
+                if (originKey === 'visits') {
+                    try {
+                        consultaService = await this.billingService.getDefaultConsultaService()
+                    } catch (err) {
+                        console.warn('default consulta service lookup error:', (err as any)?.message || err)
+                    }
+                    if (consultaService) {
+                        amount += consultaService.price
+                    }
                 }
-                if (consultaService) {
-                    amount += consultaService.price
+
+                const createdInvoice: { id: number; invoiceNumber: string } = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
+                translatedFields['FacturaID'] = createdInvoice.id
+
+                const visitId = await this.visitsRepo.create( translatedFields )
+
+                if ( stockItems && stockItems.length > 0 ) {
+                    await this.stockService.reduceStockQuantities( stockItems )
+                    await Promise.all([
+                        this.stockService.insertStockInvoice(translatedFields['FacturaID'], stockItems),
+                        this.stockService.insertStockHistory( visitId, stockItems )
+                    ])
                 }
-            }
 
-            const createdInvoice: { id: number; invoiceNumber: string } = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
-            invoice = createdInvoice
-            translatedFields['FacturaID'] = createdInvoice.id
+                return { invoice: createdInvoice, insertId: visitId }
+            })
 
-            insertId = await this.visitsRepo.create( translatedFields )
+            invoice = result.invoice
+            insertId = result.insertId
+        } catch (err) {
+            console.error('error creating visit, transaction rolled back: ', err)
+            throw err
+        }
 
-            if ( stockItems && stockItems.length > 0 ) {
-                // The reduction must settle first: it is the step that can fail on
-                // insufficient stock, and the two inserts must not record a
-                // reduction that never happened. The inserts touch unrelated
-                // tables, so they can run in parallel.
-                await this.stockService.reduceStockQuantities( stockItems )
-                stockReduced = true
-                await Promise.all([
-                    this.stockService.insertStockInvoice(translatedFields['FacturaID'], stockItems),
-                    this.stockService.insertStockHistory( insertId, stockItems )
-                ])
-            }
-
+        try {
             if ( expediente ) {
                 const now = new Date().toISOString()
                 const expedienteRecord: ExpedienteExtra = {
@@ -254,43 +270,31 @@ export class VisitsService {
                 }
                 await this.expedienteRepo.upsert(insertId, expedienteRecord)
             }
-
-            // Encounter/movement/ledger failures are only warned, never surfaced
-            // to the client, so there is no reason to make the response wait for
-            // them (they rewrite growing JSON files on every save).
-            void this.recordBillingTrail({
-                patient,
-                doctor,
-                originKey,
-                invoice: createdInvoice,
-                visitId: insertId,
-                date,
-                consultaService
-            })
-
-            return { visit: insertId }
         } catch (err) {
-            console.error('error creating visit, rolling back partial writes: ', err)
-
-            // invoice/visit rows may already be committed by the time a later
-            // step throws (stock/expediente); undo them so a client retry
-            // doesn't leave an orphaned duplicate visit behind.
-            if (insertId !== undefined) {
-                await this.visitsRepo.softDelete(insertId).catch(cleanupErr =>
-                    console.error(`rollback failed to soft-delete visit ${insertId}:`, cleanupErr))
-            }
-            if (invoice) {
-                await this.invoiceService.removeInvoiceById(invoice.invoiceNumber).catch(cleanupErr =>
-                    console.error(`rollback failed to soft-delete invoice ${invoice!.invoiceNumber}:`, cleanupErr))
-            }
-            if (stockReduced) {
-                // No verified path to reverse sp_mov_inventario('SALIDA', ...); flag
-                // loudly so inventory is corrected manually instead of guessing.
-                console.error(`rollback could not restore stock quantities for items: ${JSON.stringify(stockItems)} - manual inventory correction required`)
-            }
-
+            // The expediente lives in a file store outside the SQL transaction, so
+            // it needs its own compensating cleanup if it fails after commit.
+            console.error('error saving expediente after visit was committed, rolling back visit/invoice: ', err)
+            await this.visitsRepo.softDelete(insertId).catch(cleanupErr =>
+                console.error(`rollback failed to soft-delete visit ${insertId}:`, cleanupErr))
+            await this.invoiceService.removeInvoiceById(invoice.invoiceNumber).catch(cleanupErr =>
+                console.error(`rollback failed to soft-delete invoice ${invoice.invoiceNumber}:`, cleanupErr))
             throw err
         }
+
+        // Encounter/movement/ledger failures are only warned, never surfaced
+        // to the client, so there is no reason to make the response wait for
+        // them (they rewrite growing JSON files on every save).
+        void this.recordBillingTrail({
+            patient,
+            doctor,
+            originKey,
+            invoice,
+            visitId: insertId,
+            date,
+            consultaService
+        })
+
+        return { visit: insertId }
     }
 
     private recordBillingTrail = async (args: {
@@ -355,6 +359,10 @@ export class VisitsService {
         );
     }
 
+    // Returns signed deltas: positive means more stock must be consumed,
+    // negative means stock must be restored (quantity reduced or item removed
+    // entirely from the visit). Both directions must be applied by the caller,
+    // or edits that reduce usage never give the inventory/invoice back.
     private computeStockDelta(
         previous: { stockId: number; stockQty: number }[],
         incoming: { id: number; qty: number; subinventoryId?: number }[]
@@ -365,14 +373,23 @@ export class VisitsService {
             prevMap.set(item.stockId, qty)
         })
 
+        const incomingIds = new Set(incoming.map((item) => item.id))
         const deltaItems: { id: number; qty: number; subinventoryId?: number }[] = []
+
         incoming.forEach((item) => {
             const nextQty = Number(item.qty) || 0
-            if (!nextQty) return
             const prevQty = prevMap.get(item.id) ?? 0
             const delta = nextQty - prevQty
-            if (delta > 0) {
+            if (delta !== 0) {
                 deltaItems.push({ id: item.id, qty: delta, subinventoryId: item.subinventoryId })
+            }
+        })
+
+        previous.forEach((item) => {
+            if (incomingIds.has(item.stockId)) return
+            const prevQty = Number(item.stockQty) || 0
+            if (prevQty > 0) {
+                deltaItems.push({ id: item.stockId, qty: -prevQty })
             }
         })
 
@@ -479,17 +496,34 @@ export class VisitsService {
             }
 
             if (stockDelta.length > 0) {
-                await this.stockService.reduceStockQuantities(stockDelta)
-                await Promise.all([
-                    this.stockService.insertStockInvoice(existingVisit.FacturaID, stockDelta),
-                    this.stockService.insertStockHistory(+id, stockDelta)
-                ])
+                const increases = stockDelta.filter((item) => item.qty > 0)
+                const decreases = stockDelta.filter((item) => item.qty < 0)
+
+                if (increases.length > 0) {
+                    await this.stockService.reduceStockQuantities(increases)
+                    await Promise.all([
+                        this.stockService.insertStockInvoice(existingVisit.FacturaID, increases),
+                        this.stockService.insertStockHistory(+id, increases)
+                    ])
+                }
+
+                if (decreases.length > 0) {
+                    const restorations = decreases.map((item) => ({ ...item, qty: -item.qty }))
+                    await this.stockService.restoreStockQuantities(restorations)
+                    // Negative-quantity correction rows: the aggregate SUM() reads
+                    // in the stock/invoice history queries net these against the
+                    // original charge instead of needing an UPDATE/DELETE.
+                    await Promise.all([
+                        this.stockService.insertStockInvoice(existingVisit.FacturaID, decreases),
+                        this.stockService.insertStockHistory(+id, decreases)
+                    ])
+                }
 
                 const amountDelta = await this.stockService.readAmountByStockQty(
                     stockDelta.map((item) => ({ id: item.id, qty: item.qty }))
                 )
 
-                if (amountDelta > 0) {
+                if (amountDelta !== 0) {
                     await this.invoiceService.incrementAmountById(existingVisit.FacturaID, amountDelta)
                 }
             }

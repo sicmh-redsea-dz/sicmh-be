@@ -1,12 +1,20 @@
+import { Pool } from 'mysql2/promise'
 import { ResultSetHeader } from 'mysql2'
 import { InvoiceRepository } from '../../application/ports/invoice.repository'
 import { Database } from '../database/Database'
+import { TenantContext } from '../database/TenantContext'
 import { invoiceQueries } from '../database/queries/invoice.queries'
 
 export class MysqlInvoiceRepository implements InvoiceRepository {
+    // servicios/tipo_pago are static catalogs with no write path anywhere in
+    // this codebase, so they're cached per tenant pool for the process
+    // lifetime instead of re-queried on every invoice-form load.
+    private static readonly servicesCache = new Map<Pool, Promise<any[]>>()
+    private static readonly paymentMethodsCache = new Map<Pool, Promise<any[]>>()
     async findAll(args: { limit: number; offset: number; term: string }): Promise<any[]> {
         const query = invoiceQueries('read', args)
-        return Database.execute<any[]>(query)
+        const termValues = args.term ? [args.term, args.term, args.term] : []
+        return Database.execute<any[]>(query, termValues)
     }
 
     async findByInvoiceNumber(invoiceNumber: string): Promise<Record<string, any> | null> {
@@ -61,13 +69,27 @@ export class MysqlInvoiceRepository implements InvoiceRepository {
     }
 
     async fetchServices(): Promise<any[]> {
-        const query = invoiceQueries('getServices')
-        return Database.execute<any[]>(query)
+        const pool = TenantContext.getPool()
+        let cached = MysqlInvoiceRepository.servicesCache.get(pool)
+        if (!cached) {
+            const query = invoiceQueries('getServices')
+            cached = Database.execute<any[]>(query)
+            cached.catch(() => MysqlInvoiceRepository.servicesCache.delete(pool))
+            MysqlInvoiceRepository.servicesCache.set(pool, cached)
+        }
+        return cached
     }
 
     async fetchPaymentMethods(): Promise<any[]> {
-        const query = invoiceQueries('getPaymentMethods')
-        return Database.execute<any[]>(query)
+        const pool = TenantContext.getPool()
+        let cached = MysqlInvoiceRepository.paymentMethodsCache.get(pool)
+        if (!cached) {
+            const query = invoiceQueries('getPaymentMethods')
+            cached = Database.execute<any[]>(query)
+            cached.catch(() => MysqlInvoiceRepository.paymentMethodsCache.delete(pool))
+            MysqlInvoiceRepository.paymentMethodsCache.set(pool, cached)
+        }
+        return cached
     }
 
     async fetchDoctors(): Promise<any[]> {

@@ -45,46 +45,46 @@ export class OrRoomsService {
     if (!payload.code || !payload.code.trim()) errors.push('El codigo de quirófano es requerido.')
     if (errors.length > 0) throw this.buildValidationError(errors)
 
-    const store = await this.roomsRepo.load()
-    const rooms = store.rooms
-    const id = rooms.length > 0 ? Math.max(...rooms.map((r) => r.id)) + 1 : 1
-    const now = new Date().toISOString()
+    const rooms = await this.roomsRepo.update((store) => {
+      const now = new Date().toISOString()
+      const id = store.rooms.length > 0 ? Math.max(...store.rooms.map((r) => r.id)) + 1 : 1
 
-    const room: OrRoomRecord = {
-      id,
-      code: payload.code.trim(),
-      specialty: payload.specialty?.trim() || '',
-      status: payload.status ?? 'available',
-      currentAssignment: null,
-      history: [this.buildHistory('create', actor, { code: payload.code, specialty: payload.specialty, status: payload.status })]
-    }
+      const room: OrRoomRecord = {
+        id,
+        code: payload.code.trim(),
+        specialty: payload.specialty?.trim() || '',
+        status: payload.status ?? 'available',
+        currentAssignment: null,
+        history: [this.buildHistory('create', actor, { code: payload.code, specialty: payload.specialty, status: payload.status })]
+      }
 
-    rooms.push(room)
-    store.updatedAt = now
-    await this.roomsRepo.save(store)
+      store.rooms.push(room)
+      store.updatedAt = now
+      return store.rooms
+    })
 
     return { rooms }
   }
 
   updateRoom = async (roomId: number, payload: RoomPayload, actor?: AuditActor) => {
-    const store = await this.roomsRepo.load()
-    const rooms = store.rooms
-    const room = rooms.find((r) => r.id === roomId)
-    if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
+    const rooms = await this.roomsRepo.update((store) => {
+      const room = store.rooms.find((r) => r.id === roomId)
+      if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
 
-    const prevStatus = room.status
-    room.code = payload.code?.trim() || room.code
-    room.specialty = payload.specialty?.trim() ?? room.specialty
-    if (payload.status) room.status = payload.status
+      const prevStatus = room.status
+      room.code = payload.code?.trim() || room.code
+      room.specialty = payload.specialty?.trim() ?? room.specialty
+      if (payload.status) room.status = payload.status
 
-    room.history.push(this.buildHistory('update', actor, { code: room.code, specialty: room.specialty, status: room.status }))
+      room.history.push(this.buildHistory('update', actor, { code: room.code, specialty: room.specialty, status: room.status }))
 
-    if (payload.status && payload.status !== prevStatus) {
-      room.history.push(this.buildHistory('status_change', actor, { from: prevStatus, to: payload.status }))
-    }
+      if (payload.status && payload.status !== prevStatus) {
+        room.history.push(this.buildHistory('status_change', actor, { from: prevStatus, to: payload.status }))
+      }
 
-    store.updatedAt = new Date().toISOString()
-    await this.roomsRepo.save(store)
+      store.updatedAt = new Date().toISOString()
+      return store.rooms
+    })
 
     return { rooms }
   }
@@ -95,39 +95,40 @@ export class OrRoomsService {
     if (!payload.patientName || !payload.patientName.trim()) errors.push('Nombre del paciente requerido.')
     if (errors.length > 0) throw this.buildValidationError(errors)
 
-    const store = await this.roomsRepo.load()
-    const rooms = store.rooms
-    const room = rooms.find((r) => r.id === roomId)
-    if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
-
     const now = new Date().toISOString()
-    const payloadData: OrRoomAssignment = {
-      assignmentId: payload.assignmentId || room.currentAssignment?.assignmentId || uuidv4(),
-      patientId: payload.patientId,
-      patientName: payload.patientName.trim(),
-      doctorId: payload.doctorId,
-      doctorName: payload.doctorName?.trim() || undefined,
-      procedure: payload.procedure?.trim() || undefined,
-      anesthesiaType: payload.anesthesiaType?.trim() || undefined,
-      scheduledStart: payload.scheduledStart || undefined,
-      scheduledEnd: payload.scheduledEnd || undefined,
-      notes: payload.notes?.trim() || undefined,
-      assignedAt: room.currentAssignment?.assignedAt ?? now,
-      updatedAt: room.currentAssignment ? now : undefined
-    }
 
-    if (room.currentAssignment) {
-      const previous = room.currentAssignment
-      room.currentAssignment = payloadData
-      room.history.push(this.buildHistory('update_assignment', actor, { previous, next: payloadData }))
-    } else {
-      room.currentAssignment = payloadData
-      room.status = 'occupied'
-      room.history.push(this.buildHistory('assign', actor, { assignment: payloadData }))
-    }
+    const rooms = await this.roomsRepo.update((store) => {
+      const room = store.rooms.find((r) => r.id === roomId)
+      if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
 
-    store.updatedAt = now
-    await this.roomsRepo.save(store)
+      const payloadData: OrRoomAssignment = {
+        assignmentId: payload.assignmentId || room.currentAssignment?.assignmentId || uuidv4(),
+        patientId: payload.patientId,
+        patientName: payload.patientName.trim(),
+        doctorId: payload.doctorId,
+        doctorName: payload.doctorName?.trim() || undefined,
+        procedure: payload.procedure?.trim() || undefined,
+        anesthesiaType: payload.anesthesiaType?.trim() || undefined,
+        scheduledStart: payload.scheduledStart || undefined,
+        scheduledEnd: payload.scheduledEnd || undefined,
+        notes: payload.notes?.trim() || undefined,
+        assignedAt: room.currentAssignment?.assignedAt ?? now,
+        updatedAt: room.currentAssignment ? now : undefined
+      }
+
+      if (room.currentAssignment) {
+        const previous = room.currentAssignment
+        room.currentAssignment = payloadData
+        room.history.push(this.buildHistory('update_assignment', actor, { previous, next: payloadData }))
+      } else {
+        room.currentAssignment = payloadData
+        room.status = 'occupied'
+        room.history.push(this.buildHistory('assign', actor, { assignment: payloadData }))
+      }
+
+      store.updatedAt = now
+      return store.rooms
+    })
 
     if (this.billingService) {
       try {
@@ -148,21 +149,21 @@ export class OrRoomsService {
   }
 
   releaseRoom = async (roomId: number, payload?: ReleasePayload, actor?: AuditActor) => {
-    const store = await this.roomsRepo.load()
-    const rooms = store.rooms
-    const room = rooms.find((r) => r.id === roomId)
-    if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
-    if (!room.currentAssignment) throw this.buildValidationError(['El quirófano no tiene asignacion activa.'])
+    const rooms = await this.roomsRepo.update((store) => {
+      const room = store.rooms.find((r) => r.id === roomId)
+      if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
+      if (!room.currentAssignment) throw this.buildValidationError(['El quirófano no tiene asignacion activa.'])
 
-    const now = new Date().toISOString()
-    const releasedAssignment = { ...room.currentAssignment, releasedAt: now }
+      const now = new Date().toISOString()
+      const releasedAssignment = { ...room.currentAssignment, releasedAt: now }
 
-    room.currentAssignment = null
-    room.status = payload?.status ?? 'available'
-    room.history.push(this.buildHistory('release', actor, { assignment: releasedAssignment, reason: payload?.reason }))
+      room.currentAssignment = null
+      room.status = payload?.status ?? 'available'
+      room.history.push(this.buildHistory('release', actor, { assignment: releasedAssignment, reason: payload?.reason }))
 
-    store.updatedAt = now
-    await this.roomsRepo.save(store)
+      store.updatedAt = now
+      return store.rooms
+    })
 
     return { rooms }
   }

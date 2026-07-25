@@ -1,6 +1,7 @@
 import express, { Response, Request, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import compression from 'compression';
 
 import { errorHandler } from './api/middlewares/errorHandler'
 import { authRoutes } from './api/routes/auth.route'
@@ -11,6 +12,7 @@ const app = express();
 
 app.set('trust proxy', true)
 app.use(helmet())
+app.use(compression())
 app.use(express.json({ limit: '5mb' }));
 app.use(cors());
 

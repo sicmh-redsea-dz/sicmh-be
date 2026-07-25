@@ -53,6 +53,32 @@ export class MysqlStockRepository implements StockRepository {
         await Promise.all(promises)
     }
 
+    async restoreStockQuantities(
+        items: { id: number; qty: number; subinventoryId?: number }[]
+    ): Promise<void> {
+        if (!items.length) return
+
+        const defaultSubinventoryId = 1
+        const promises = items.map(item => {
+            const subinvDestino = item.subinventoryId ?? defaultSubinventoryId
+            // Mirrors reduceStockQuantities' 'SALIDA' call in reverse: fromLoc is
+            // left null (no matching row, so the deduction is a no-op) and the
+            // quantity is added back to the destination sub-inventory.
+            const query = `CALL sp_mov_inventario(?, ?, ?, ?, ?);`
+            const values = [
+                'ENTRADA',
+                item.id,
+                item.qty,
+                null,
+                subinvDestino
+            ]
+
+            return Database.execute(query, values)
+        })
+
+        await Promise.all(promises)
+    }
+
     async insertStockInvoice(invoiceId: number, items: { id: number; qty: number }[]): Promise<void> {
         if (!items.length) return
 
