@@ -1,5 +1,5 @@
 export interface StockResponse {
-    id:                 number
+    id:                 string
     productName:        string
     productDescription: string
     productQuantity:    number

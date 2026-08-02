@@ -1,6 +1,6 @@
 export interface Staff {
-    PersonalID:     number
+    PersonalID:     string
 	NombrePersonal: string
     Especialidad:   string 
-    UsuarioID:      number 
+    UsuarioID:      string 
 }

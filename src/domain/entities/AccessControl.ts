@@ -10,7 +10,7 @@ export interface RolePermissionsStore {
 }
 
 export interface UserPermissionOverride extends PermissionOverride {
-  userId: number
+  userId: string
 }
 
 export interface UserPermissionsStore {

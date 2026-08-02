@@ -5,11 +5,11 @@ import { Staff } from '../../domain/entities/Staff'
 export interface VisitsRepository {
     findAll(args: { limit: number; offset: number; term: string; ext: string }): Promise<ShortHistory[]>
     findAllUnbounded(args: { term: string; ext?: string }): Promise<ShortHistory[]>
-    findById(id: number): Promise<History | null>
-    create(data: Record<string, any>): Promise<number>
-    update(id: number, data: Record<string, any>): Promise<number>
-    softDelete(id: number): Promise<number>
+    findById(id: string): Promise<History | null>
+    create(data: Record<string, any>): Promise<string>
+    update(id: string, data: Record<string, any>): Promise<number>
+    softDelete(id: string): Promise<number>
     findDoctors(term: string): Promise<Staff[]>
     findPatients(term: string): Promise<ShortPatient[]>
-    findStockItems(subinventoryId: number): Promise<any[]>
+    findStockItems(subinventoryId: string): Promise<any[]>
 }

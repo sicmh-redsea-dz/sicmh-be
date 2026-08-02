@@ -30,7 +30,7 @@ export class PatientsService {
         }
     }
 
-    findOnePatient = async (patientId:number):Promise<PatientResponse> => {
+    findOnePatient = async (patientId:string):Promise<PatientResponse> => {
         try {
             const patient = await this.patientsRepo.findById( patientId )
             if( !patient )
@@ -59,7 +59,7 @@ export class PatientsService {
         }
     }
 
-    updatedPatient = async (patientParams:PatientUpdateParams, id:number):Promise<PatientResponse> => {
+    updatedPatient = async (patientParams:PatientUpdateParams, id:string):Promise<PatientResponse> => {
         try{
             const affectedRows = await this.patientsRepo.update( id, patientParams )
             if ( affectedRows === 0)
@@ -71,7 +71,7 @@ export class PatientsService {
         }
     }
 
-    softDeletePatient = async (id:number):Promise<[boolean, number]> => {
+    softDeletePatient = async (id:string):Promise<[boolean, string]> => {
         try {
             const affectedRows = await this.patientsRepo.softDelete( id )
             if ( affectedRows === 0 )

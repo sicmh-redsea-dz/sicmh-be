@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 
 import { OrRoomsRepository } from '../ports/or-rooms.repository'
 import { AuditActor } from '../../domain/entities/Bed'
@@ -13,9 +13,9 @@ interface RoomPayload {
 
 interface AssignPayload {
   assignmentId?: string
-  patientId: number
+  patientId: string
   patientName: string
-  doctorId?: number
+  doctorId?: string
   doctorName?: string
   procedure?: string
   anesthesiaType?: string
@@ -47,7 +47,7 @@ export class OrRoomsService {
 
     const rooms = await this.roomsRepo.update((store) => {
       const now = new Date().toISOString()
-      const id = store.rooms.length > 0 ? Math.max(...store.rooms.map((r) => r.id)) + 1 : 1
+      const id = randomUUID()
 
       const room: OrRoomRecord = {
         id,
@@ -66,7 +66,7 @@ export class OrRoomsService {
     return { rooms }
   }
 
-  updateRoom = async (roomId: number, payload: RoomPayload, actor?: AuditActor) => {
+  updateRoom = async (roomId: string, payload: RoomPayload, actor?: AuditActor) => {
     const rooms = await this.roomsRepo.update((store) => {
       const room = store.rooms.find((r) => r.id === roomId)
       if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
@@ -89,7 +89,7 @@ export class OrRoomsService {
     return { rooms }
   }
 
-  assignRoom = async (roomId: number, payload: AssignPayload, actor?: AuditActor) => {
+  assignRoom = async (roomId: string, payload: AssignPayload, actor?: AuditActor) => {
     const errors: string[] = []
     if (!payload.patientId) errors.push('Paciente requerido para asignar quirófano.')
     if (!payload.patientName || !payload.patientName.trim()) errors.push('Nombre del paciente requerido.')
@@ -102,7 +102,7 @@ export class OrRoomsService {
       if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
 
       const payloadData: OrRoomAssignment = {
-        assignmentId: payload.assignmentId || room.currentAssignment?.assignmentId || uuidv4(),
+        assignmentId: payload.assignmentId || room.currentAssignment?.assignmentId || randomUUID(),
         patientId: payload.patientId,
         patientName: payload.patientName.trim(),
         doctorId: payload.doctorId,
@@ -148,7 +148,7 @@ export class OrRoomsService {
     return { rooms }
   }
 
-  releaseRoom = async (roomId: number, payload?: ReleasePayload, actor?: AuditActor) => {
+  releaseRoom = async (roomId: string, payload?: ReleasePayload, actor?: AuditActor) => {
     const rooms = await this.roomsRepo.update((store) => {
       const room = store.rooms.find((r) => r.id === roomId)
       if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
@@ -170,7 +170,7 @@ export class OrRoomsService {
 
   private buildHistory(type: OrRoomHistoryEntry['type'], actor?: AuditActor, details?: Record<string, any>): OrRoomHistoryEntry {
     return {
-      eventId: uuidv4(),
+      eventId: randomUUID(),
       type,
       timestamp: new Date().toISOString(),
       actor,

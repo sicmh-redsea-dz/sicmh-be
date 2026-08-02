@@ -12,14 +12,6 @@ interface AuthParams {
   password?: string
 }
 
-enum Roles {
-  Admin = 6,
-  Doctor = 2,
-  Enfermera = 3,
-  Recepcionista = 4,
-  Asistente = 5,
-}
-
 const buildError = (name: string, message: string) => {
   const error: any = new Error(message)
   error.name = name
@@ -52,13 +44,18 @@ export class AuthService {
     const finalName = name?.trim() || (email.includes('@') ? email.split('@')[0] : email)
 
     const existingUserCount = await this.authRepo.countUsers()
-    const roleId = existingUserCount === 0 ? Roles.Admin : Roles.Asistente
+    const roles = await this.authRepo.listRoles()
+    const roleName = existingUserCount === 0 ? 'admin' : 'asistente'
+    const selectedRole = roles.find((role) =>
+      String(role.NombreRol ?? '').trim().toLowerCase() === roleName
+    )
+    if (!selectedRole?.RolID) throw buildValidationError(`Role ${roleName} is not configured.`)
 
     const insertId = await this.authRepo.createUser({
       name: finalName,
       email,
       passwordHash,
-      roleId,
+      roleId: String(selectedRole.RolID),
       active: 1,
       firebaseId: email,
       provider: 'conventional',
@@ -85,7 +82,7 @@ export class AuthService {
     return { user: await this.attachProfile(response), sessionVersion }
   }
 
-  checkToken = async (id: number): Promise<AuthResponse> => {
+  checkToken = async (id: string): Promise<AuthResponse> => {
     const user = await this.authRepo.findById(id)
     if (!user) throw buildError('not_found_error', 'User not found.')
     if (!user.Activo) throw buildError('inactive_user', 'User is inactive.')
@@ -93,10 +90,10 @@ export class AuthService {
     return await this.attachProfile(response)
   }
 
-  private getUserData = async (identifier: number | string): Promise<User> => {
-    const user = typeof identifier === 'number'
-      ? await this.authRepo.findById(identifier)
-      : await this.authRepo.findByEmail(identifier)
+  private getUserData = async (identifier: string): Promise<User> => {
+    const user = identifier.includes('@')
+      ? await this.authRepo.findByEmail(identifier)
+      : await this.authRepo.findById(identifier)
 
     if (!user) throw buildError('not_found_error', 'User not found.')
     return user

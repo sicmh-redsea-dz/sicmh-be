@@ -3,16 +3,16 @@ export type BedModule = 'hospitalization' | 'emergency'
 export type BedStatus = 'available' | 'occupied' | 'maintenance' | 'blocked'
 
 export interface AuditActor {
-  id: number
+  id: string
   name: string
   role?: string
 }
 
 export interface BedAssignment {
   assignmentId: string
-  patientId: number
+  patientId: string
   patientName: string
-  doctorId?: number
+  doctorId?: string
   doctorName?: string
   reason?: string
   notes?: string
@@ -31,7 +31,7 @@ export interface BedHistoryEntry {
 }
 
 export interface BedRecord {
-  id: number
+  id: string
   code: string
   area?: string
   status: BedStatus

@@ -1,7 +1,7 @@
 export type ThemePreference = 'light' | 'dark'
 
 export interface UserProfile {
-  userId: number
+  userId: string
   phone?: string
   identification?: string
   department?: string

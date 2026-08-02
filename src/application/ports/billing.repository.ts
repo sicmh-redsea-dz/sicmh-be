@@ -1,30 +1,30 @@
 export interface BillingFilters {
   from: string
   to: string
-  patientIds?: number[]
+  patientIds?: string[]
 }
 
 export interface BillingInvoiceRow {
-  FacturaID: number
+  FacturaID: string
   InvoiceNumber: string
   FechaFactura: string
   Monto: number
   Estado: string
-  TipoPagoID?: number | null
-  PacienteID: number
+  TipoPagoID?: string | null
+  PacienteID: string
   Paciente: string
   Doctor?: string | null
   TipoVisita?: string | null
 }
 
 export interface BillingInventoryRow {
-  FacturaID: number
+  FacturaID: string
   InvoiceNumber: string
   FechaFactura: string
   Estado: string
-  PacienteID: number
+  PacienteID: string
   Paciente: string
-  ProductoID: number
+  ProductoID: string
   NombreProducto: string
   Cantidad: number
   PrecioUnidad: number

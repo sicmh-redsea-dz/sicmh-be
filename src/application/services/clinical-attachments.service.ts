@@ -24,14 +24,14 @@ const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 export interface UploadAttachmentParams {
   tenantCode: string
-  patientId: number
-  recordId: number | null
+  patientId: string
+  recordId: string | null
   label: string
   source: string
   buffer: Buffer
   originalName: string
   declaredMime: string
-  uploadedBy: number
+  uploadedBy: string
 }
 
 export class ClinicalAttachmentsService {
@@ -104,7 +104,7 @@ export class ClinicalAttachmentsService {
     return created
   }
 
-  listByPatient = async (patientId: number, recordId?: number | null): Promise<ClinicalAttachment[]> => {
+  listByPatient = async (patientId: string, recordId?: string | null): Promise<ClinicalAttachment[]> => {
     return this.attachmentsRepo.listByPatient(patientId, recordId)
   }
 
@@ -113,7 +113,7 @@ export class ClinicalAttachmentsService {
    * with the caller's tenant code as defense in depth — the tenant DB
    * connection should already scope the lookup.
    */
-  getForAccess = async (id: number, tenantCode: string): Promise<ClinicalAttachment> => {
+  getForAccess = async (id: string, tenantCode: string): Promise<ClinicalAttachment> => {
     const attachment = await this.attachmentsRepo.findById(id)
     if (!attachment || !attachment.gcs_object_path.startsWith(`${tenantCode}/`)) {
       throw Object.assign(new Error('Archivo adjunto no encontrado.'), { name: 'not_found_error' })
@@ -121,7 +121,7 @@ export class ClinicalAttachmentsService {
     return attachment
   }
 
-  logAccess = async (attachmentId: number, accessedBy: number, ipAddress: string | null): Promise<void> => {
+  logAccess = async (attachmentId: string, accessedBy: string, ipAddress: string | null): Promise<void> => {
     await this.attachmentsRepo.logAccess(attachmentId, accessedBy, ipAddress)
   }
 
@@ -129,7 +129,7 @@ export class ClinicalAttachmentsService {
     return this.clinicalStorage.createReadStream(attachment.gcs_object_path, range)
   }
 
-  softDelete = async (id: number, tenantCode: string): Promise<void> => {
+  softDelete = async (id: string, tenantCode: string): Promise<void> => {
     await this.getForAccess(id, tenantCode)
     await this.attachmentsRepo.softDelete(id)
   }

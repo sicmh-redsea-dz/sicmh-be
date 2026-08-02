@@ -30,7 +30,7 @@ export class PatientsController {
     getPatient = async (req:Request, res:Response, next:NextFunction) => {
         const { id } = req.params
         try {
-            const patient = await this.patientsService.findOnePatient(+id)
+            const patient = await this.patientsService.findOnePatient(id)
             res.status( 200 ).json({
                 data: { patient }
             })
@@ -56,7 +56,7 @@ export class PatientsController {
         const { id } = req.params
         const body = req.body
         try {
-            const updatedPatient = await this.patientsService.updatedPatient(body, Number(id))
+            const updatedPatient = await this.patientsService.updatedPatient(body, id)
             res.status( 200 ).json({
                 data: {
                     patient: updatedPatient
@@ -70,7 +70,7 @@ export class PatientsController {
     deletePatient = async (req:Request, res:Response, next:NextFunction) => {
         const { id } = req.params
         try {
-            const [isPatientDeleted, patientId] = await this.patientsService.softDeletePatient( Number(id) )
+            const [isPatientDeleted, patientId] = await this.patientsService.softDeletePatient(id)
             res.status(200).json({
                 data: {
                   msg: 'ok',

@@ -1,5 +1,5 @@
 export interface PatientResponse {
-    id:       number
+    id:       string
     name:     string
     lastName: string
     birthDate:Date
@@ -11,6 +11,6 @@ export interface PatientResponse {
 }
 
 export interface ShortPatientResponse {
-    id:       number
+    id:       string
     name:     string
 }

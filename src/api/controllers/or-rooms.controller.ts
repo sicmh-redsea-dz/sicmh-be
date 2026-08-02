@@ -18,21 +18,21 @@ export class OrRoomsController {
 
   @asyncHandler()
   async updateRoom(req: Request): Promise<any> {
-    const id = Number(req.params.roomId)
+    const id = String(req.params.roomId)
     const actor = this.resolveActor(req)
     return this.roomsService.updateRoom(id, req.body, actor)
   }
 
   @asyncHandler()
   async assignRoom(req: Request): Promise<any> {
-    const id = Number(req.params.roomId)
+    const id = String(req.params.roomId)
     const actor = this.resolveActor(req)
     return this.roomsService.assignRoom(id, req.body, actor)
   }
 
   @asyncHandler()
   async releaseRoom(req: Request): Promise<any> {
-    const id = Number(req.params.roomId)
+    const id = String(req.params.roomId)
     const actor = this.resolveActor(req)
     return this.roomsService.releaseRoom(id, req.body, actor)
   }

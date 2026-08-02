@@ -75,18 +75,18 @@ export class BillingController {
     }
   }
 
-  private parseIds(value: any): number[] {
+  private parseIds(value: unknown): string[] {
     if (!value) return []
     if (Array.isArray(value)) {
       return value
         .flatMap((entry) => String(entry).split(','))
-        .map((entry) => Number(entry))
-        .filter((num) => !Number.isNaN(num))
+        .map((entry) => entry.trim())
+        .filter(Boolean)
     }
     return String(value)
       .split(',')
-      .map((entry) => Number(entry))
-      .filter((num) => !Number.isNaN(num))
+      .map((entry) => entry.trim())
+      .filter(Boolean)
   }
 
   private readQueryString(req: Request, key: string): string | undefined {

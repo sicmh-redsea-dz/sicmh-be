@@ -25,7 +25,7 @@ export class VisitsController {
     @asyncHandler()
     async getVisit(req:Request): Promise<any> {
         const { id } = req.params
-        return this.visitsService.findVisitById( +id )
+        return this.visitsService.findVisitById(id)
     }
 
     @asyncHandler()
@@ -43,7 +43,7 @@ export class VisitsController {
     @asyncHandler()
     async deleteVisit(req:Request) {
         const { id } = req.params
-        return this.visitsService.deleteVisit( +id )
+        return this.visitsService.deleteVisit(id)
     }
 
     @asyncHandler()
@@ -66,8 +66,8 @@ export class VisitsController {
 
     @asyncHandler()
     async getStockItems( req:Request ) {
-        const term = req.query.term || ''
+        const term = String(req.query.term || '')
 
-        return this.visitsService.getStockItems( +term )
+        return this.visitsService.getStockItems( term )
     }
 }

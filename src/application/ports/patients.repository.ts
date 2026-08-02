@@ -15,8 +15,8 @@ export type PatientUpdateParams = Partial<PatientCreateParams>
 
 export interface PatientsRepository {
     findAll(args: { limit: number; offset: number; term?: string }): Promise<Patient[]>
-    findById(id: number): Promise<Patient | null>
-    create(params: PatientCreateParams): Promise<number>
-    update(id: number, params: PatientUpdateParams): Promise<number>
-    softDelete(id: number): Promise<number>
+    findById(id: string): Promise<Patient | null>
+    create(params: PatientCreateParams): Promise<string>
+    update(id: string, params: PatientUpdateParams): Promise<number>
+    softDelete(id: string): Promise<number>
 }

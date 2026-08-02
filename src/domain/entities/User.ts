@@ -1,5 +1,5 @@
 export interface User {
-    UsuarioID: number
+    UsuarioID: string
     NombreUsuario: string
     CorreoElectronico: string
     ContrasenaHash?: string

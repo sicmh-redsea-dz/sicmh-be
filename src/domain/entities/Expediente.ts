@@ -47,8 +47,8 @@ export interface ExpedientePayload {
 }
 
 export interface ExpedienteExtra extends ExpedientePayload {
-  historyId: number
-  patientId?: number
+  historyId: string
+  patientId?: string
   origin: VisitOrigin
   createdAt: string
   updatedAt: string

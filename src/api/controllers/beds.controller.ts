@@ -21,7 +21,7 @@ export class BedsController {
   @asyncHandler()
   async updateBed(req: Request): Promise<any> {
     const module = String(req.params.module)
-    const id = Number(req.params.bedId)
+    const id = String(req.params.bedId)
     const actor = this.resolveActor(req)
     return this.bedsService.updateBed(module, id, req.body, actor)
   }
@@ -29,7 +29,7 @@ export class BedsController {
   @asyncHandler()
   async assignBed(req: Request): Promise<any> {
     const module = String(req.params.module)
-    const id = Number(req.params.bedId)
+    const id = String(req.params.bedId)
     const actor = this.resolveActor(req)
     return this.bedsService.assignBed(module, id, req.body, actor)
   }
@@ -37,7 +37,7 @@ export class BedsController {
   @asyncHandler()
   async releaseBed(req: Request): Promise<any> {
     const module = String(req.params.module)
-    const id = Number(req.params.bedId)
+    const id = String(req.params.bedId)
     const actor = this.resolveActor(req)
     return this.bedsService.releaseBed(module, id, req.body, actor)
   }

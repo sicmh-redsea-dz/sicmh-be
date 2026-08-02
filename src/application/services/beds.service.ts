@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 
 import { BedsRepository } from '../ports/beds.repository'
 import { AuditActor, BedAssignment, BedHistoryEntry, BedModule, BedRecord, BedStatus } from '../../domain/entities/Bed'
@@ -12,9 +12,9 @@ interface BedPayload {
 
 interface AssignPayload {
   assignmentId?: string
-  patientId: number
+  patientId: string
   patientName: string
-  doctorId?: number
+  doctorId?: string
   doctorName?: string
   reason?: string
   notes?: string
@@ -48,7 +48,7 @@ export class BedsService {
 
     const beds = await this.bedsRepo.update((store) => {
       const moduleBeds = store[moduleKey].beds
-      const id = moduleBeds.length > 0 ? Math.max(...moduleBeds.map((b) => b.id)) + 1 : 1
+      const id = randomUUID()
       const now = new Date().toISOString()
 
       const bed: BedRecord = {
@@ -68,7 +68,7 @@ export class BedsService {
     return { beds }
   }
 
-  updateBed = async (module: string, bedId: number, payload: BedPayload, actor?: AuditActor) => {
+  updateBed = async (module: string, bedId: string, payload: BedPayload, actor?: AuditActor) => {
     const moduleKey = this.assertModule(module)
 
     const beds = await this.bedsRepo.update((store) => {
@@ -94,7 +94,7 @@ export class BedsService {
     return { beds }
   }
 
-  assignBed = async (module: string, bedId: number, payload: AssignPayload, actor?: AuditActor) => {
+  assignBed = async (module: string, bedId: string, payload: AssignPayload, actor?: AuditActor) => {
     const moduleKey = this.assertModule(module)
     const errors: string[] = []
     if (!payload.patientId) errors.push('Paciente requerido para asignar cama.')
@@ -109,7 +109,7 @@ export class BedsService {
       if (!bed) throw this.buildNotFoundError(`No bed found with id ${bedId}`)
 
       const payloadData: BedAssignment = {
-        assignmentId: payload.assignmentId || bed.currentAssignment?.assignmentId || uuidv4(),
+        assignmentId: payload.assignmentId || bed.currentAssignment?.assignmentId || randomUUID(),
         patientId: payload.patientId,
         patientName: payload.patientName.trim(),
         doctorId: payload.doctorId,
@@ -153,7 +153,7 @@ export class BedsService {
     return { beds }
   }
 
-  releaseBed = async (module: string, bedId: number, payload?: ReleasePayload, actor?: AuditActor) => {
+  releaseBed = async (module: string, bedId: string, payload?: ReleasePayload, actor?: AuditActor) => {
     const moduleKey = this.assertModule(module)
     const beds = await this.bedsRepo.update((store) => {
       const moduleBeds = store[moduleKey].beds
@@ -185,7 +185,7 @@ export class BedsService {
 
   private buildHistory(type: BedHistoryEntry['type'], actor?: AuditActor, details?: Record<string, any>): BedHistoryEntry {
     return {
-      eventId: uuidv4(),
+      eventId: randomUUID(),
       type,
       timestamp: new Date().toISOString(),
       actor,

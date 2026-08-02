@@ -1,5 +1,5 @@
 export interface Patient {
-    PacienteID: number
+    PacienteID: string
     Nombre: string
     Apellido: string
     FechaNacimiento: Date
@@ -13,6 +13,6 @@ export interface Patient {
 }
 
 export interface ShortPatient {
-    PacienteID: number
+    PacienteID: string
     NombrePersonal: string
 }

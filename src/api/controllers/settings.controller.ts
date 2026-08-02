@@ -13,14 +13,14 @@ export class SettingsController {
   @asyncHandler()
   async getProfile(req: Request): Promise<any> {
     const currentUser = (req as any).currentUser
-    return await this.settingsService.getProfile(Number(currentUser?._id))
+    return await this.settingsService.getProfile(String(currentUser?._id))
   }
 
   @asyncHandler()
   async updateProfile(req: Request): Promise<any> {
     const currentUser = (req as any).currentUser
     const payload = req.body ?? {}
-    return await this.settingsService.updateProfile(Number(currentUser?._id), currentUser?.fireUID, payload)
+    return await this.settingsService.updateProfile(String(currentUser?._id), currentUser?.fireUID, payload)
   }
 
   @asyncHandler()
@@ -38,8 +38,8 @@ export class SettingsController {
   @asyncHandler()
   async updateUserRole(req: Request): Promise<any> {
     const { id } = req.params
-    const roleId = Number(req.body?.roleId)
-    return await this.settingsService.updateUserRole(Number(id), roleId)
+    const roleId = String(req.body?.roleId)
+    return await this.settingsService.updateUserRole(String(id), roleId)
   }
 
   @asyncHandler()
@@ -57,7 +57,7 @@ export class SettingsController {
   async updateRolePermissions(req: Request): Promise<any> {
     const { roleKey } = req.params as { roleKey: string }
     const { grants = [], revokes = [] } = req.body ?? {}
-    const actorId = Number((req as any).currentUser?._id)
+    const actorId = String((req as any).currentUser?._id || '')
     return await this.settingsService.updateRolePermissions(roleKey, grants, revokes, actorId || undefined)
   }
 
@@ -70,20 +70,20 @@ export class SettingsController {
   async updateUserPermissions(req: Request): Promise<any> {
     const { userId } = req.params as { userId: string }
     const { grants = [], revokes = [] } = req.body ?? {}
-    const actorId = Number((req as any).currentUser?._id)
-    return await this.settingsService.updateUserPermissions(Number(userId), grants, revokes, actorId || undefined)
+    const actorId = String((req as any).currentUser?._id || '')
+    return await this.settingsService.updateUserPermissions(String(userId), grants, revokes, actorId || undefined)
   }
 
   @asyncHandler()
   async deleteUser(req: Request): Promise<any> {
     const { id } = req.params
-    return await this.settingsService.deleteUser(Number(id))
+    return await this.settingsService.deleteUser(String(id))
   }
 
   @asyncHandler()
   async changeUserPassword(req: Request): Promise<any> {
     const { id } = req.params
     const { newPassword } = req.body ?? {}
-    return await this.settingsService.changeUserPassword(Number(id), newPassword)
+    return await this.settingsService.changeUserPassword(String(id), newPassword)
   }
 }

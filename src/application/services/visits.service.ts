@@ -23,7 +23,7 @@ interface CreateVisitPayload {
     height:                 number
     notes:                  string
     oxygenation:            number
-    patient:                number
+    patient:                string
     pressure:               string
     temperature:            number
     treatment:              string
@@ -33,7 +33,7 @@ interface CreateVisitPayload {
     backgroundHst:          string
     pathologicalHst:        string
     surgicalHst:            string
-    stockItems?:            { id: number; qty: number; subinventoryId?: number }[]
+    stockItems?:            { id: string; qty: number; subinventoryId?: string }[]
     origin:                 string
     expediente?:            ExpedientePayload
 }
@@ -173,7 +173,7 @@ export class VisitsService {
         
     }
 
-    findVisitById = async ( id: number ):Promise<any> => {
+    findVisitById = async ( id: string ):Promise<any> => {
         try {
             const medicalHistory = await this.visitsRepo.findById( id )
             if ( !medicalHistory )
@@ -207,10 +207,10 @@ export class VisitsService {
         // Resolve the default consulta service BEFORE creating the invoice so its
         // price is part of the initial Monto instead of a follow-up UPDATE that
         // could silently fail and leave the invoice at 0.00
-        let consultaService: { id: number; name: string; price: number } | null = null
+        let consultaService: { id: string; name: string; price: number } | null = null
 
-        let invoice: { id: number; invoiceNumber: string }
-        let insertId: number
+        let invoice: { id: string; invoiceNumber: string }
+        let insertId: string
 
         try {
             // Invoice + visit + stock reduction + stock inserts all run on one
@@ -233,7 +233,7 @@ export class VisitsService {
                     }
                 }
 
-                const createdInvoice: { id: number; invoiceNumber: string } = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
+                const createdInvoice: { id: string; invoiceNumber: string } = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
                 translatedFields['FacturaID'] = createdInvoice.id
 
                 const visitId = await this.visitsRepo.create( translatedFields )
@@ -298,13 +298,13 @@ export class VisitsService {
     }
 
     private recordBillingTrail = async (args: {
-        patient: number
+        patient: string
         doctor: string
         originKey: VisitOrigin
-        invoice: { id: number; invoiceNumber: string }
-        visitId: number
+        invoice: { id: string; invoiceNumber: string }
+        visitId: string
         date: string
-        consultaService: { id: number; name: string; price: number } | null
+        consultaService: { id: string; name: string; price: number } | null
     }): Promise<void> => {
         const { patient, doctor, originKey, invoice, visitId, date, consultaService } = args
 
@@ -312,12 +312,12 @@ export class VisitsService {
         let billingEncounterId: string | undefined
 
         try {
-            const patientInfo = await this.patientService.findOnePatient(patient)
+            const patientInfo = await this.patientService.findOnePatient(String(patient))
             billingPatientName = `${patientInfo.name} ${patientInfo.lastName}`.trim()
             const encounter = await this.billingService.registerEncounterForInvoice({
                 patientId: patient,
                 patientName: billingPatientName,
-                doctorId: Number(doctor) || undefined,
+                doctorId: doctor || undefined,
                 origin: this.mapOriginToStation(originKey),
                 invoiceNumber: invoice.invoiceNumber,
                 invoiceId: invoice.id,
@@ -364,17 +364,17 @@ export class VisitsService {
     // entirely from the visit). Both directions must be applied by the caller,
     // or edits that reduce usage never give the inventory/invoice back.
     private computeStockDelta(
-        previous: { stockId: number; stockQty: number }[],
-        incoming: { id: number; qty: number; subinventoryId?: number }[]
+        previous: { stockId: string; stockQty: number }[],
+        incoming: { id: string; qty: number; subinventoryId?: string }[]
     ) {
-        const prevMap = new Map<number, number>()
+        const prevMap = new Map<string, number>()
         previous.forEach((item) => {
             const qty = Number(item.stockQty) || 0
             prevMap.set(item.stockId, qty)
         })
 
         const incomingIds = new Set(incoming.map((item) => item.id))
-        const deltaItems: { id: number; qty: number; subinventoryId?: number }[] = []
+        const deltaItems: { id: string; qty: number; subinventoryId?: string }[] = []
 
         incoming.forEach((item) => {
             const nextQty = Number(item.qty) || 0
@@ -459,10 +459,10 @@ export class VisitsService {
 
    editVisit = async (editVisitPayload: EditVisitPayload): Promise<any> => {
         const { id, body } = editVisitPayload;
-        const originKey = await this.resolveOrigin(body, +id)
+        const originKey = await this.resolveOrigin(body, id)
         this.validateExpediente(body.expediente, originKey)
 
-        const existingVisit = await this.visitsRepo.findById(+id)
+        const existingVisit = await this.visitsRepo.findById(id)
         if (!existingVisit) {
             throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`);
         }
@@ -475,16 +475,16 @@ export class VisitsService {
         const translatedFields = this.removeUndefined(fieldsForVisit)
 
         try {
-            const affectedRows = await this.visitsRepo.update( +id, translatedFields )
+            const affectedRows = await this.visitsRepo.update(id, translatedFields)
             if (affectedRows === 0) {
                 throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`);
             }
 
             if ( body.expediente ) {
-                const existingExpediente = await this.expedienteRepo.findByHistoryId(+id)
+                const existingExpediente = await this.expedienteRepo.findByHistoryId(id)
                 const now = new Date().toISOString()
                 const expedienteRecord: ExpedienteExtra = {
-                    historyId: +id,
+                    historyId: id,
                     patientId: body.patient ?? existingExpediente?.patientId,
                     origin: originKey,
                     standard: body.expediente.standard,
@@ -492,7 +492,7 @@ export class VisitsService {
                     createdAt: existingExpediente?.createdAt ?? now,
                     updatedAt: now
                 }
-                await this.expedienteRepo.upsert(+id, expedienteRecord)
+                await this.expedienteRepo.upsert(id, expedienteRecord)
             }
 
             if (stockDelta.length > 0) {
@@ -503,7 +503,7 @@ export class VisitsService {
                     await this.stockService.reduceStockQuantities(increases)
                     await Promise.all([
                         this.stockService.insertStockInvoice(existingVisit.FacturaID, increases),
-                        this.stockService.insertStockHistory(+id, increases)
+                        this.stockService.insertStockHistory(id, increases)
                     ])
                 }
 
@@ -515,7 +515,7 @@ export class VisitsService {
                     // original charge instead of needing an UPDATE/DELETE.
                     await Promise.all([
                         this.stockService.insertStockInvoice(existingVisit.FacturaID, decreases),
-                        this.stockService.insertStockHistory(+id, decreases)
+                        this.stockService.insertStockHistory(id, decreases)
                     ])
                 }
 
@@ -528,14 +528,14 @@ export class VisitsService {
                 }
             }
 
-            return this.findVisitById(+id);
+            return this.findVisitById(id);
         } catch (err: any) {
             console.log('Error editing visit:', err);
             throw err;
         }
     };
 
-    deleteVisit = async ( id: number ): Promise<any> => {
+    deleteVisit = async ( id: string ): Promise<any> => {
         try {
             const existingVisit = await this.visitsRepo.findById( id )
 
@@ -557,7 +557,7 @@ export class VisitsService {
         }
     }
 
-    private annulInvoiceForVisit = async ( facturaId: number ): Promise<void> => {
+    private annulInvoiceForVisit = async ( facturaId: string ): Promise<void> => {
         const invoice = await this.invoiceService.getInvByFacturaId( facturaId )
         if ( !invoice ) return
 
@@ -592,7 +592,7 @@ export class VisitsService {
         }
     }
 
-    getStockItems = async ( term: number ): Promise<any> => {
+    getStockItems = async ( term: string ): Promise<any> => {
         try {
             const resp = await this.visitsRepo.findStockItems( term )
             return {
@@ -622,7 +622,7 @@ export class VisitsService {
         return normalized
     }
 
-    private async resolveOrigin(body: CreateVisitPayload, id: number): Promise<VisitOrigin> {
+    private async resolveOrigin(body: CreateVisitPayload, id: string): Promise<VisitOrigin> {
         if (body.origin) {
             return this.assertOrigin(body.origin)
         }

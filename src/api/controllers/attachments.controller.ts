@@ -32,14 +32,14 @@ export class AttachmentsController {
       const { label, source, recordId } = req.body ?? {}
       const data = await this.service.upload({
         tenantCode: user.codigoEmpresa,
-        patientId: Number(req.params['id']),
-        recordId: recordId ? Number(recordId) : null,
+        patientId: String(req.params['id']),
+        recordId: recordId ? String(recordId) : null,
         label: String(label ?? ''),
         source: String(source ?? ''),
         buffer: file.buffer,
         originalName: file.originalname,
         declaredMime: file.mimetype,
-        uploadedBy: Number(user.uid),
+        uploadedBy: user.uid,
       })
       res.status(201).json({ data })
     } catch (err) { next(err) }
@@ -47,8 +47,8 @@ export class AttachmentsController {
 
   listByPatient = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const recordId = req.query['recordId'] ? Number(req.query['recordId']) : null
-      const data = await this.service.listByPatient(Number(req.params['id']), recordId)
+      const recordId = req.query['recordId'] ? String(req.query['recordId']) : null
+      const data = await this.service.listByPatient(String(req.params['id']), recordId)
       res.json({ data })
     } catch (err) { next(err) }
   }
@@ -64,7 +64,7 @@ export class AttachmentsController {
   softDelete = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = (req as any).user as TokenPayload
-      await this.service.softDelete(Number(req.params['id']), user.codigoEmpresa)
+      await this.service.softDelete(String(req.params['id']), user.codigoEmpresa)
       res.json({ data: { deleted: true } })
     } catch (err) { next(err) }
   }
@@ -89,10 +89,10 @@ export class AttachmentsController {
   private stream = async (req: Request, res: Response, next: NextFunction, disposition: 'inline' | 'attachment') => {
     try {
       const user = (req as any).user as TokenPayload
-      const attachment = await this.service.getForAccess(Number(req.params['id']), user.codigoEmpresa)
+      const attachment = await this.service.getForAccess(String(req.params['id']), user.codigoEmpresa)
 
       // Audit before serving any bytes — every /view and /download hit is logged.
-      await this.service.logAccess(attachment.id, Number(user.uid), req.ip ?? null)
+      await this.service.logAccess(attachment.id, user.uid, req.ip ?? null)
 
       const size = Number(attachment.size_bytes)
       res.setHeader('Cache-Control', 'private, no-store')

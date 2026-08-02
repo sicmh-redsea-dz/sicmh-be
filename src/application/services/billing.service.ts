@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 
 import { BillingRepository, BillingFilters } from '../ports/billing.repository'
 import { BillingLedgerRepository } from '../ports/billing-ledger.repository'
@@ -22,13 +22,13 @@ import { renderPdfFromHtml } from '../../utils/pdfRenderer'
 interface ReportFilters {
   from?: string
   to?: string
-  patientIds?: number[]
+  patientIds?: string[]
   station?: string
   status?: string
 }
 
 interface ManualChargePayload {
-  patientId: number
+  patientId: string
   patientName?: string
   encounterId?: string
   invoiceNumber?: string
@@ -52,10 +52,10 @@ interface MovementChargePayload {
 }
 
 interface MovementPayload {
-  patientId: number
+  patientId: string
   patientName?: string
   encounterId?: string
-  doctorId?: number
+  doctorId?: string
   doctorName?: string
   fromStation?: BillingStation | string
   toStation: BillingStation | string
@@ -208,7 +208,7 @@ export class BillingService {
     const unitPrice = Number(payload.unitPrice ?? 0)
     const total = quantity * unitPrice
     const item: BillingLedgerItem = {
-      id: uuidv4(),
+      id: randomUUID(),
       patientId: payload.patientId,
       patientName,
       encounterId: encounter.id,
@@ -342,7 +342,7 @@ export class BillingService {
       await this.touchEncounter(encounter.id)
 
       const newEvent: PatientMovementEvent = {
-        id: uuidv4(),
+        id: randomUUID(),
         patientId: payload.patientId,
         patientName,
         encounterId: encounter.id,
@@ -436,7 +436,7 @@ export class BillingService {
     }
 
     const item: BillingLedgerItem = {
-      id: uuidv4(),
+      id: randomUUID(),
       patientId: payload.patientId,
       patientName,
       encounterId: resolvedEncounter.id,
@@ -467,7 +467,7 @@ export class BillingService {
   }
 
   private async resolvePendingInvoice(
-    patientId: number,
+    patientId: string,
     occurredAt: string,
     invoiceNumber?: string
   ): Promise<Record<string, any> | null> {
@@ -479,7 +479,7 @@ export class BillingService {
   }
 
   private async resolveChargeEncounter(args: {
-    patientId: number
+    patientId: string
     patientName: string
     encounterId?: string
     invoiceNumber?: string
@@ -494,7 +494,7 @@ export class BillingService {
         invoiceNumber
       )
 
-      if (!invoice || Number(invoice.PacienteID) !== Number(patientId)) {
+      if (!invoice || String(invoice.PacienteID) !== patientId) {
         return null
       }
 
@@ -505,7 +505,8 @@ export class BillingService {
           patientId,
           patientName,
           invoiceNumber,
-          status
+          status,
+          createdAt: String(invoice.FechaFactura ?? new Date().toISOString()),
         } as PatientEncounter
       }
 
@@ -560,7 +561,7 @@ export class BillingService {
       manualTotal: this.sum(manualItems)
     }
 
-    const patientMap = new Map<number, any>()
+    const patientMap = new Map<string, any>()
     const dayMap = new Map<string, any>()
     const categoryMap = new Map<string, any>()
     const stationMap = new Map<string, any>()
@@ -702,13 +703,13 @@ export class BillingService {
   }
 
   public registerEncounterForInvoice = async (payload: {
-    patientId: number
+    patientId: string
     patientName: string
-    doctorId?: number
+    doctorId?: string
     doctorName?: string
     origin?: BillingStation | string
     invoiceNumber: string
-    invoiceId?: number
+    invoiceId?: string
     createdAt?: string
     status?: EncounterStatus
   }) => {
@@ -746,7 +747,7 @@ export class BillingService {
         .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))[0]
 
       const encounter: PatientEncounter = {
-        id: uuidv4(),
+        id: randomUUID(),
         patientId: payload.patientId,
         patientName: payload.patientName,
         doctorId: payload.doctorId,
@@ -767,8 +768,8 @@ export class BillingService {
     })
   }
 
-  public getDefaultConsultaService = async (): Promise<{ id: number; name: string; price: number } | null> => {
-    const service = await this.invoiceRepo.fetchServiceById(1) ?? await this.invoiceRepo.fetchFirstService()
+  public getDefaultConsultaService = async (): Promise<{ id: string; name: string; price: number } | null> => {
+    const service = await this.invoiceRepo.fetchFirstService()
     if (!service) {
       console.warn('getDefaultConsultaService: no services found in DB')
       return null
@@ -782,11 +783,11 @@ export class BillingService {
 
   public addConsultaServiceLedgerItem = async (params: {
     invoiceNumber: string
-    patientId: number
+    patientId: string
     patientName?: string
     encounterId?: string
     occurredAt?: string
-    service: { id: number; name: string; price: number }
+    service: { id: string; name: string; price: number }
   }): Promise<void> => {
     const { invoiceNumber, patientId, patientName, encounterId, occurredAt, service } = params
 
@@ -798,7 +799,7 @@ export class BillingService {
       if (alreadyAdded) return
 
       const item: BillingLedgerItem = {
-        id: uuidv4(),
+        id: randomUUID(),
         patientId,
         patientName: patientName ?? '',
         encounterId,
@@ -835,7 +836,7 @@ export class BillingService {
     })
   }
 
-  private async resolveEncounter(patientId: number, encounterId?: string) {
+  private async resolveEncounter(patientId: string, encounterId?: string) {
     const store = await this.encountersRepo.load()
     const isPending = (enc: PatientEncounter) =>
       this.normalizeFilter(enc.status) === this.normalizeFilter('Pendiente')
@@ -983,7 +984,7 @@ export class BillingService {
     })
   }
 
-  private async updateEncounterDoctor(encounterId: string, doctorId?: number, doctorName?: string) {
+  private async updateEncounterDoctor(encounterId: string, doctorId?: string, doctorName?: string) {
     if (!doctorId && !doctorName) return
     await this.encountersRepo.update((store) => {
       const target = store.encounters.find((enc) => enc.id === encounterId)
@@ -996,13 +997,13 @@ export class BillingService {
     })
   }
 
-  private async resolvePatientName(patientId: number, providedName?: string) {
+  private async resolvePatientName(patientId: string, providedName?: string) {
     if (providedName && providedName.trim()) return providedName.trim()
     const patient = await this.patientsService.findOnePatient(patientId)
     return `${patient.name} ${patient.lastName}`.trim()
   }
 
-  private getLastMovement(events: PatientMovementEvent[], patientId: number, encounterId?: string) {
+  private getLastMovement(events: PatientMovementEvent[], patientId: string, encounterId?: string) {
     return events.find((event) => event.patientId === patientId && (!encounterId || event.encounterId === encounterId)) ?? null
   }
 

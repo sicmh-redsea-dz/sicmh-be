@@ -15,6 +15,7 @@ export const singleFileUpload = (fieldName: string) => {
     // scope set by authMiddleware — capture the pool now and re-enter the tenant
     // context before handing off to the controller.
     const pool = TenantContext.getPool()
+    const db = TenantContext.getDb()
 
     upload.single(fieldName)(req, res, (err: any) => {
       if (err instanceof MulterError) {
@@ -24,7 +25,7 @@ export const singleFileUpload = (fieldName: string) => {
         next(Object.assign(new Error('Validation error'), { name: 'validation_errors', errors: [{ msg }] }))
         return
       }
-      TenantContext.run(pool, () => next(err))
+      TenantContext.run(pool, db, () => next(err))
     })
   }
 }

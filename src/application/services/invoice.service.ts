@@ -59,7 +59,7 @@ export class InvoiceService {
         }
     }
 
-    getInvByFacturaId = async ( facturaId: number ): Promise<Record<string, any> | null> => {
+    getInvByFacturaId = async ( facturaId: string ): Promise<Record<string, any> | null> => {
         try {
             return await this.invoiceRepo.findById( facturaId )
         } catch ( err: any ) {
@@ -133,7 +133,7 @@ export class InvoiceService {
         }
     }
 
-    incrementAmountById = async ( invoiceId: number, delta: number ): Promise<void> => {
+    incrementAmountById = async ( invoiceId: string, delta: number ): Promise<void> => {
         if (!delta) return
         try {
             await this.invoiceRepo.incrementAmountById( invoiceId, delta )

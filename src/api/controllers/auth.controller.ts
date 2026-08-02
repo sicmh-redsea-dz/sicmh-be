@@ -25,8 +25,8 @@ export class AuthController {
       if (!email || !password) throwValidationError('El correo y la contraseña son obligatorios.')
       if (!codigoEmpresa) throwValidationError('El código de empresa es obligatorio.')
 
-      const { pool, dbName } = await PoolManager.getPool(codigoEmpresa)
-      const { user: registeredUser, sessionVersion } = await TenantContext.run(pool, () =>
+      const { pool, db, dbName } = await PoolManager.getPool(codigoEmpresa)
+      const { user: registeredUser, sessionVersion } = await TenantContext.run(pool, db, () =>
         this.authService.register({ name, email, password })
       )
       const token = generateToken(registeredUser._id, codigoEmpresa.toUpperCase(), dbName, sessionVersion)
@@ -42,8 +42,8 @@ export class AuthController {
       if (!email || !password) throwValidationError('El correo y la contraseña son obligatorios.')
       if (!codigoEmpresa) throwValidationError('El código de empresa es obligatorio.')
 
-      const { pool, dbName } = await PoolManager.getPool(codigoEmpresa)
-      const { user: loggedUser, sessionVersion } = await TenantContext.run(pool, () =>
+      const { pool, db, dbName } = await PoolManager.getPool(codigoEmpresa)
+      const { user: loggedUser, sessionVersion } = await TenantContext.run(pool, db, () =>
         this.authService.login({ email, password })
       )
       const token = generateToken(loggedUser._id, codigoEmpresa.toUpperCase(), dbName, sessionVersion)
@@ -56,7 +56,7 @@ export class AuthController {
   checkToken = async (req: Request, res: Response, next: NextFunction) => {
     const { uid } = (req as any).user
     try {
-      const currentUser = await this.authService.checkToken(Number(uid))
+      const currentUser = await this.authService.checkToken(String(uid))
       res.status(200).json({ user: currentUser })
     } catch (err) {
       next(err)

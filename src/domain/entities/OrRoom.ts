@@ -4,9 +4,9 @@ export type OrRoomStatus = 'available' | 'occupied' | 'maintenance' | 'blocked'
 
 export interface OrRoomAssignment {
   assignmentId: string
-  patientId: number
+  patientId: string
   patientName: string
-  doctorId?: number
+  doctorId?: string
   doctorName?: string
   procedure?: string
   anesthesiaType?: string
@@ -27,7 +27,7 @@ export interface OrRoomHistoryEntry {
 }
 
 export interface OrRoomRecord {
-  id: number
+  id: string
   code: string
   specialty?: string
   status: OrRoomStatus

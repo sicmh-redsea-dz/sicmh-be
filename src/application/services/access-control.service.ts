@@ -26,9 +26,9 @@ export class AccessControlService {
     return store.roles ?? {}
   }
 
-  async getUserOverrides(): Promise<Record<number, PermissionOverride>> {
+  async getUserOverrides(): Promise<Record<string, PermissionOverride>> {
     const store = await this.userRepo.load()
-    const map: Record<number, PermissionOverride> = {}
+    const map: Record<string, PermissionOverride> = {}
     store.users.forEach((item) => {
       map[item.userId] = { grants: item.grants ?? [], revokes: item.revokes ?? [], updatedAt: item.updatedAt }
     })
@@ -49,7 +49,7 @@ export class AccessControlService {
     return store.roles[normalized]
   }
 
-  async updateUserOverride(userId: number, grants: Permission[], revokes: Permission[]) {
+  async updateUserOverride(userId: string, grants: Permission[], revokes: Permission[]) {
     const store = await this.userRepo.load()
     const now = new Date().toISOString()
     const existing = store.users.find((u) => u.userId === userId)
@@ -71,7 +71,7 @@ export class AccessControlService {
     return payload
   }
 
-  async resolvePermissions(roles: string[] | null | undefined, userId?: number) {
+  async resolvePermissions(roles: string[] | null | undefined, userId?: string) {
     const permissions = getPermissionsForRoles(roles)
     const [roleOverrides, userOverrides] = await Promise.all([
       this.roleRepo.load(),

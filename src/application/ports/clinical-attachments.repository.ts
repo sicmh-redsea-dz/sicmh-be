@@ -1,20 +1,20 @@
 import { AttachmentSource, ClinicalAttachment } from '../../domain/entities/ClinicalAttachment'
 
 export interface CreateAttachmentParams {
-  patientId: number
-  recordId: number | null
+  patientId: string
+  recordId: string | null
   label: string
   source: AttachmentSource
   gcsObjectPath: string
   mimeType: string
   sizeBytes: number
-  uploadedBy: number
+  uploadedBy: string
 }
 
 export interface ClinicalAttachmentsRepository {
-  create(params: CreateAttachmentParams): Promise<number>
-  findById(id: number): Promise<ClinicalAttachment | null>
-  listByPatient(patientId: number, recordId?: number | null): Promise<ClinicalAttachment[]>
-  softDelete(id: number): Promise<void>
-  logAccess(attachmentId: number, accessedBy: number, ipAddress: string | null): Promise<void>
+  create(params: CreateAttachmentParams): Promise<string>
+  findById(id: string): Promise<ClinicalAttachment | null>
+  listByPatient(patientId: string, recordId?: string | null): Promise<ClinicalAttachment[]>
+  softDelete(id: string): Promise<void>
+  logAccess(attachmentId: string, accessedBy: string, ipAddress: string | null): Promise<void>
 }

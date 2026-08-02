@@ -29,7 +29,7 @@ export type BillingItemSource = 'invoice' | 'stock' | 'manual' | 'movement'
 
 export interface BillingLedgerItem {
   id: string
-  patientId: number
+  patientId: string
   patientName: string
   encounterId?: string
   invoiceNumber?: string
@@ -44,9 +44,9 @@ export interface BillingLedgerItem {
   source: BillingItemSource
   reference?: {
     invoiceNumber?: string
-    visitId?: number
+    visitId?: string
     movementId?: string
-    productId?: number
+    productId?: string
   }
 }
 
@@ -59,7 +59,7 @@ export type MovementSource = 'visit' | 'bed' | 'oroom' | 'manual'
 
 export interface PatientMovementEvent {
   id: string
-  patientId: number
+  patientId: string
   patientName: string
   encounterId?: string
   invoiceNumber?: string
@@ -71,9 +71,9 @@ export interface PatientMovementEvent {
   actor?: AuditActor
   source: MovementSource
   reference?: {
-    visitId?: number
-    bedId?: number
-    roomId?: number
+    visitId?: string
+    bedId?: string
+    roomId?: string
   }
 }
 
@@ -81,13 +81,13 @@ export type EncounterStatus = 'Pendiente' | 'Pagado' | 'Anulado'
 
 export interface PatientEncounter {
   id: string
-  patientId: number
+  patientId: string
   patientName: string
-  doctorId?: number
+  doctorId?: string
   doctorName?: string
   origin?: BillingStation | string
   invoiceNumber: string
-  invoiceId?: number
+  invoiceId?: string
   status: EncounterStatus
   createdAt: string
   updatedAt?: string

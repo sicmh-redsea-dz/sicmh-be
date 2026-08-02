@@ -22,15 +22,15 @@ import { MysqlDashboardRepository } from '../repositories/mysql-dashboard.reposi
 import { MysqlInvoiceRepository } from '../repositories/mysql-invoice.repository'
 import { MysqlBillingRepository } from '../repositories/mysql-billing.repository'
 import { MysqlInvRepository } from '../repositories/mysql-inv.repository'
-import { FileExpedienteRepository } from '../repositories/file-expediente.repository'
-import { FileBedsRepository } from '../repositories/file-beds.repository'
-import { FileOrRoomsRepository } from '../repositories/file-or-rooms.repository'
-import { FileBillingLedgerRepository } from '../repositories/file-billing-ledger.repository'
-import { FilePatientMovementsRepository } from '../repositories/file-patient-movements.repository'
-import { FilePatientEncountersRepository } from '../repositories/file-patient-encounters.repository'
-import { FileUserProfilesRepository } from '../repositories/file-user-profiles.repository'
-import { MysqlRolePermissionsRepository } from '../repositories/mysql-role-permissions.repository'
-import { MysqlUserPermissionsRepository } from '../repositories/mysql-user-permissions.repository'
+import { DrizzleExpedienteRepository } from '../repositories/drizzle-expediente.repository'
+import { DrizzleBedsRepository } from '../repositories/drizzle-beds.repository'
+import { DrizzleOrRoomsRepository } from '../repositories/drizzle-or-rooms.repository'
+import { DrizzleBillingLedgerRepository } from '../repositories/drizzle-billing-ledger.repository'
+import { DrizzlePatientMovementsRepository } from '../repositories/drizzle-patient-movements.repository'
+import { DrizzlePatientEncountersRepository } from '../repositories/drizzle-patient-encounters.repository'
+import { DrizzleUserProfilesRepository } from '../repositories/drizzle-user-profiles.repository'
+import { DrizzleRolePermissionsRepository } from '../repositories/drizzle-role-permissions.repository'
+import { DrizzleUserPermissionsRepository } from '../repositories/drizzle-user-permissions.repository'
 import { ClinicalAttachmentsService } from '../../application/services/clinical-attachments.service'
 import { MysqlClinicalAttachmentsRepository } from '../repositories/mysql-clinical-attachments.repository'
 import { GcsFileStorage } from '../storage/gcs-file-storage'
@@ -61,15 +61,15 @@ export class ServiceContainer {
     private static invoiceRepo: MysqlInvoiceRepository
     private static billingRepo: MysqlBillingRepository
     private static invRepo: MysqlInvRepository
-    private static expedienteRepo: FileExpedienteRepository
-    private static bedsRepo: FileBedsRepository
-    private static orRoomsRepo: FileOrRoomsRepository
-    private static billingLedgerRepo: FileBillingLedgerRepository
-    private static patientMovementsRepo: FilePatientMovementsRepository
-    private static patientEncountersRepo: FilePatientEncountersRepository
-    private static userProfilesRepo: FileUserProfilesRepository
-    private static rolePermissionsRepo: MysqlRolePermissionsRepository
-    private static userPermissionsRepo: MysqlUserPermissionsRepository
+    private static expedienteRepo: DrizzleExpedienteRepository
+    private static bedsRepo: DrizzleBedsRepository
+    private static orRoomsRepo: DrizzleOrRoomsRepository
+    private static billingLedgerRepo: DrizzleBillingLedgerRepository
+    private static patientMovementsRepo: DrizzlePatientMovementsRepository
+    private static patientEncountersRepo: DrizzlePatientEncountersRepository
+    private static userProfilesRepo: DrizzleUserProfilesRepository
+    private static rolePermissionsRepo: DrizzleRolePermissionsRepository
+    private static userPermissionsRepo: DrizzleUserPermissionsRepository
     private static clinicalAttachmentsService: ClinicalAttachmentsService
     private static clinicalAttachmentsRepo: MysqlClinicalAttachmentsRepository
 
@@ -261,60 +261,60 @@ export class ServiceContainer {
         return this.billingRepo
     }
 
-    private static getExpedienteRepository(): FileExpedienteRepository {
+    private static getExpedienteRepository(): DrizzleExpedienteRepository {
         if ( !this.expedienteRepo )
-            this.expedienteRepo = new FileExpedienteRepository()
+            this.expedienteRepo = new DrizzleExpedienteRepository()
         return this.expedienteRepo
     }
 
-    private static getBedsRepository(): FileBedsRepository {
+    private static getBedsRepository(): DrizzleBedsRepository {
         if ( !this.bedsRepo )
-            this.bedsRepo = new FileBedsRepository()
+            this.bedsRepo = new DrizzleBedsRepository()
         return this.bedsRepo
     }
 
-    private static getOrRoomsRepository(): FileOrRoomsRepository {
+    private static getOrRoomsRepository(): DrizzleOrRoomsRepository {
         if ( !this.orRoomsRepo )
-            this.orRoomsRepo = new FileOrRoomsRepository()
+            this.orRoomsRepo = new DrizzleOrRoomsRepository()
         return this.orRoomsRepo
     }
 
-    private static getBillingLedgerRepository(): FileBillingLedgerRepository {
+    private static getBillingLedgerRepository(): DrizzleBillingLedgerRepository {
         if (!this.billingLedgerRepo)
-            this.billingLedgerRepo = new FileBillingLedgerRepository()
+            this.billingLedgerRepo = new DrizzleBillingLedgerRepository()
         return this.billingLedgerRepo
     }
 
-    private static getPatientMovementsRepository(): FilePatientMovementsRepository {
+    private static getPatientMovementsRepository(): DrizzlePatientMovementsRepository {
         if (!this.patientMovementsRepo)
-            this.patientMovementsRepo = new FilePatientMovementsRepository()
+            this.patientMovementsRepo = new DrizzlePatientMovementsRepository()
         return this.patientMovementsRepo
     }
 
-    private static getPatientEncountersRepository(): FilePatientEncountersRepository {
+    private static getPatientEncountersRepository(): DrizzlePatientEncountersRepository {
         if (!this.patientEncountersRepo) {
-            this.patientEncountersRepo = new FilePatientEncountersRepository()
+            this.patientEncountersRepo = new DrizzlePatientEncountersRepository()
         }
         return this.patientEncountersRepo
     }
 
-    private static getUserProfilesRepository(): FileUserProfilesRepository {
+    private static getUserProfilesRepository(): DrizzleUserProfilesRepository {
         if (!this.userProfilesRepo) {
-            this.userProfilesRepo = new FileUserProfilesRepository()
+            this.userProfilesRepo = new DrizzleUserProfilesRepository()
         }
         return this.userProfilesRepo
     }
 
-    private static getRolePermissionsRepository(): MysqlRolePermissionsRepository {
+    private static getRolePermissionsRepository(): DrizzleRolePermissionsRepository {
         if (!this.rolePermissionsRepo) {
-            this.rolePermissionsRepo = new MysqlRolePermissionsRepository()
+            this.rolePermissionsRepo = new DrizzleRolePermissionsRepository()
         }
         return this.rolePermissionsRepo
     }
 
-    private static getUserPermissionsRepository(): MysqlUserPermissionsRepository {
+    private static getUserPermissionsRepository(): DrizzleUserPermissionsRepository {
         if (!this.userPermissionsRepo) {
-            this.userPermissionsRepo = new MysqlUserPermissionsRepository()
+            this.userPermissionsRepo = new DrizzleUserPermissionsRepository()
         }
         return this.userPermissionsRepo
     }

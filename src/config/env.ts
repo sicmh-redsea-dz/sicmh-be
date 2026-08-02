@@ -8,15 +8,21 @@ const parsePort = (value: string | undefined, fallback: number) => {
     return Number.isFinite(parsed) ? parsed : fallback
 }
 
+const required = (name: string): string => {
+    const value = process.env[name]?.trim()
+    if (!value) throw new Error(`Missing required environment variable: ${name}`)
+    return value
+}
+
 export const config = {
     PORT: parsePort(process.env.PORT, 3000),
     PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL || '',
     HOST: process.env.HOST || '0.0.0.0',
-    DB_HOST: process.env.DB_HOST || 'localhost',
-    DB_PORT: process.env.DB_PORT || '5432',
-    DB_USER: process.env.DB_USER,
-    DB_PASSWORD: process.env.DB_PASSWORD,
-    DB_SCHEMA: process.env.DB_SCHEMA,
+    DB_HOST: required('DB_HOST'),
+    DB_PORT: parsePort(process.env.DB_PORT, 3306),
+    DB_USER: required('DB_USER'),
+    DB_PASSWORD: required('DB_PASSWORD'),
+    DB_GLOBAL_SCHEMA: required('DB_GLOBAL_SCHEMA'),
     SECRET_JWT_TOKEN: process.env.SECRET_JWT_TOKEN || '',
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '2h',
     GCS_CLINICAL_BUCKET: process.env.GCS_CLINICAL_BUCKET || 'nubsmart-medit-clinical',

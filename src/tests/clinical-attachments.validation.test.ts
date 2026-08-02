@@ -1,6 +1,7 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
+import { randomUUID } from 'node:crypto'
 import sharp from 'sharp'
 import { ClinicalAttachmentsService, UploadAttachmentParams } from '../application/services/clinical-attachments.service'
 import { ClinicalAttachmentsRepository, CreateAttachmentParams } from '../application/ports/clinical-attachments.repository'
@@ -21,12 +22,11 @@ class FakeStorage implements FileStorage {
 }
 
 class FakeRepo implements ClinicalAttachmentsRepository {
-  public rows = new Map<number, ClinicalAttachment>()
-  public accessLog: Array<{ attachmentId: number; accessedBy: number; ip: string | null }> = []
-  private nextId = 1
+  public rows = new Map<string, ClinicalAttachment>()
+  public accessLog: Array<{ attachmentId: string; accessedBy: string; ip: string | null }> = []
 
-  async create(p: CreateAttachmentParams): Promise<number> {
-    const id = this.nextId++
+  async create(p: CreateAttachmentParams): Promise<string> {
+    const id = randomUUID()
     this.rows.set(id, {
       id,
       patient_id: p.patientId,
@@ -43,21 +43,21 @@ class FakeRepo implements ClinicalAttachmentsRepository {
     return id
   }
 
-  async findById(id: number): Promise<ClinicalAttachment | null> {
+  async findById(id: string): Promise<ClinicalAttachment | null> {
     const row = this.rows.get(id)
     return row && !row.deleted_at ? row : null
   }
 
-  async listByPatient(patientId: number): Promise<ClinicalAttachment[]> {
+  async listByPatient(patientId: string): Promise<ClinicalAttachment[]> {
     return [...this.rows.values()].filter((r) => r.patient_id === patientId && !r.deleted_at)
   }
 
-  async softDelete(id: number): Promise<void> {
+  async softDelete(id: string): Promise<void> {
     const row = this.rows.get(id)
     if (row) row.deleted_at = new Date().toISOString()
   }
 
-  async logAccess(attachmentId: number, accessedBy: number, ip: string | null): Promise<void> {
+  async logAccess(attachmentId: string, accessedBy: string, ip: string | null): Promise<void> {
     this.accessLog.push({ attachmentId, accessedBy, ip })
   }
 }
@@ -72,14 +72,14 @@ const buildService = () => {
 
 const baseParams = (overrides: Partial<UploadAttachmentParams>): UploadAttachmentParams => ({
   tenantCode: 'HNCAMI',
-  patientId: 42,
+  patientId: '00000000-0000-4000-8000-000000000042',
   recordId: null,
   label: 'Radiografía de tórax',
   source: 'file_upload',
   buffer: Buffer.from('%PDF-1.4\n%âãÏÓ\ntest'),
   originalName: 'scan.pdf',
   declaredMime: 'application/pdf',
-  uploadedBy: 7,
+  uploadedBy: '00000000-0000-4000-8000-000000000007',
   ...overrides,
 })
 
@@ -129,7 +129,7 @@ describe('MIME whitelist (magic-byte sniffing)', () => {
     const created = await service.upload(baseParams({ declaredMime: 'application/octet-stream' }))
     assert.equal(created.mime_type, 'application/pdf')
     assert.equal(clinical.saved.length, 1)
-    assert.ok(created.gcs_object_path.startsWith('HNCAMI/patients/42/'))
+    assert.ok(created.gcs_object_path.startsWith(`HNCAMI/patients/${baseParams({}).patientId}/`))
   })
 
   test('file_upload stores the original bytes untouched (no recompression)', async () => {
@@ -193,9 +193,9 @@ describe('tenant path defense in depth', () => {
   test('getForAccess refuses an attachment whose GCS path belongs to another tenant', async () => {
     const { service, repo } = buildService()
     const id = await repo.create({
-      patientId: 1, recordId: null, label: 'x', source: 'file_upload',
+      patientId: '00000000-0000-4000-8000-000000000001', recordId: null, label: 'x', source: 'file_upload',
       gcsObjectPath: 'OTHERCLINIC/patients/1/123_x.pdf', mimeType: 'application/pdf',
-      sizeBytes: 10, uploadedBy: 1,
+      sizeBytes: 10, uploadedBy: '00000000-0000-4000-8000-000000000001',
     })
     await assert.rejects(service.getForAccess(id, 'HNCAMI'), (err: any) => err.name === 'not_found_error')
     await assert.doesNotReject(service.getForAccess(id, 'OTHERCLINIC'))

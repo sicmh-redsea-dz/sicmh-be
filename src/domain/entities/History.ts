@@ -1,6 +1,6 @@
 export interface ShortHistory {
-    HistoriaID:         number
-    PacienteID:         number
+    HistoriaID:         string
+    PacienteID:         string
     NombreDoctor:       string
     NombrePaciente:     string
     IdPaciente:         string
@@ -13,8 +13,8 @@ export interface ShortHistory {
 }
 
 export interface History {
-    HistoriaID:        number
-    PacienteID:        number
+    HistoriaID:        string
+    PacienteID:        string
     FechaVisita:       Date
     Diagnostico:       string | null
     Tratamiento:       string | null
@@ -32,8 +32,8 @@ export interface History {
     FechaUltimaVisita: Date
     isActive:          number
     TipoVisita:        string
-    FacturaID:         number
-    PersonalID:        number
+    FacturaID:         string
+    PersonalID:        string
 
     Ant_Familiar    : string | null
     Ant_Habito      : string | null
@@ -43,5 +43,5 @@ export interface History {
     NombrePaciente  : string
     NombreDoctor    : string
 
-    InventarioUsado : {InventarioID: number, CantidadUsada: number}[]
+    InventarioUsado : {InventarioID: string, CantidadUsada: number}[]
 }  

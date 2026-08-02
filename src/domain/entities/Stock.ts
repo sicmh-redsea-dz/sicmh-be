@@ -1,5 +1,5 @@
 export interface Stock {
-    ProductoID:     number
+    ProductoID:     string
     NombreProducto: string
     Descripcion:    string
     Cantidad:       number

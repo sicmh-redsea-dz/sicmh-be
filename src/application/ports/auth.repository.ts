@@ -4,7 +4,7 @@ export interface AuthCreateUserParams {
     name: string
     email: string
     passwordHash?: string
-    roleId: number
+    roleId: string
     active: number
     firebaseId: string
     provider: 'conventional' | 'google'
@@ -18,27 +18,27 @@ export interface PersonalCreateParams {
     telefono?: string
     correoElectronico?: string
     especialidad?: string
-    usuarioId: number
+    usuarioId: string
     gCalCalendarId?: string | null
 }
 
 export interface AuthRepository {
-    createUser(params: AuthCreateUserParams): Promise<number>
+    createUser(params: AuthCreateUserParams): Promise<string>
     findByEmail(email: string): Promise<User | null>
-    findById(id: number): Promise<User | null>
+    findById(id: string): Promise<User | null>
     findByFirebaseId(uid: string): Promise<User | null>
     countUsers(): Promise<number>
     listUsers(): Promise<any[]>
     listRoles(): Promise<any[]>
-    createRole(name: string): Promise<number>
-    updateUserRole(userId: number, roleId: number): Promise<void>
-    updateUserProfile(userId: number, payload: { name: string; email: string }): Promise<void>
-    deleteUser(userId: number): Promise<void>
-    changeUserPassword(userId: number, passwordHash: string): Promise<void>
-    createPersonalRecord(params: PersonalCreateParams): Promise<number>
-    getSessionVersion(userId: number): Promise<number>
+    createRole(name: string): Promise<string>
+    updateUserRole(userId: string, roleId: string): Promise<void>
+    updateUserProfile(userId: string, payload: { name: string; email: string }): Promise<void>
+    deleteUser(userId: string): Promise<void>
+    changeUserPassword(userId: string, passwordHash: string): Promise<void>
+    createPersonalRecord(params: PersonalCreateParams): Promise<string>
+    getSessionVersion(userId: string): Promise<number>
     // Pass the already-known current version (e.g. from a just-fetched User
     // row) to skip the extra read-back query; omit it to fall back to a
     // fresh SELECT after the UPDATE.
-    incrementSessionVersion(userId: number, currentVersion?: number): Promise<number>
+    incrementSessionVersion(userId: string, currentVersion?: number): Promise<number>
 }

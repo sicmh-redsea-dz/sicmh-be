@@ -12,7 +12,7 @@ export interface FindAllVistiHistories {
 }
 
 export interface ShortHistoryResponse {
-    id: number
+    id: string
     doctorName: string
     patientName: string
     lastVisitDate: string
@@ -31,8 +31,8 @@ export interface ShortHistoryResponse {
 }
 
 export interface HistoryResponse {
-    id: number
-    patientId: number
+    id: string
+    patientId: string
     visitDate: Date
     diagnosis: string | null
     treatment: string | null
@@ -49,14 +49,14 @@ export interface HistoryResponse {
     ageBasedOnWeight: string | null
     lastVisitDate: Date
     visitType: string
-    invoiceId: number
-    staffId: number
+    invoiceId: string
+    staffId: string
     familyHst       : string | null
     backgroundHst   : string | null
     pathologicalHst : string | null
     surgicalHst     : string | null
     patientName: string
     docName: string
-    usedInventory : { stockId: number, stockQty: number}[]
+    usedInventory : { stockId: string, stockQty: number}[]
     expediente?: ExpedientePayload | null
 }

@@ -13,7 +13,7 @@ export class StockService {
         }
     }
 
-    readAmountByStockQty = async(items: { id: number; qty: number }[]): Promise<any> => {
+    readAmountByStockQty = async(items: { id: string; qty: number }[]): Promise<any> => {
         try {
             return await this.stockRepo.readAmountByStockQty( items )
         } catch ( err: any ) {
@@ -23,9 +23,9 @@ export class StockService {
 
     reduceStockQuantities = async (
         items: { 
-            id: number; 
+            id: string; 
             qty: number, 
-            subinventoryId?:number 
+            subinventoryId?:string 
         }[]
     ): Promise<void> => {
         try {
@@ -38,9 +38,9 @@ export class StockService {
 
     restoreStockQuantities = async (
         items: {
-            id: number;
+            id: string;
             qty: number,
-            subinventoryId?:number
+            subinventoryId?:string
         }[]
     ): Promise<void> => {
         try {
@@ -51,7 +51,7 @@ export class StockService {
         }
     }
 
-    insertStockInvoice = async (facturaId: number, items: { id: number; qty: number }[]): Promise<void> => {
+    insertStockInvoice = async (facturaId: string, items: { id: string; qty: number }[]): Promise<void> => {
         try {
             await this.stockRepo.insertStockInvoice( facturaId, items )
         } catch (err) {
@@ -59,7 +59,7 @@ export class StockService {
         }
     }
 
-    insertStockHistory = async ( historyId: number, items: { id: number; qty: number }[] ): Promise<void> => {
+    insertStockHistory = async ( historyId: string, items: { id: string; qty: number }[] ): Promise<void> => {
         try {
             await this.stockRepo.insertStockHistory( historyId, items )
         } catch ( err: any ) {
@@ -68,7 +68,7 @@ export class StockService {
         }
     }
 
-    findInvoiceItems = async ( invoiceId: number ): Promise<{ id: number; qty: number; name: string; unitPrice: number }[]> => {
+    findInvoiceItems = async ( invoiceId: string ): Promise<{ id: string; qty: number; name: string; unitPrice: number }[]> => {
         try {
             return await this.stockRepo.findByInvoiceId(invoiceId)
         } catch ( err ) {
@@ -76,7 +76,7 @@ export class StockService {
         }
     }
 
-    copyInvoiceItems = async ( fromInvoiceId: number, toInvoiceId: number ) => {
+    copyInvoiceItems = async ( fromInvoiceId: string, toInvoiceId: string ) => {
         const items = await this.findInvoiceItems(fromInvoiceId)
         if (!items.length) return { items: [], amount: 0 }
 

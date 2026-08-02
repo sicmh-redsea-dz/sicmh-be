@@ -11,7 +11,7 @@ const resolveUser = async (req: Request) => {
   if (!uid) return null
 
   const authService = ServiceContainer.getAuthService()
-  return await authService.checkToken(Number(uid))
+  return await authService.checkToken(String(uid))
 }
 
 // checkToken() already resolves and attaches permissions once; reuse that
@@ -19,7 +19,7 @@ const resolveUser = async (req: Request) => {
 const resolveUserPermissions = async (user: any): Promise<Set<Permission>> => {
   if (Array.isArray(user.permissions)) return new Set(user.permissions)
   const accessControl = ServiceContainer.getAccessControlService()
-  return accessControl.resolvePermissions(user.roles ?? [], Number(user._id))
+  return accessControl.resolvePermissions(user.roles ?? [], String(user._id))
 }
 
 export const requirePermissions = (required: Permission | Permission[]) => {

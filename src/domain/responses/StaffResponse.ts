@@ -1,5 +1,5 @@
 export interface StaffResponse {
-    id:         number
+    id:         string
     name:       string
     specialty:  string
 }

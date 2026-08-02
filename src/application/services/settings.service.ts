@@ -12,7 +12,7 @@ import { hashPassword } from '../../utils/passwordUtils'
 type InvitePayload = {
   name: string
   email: string
-  roleId: number
+  roleId: string
   profile?: Partial<UserProfile>
 }
 
@@ -42,7 +42,7 @@ export class SettingsService {
     private readonly accessControlService: AccessControlService
   ) {}
 
-  listRoles = async (): Promise<{ id: number; name: string; key: string }[]> => {
+  listRoles = async (): Promise<{ id: string; name: string; key: string }[]> => {
     let roles = await this.authRepo.listRoles()
     if (!roles.length) {
       await this.seedDefaultRoles()
@@ -84,7 +84,7 @@ export class SettingsService {
     })
   }
 
-  getProfile = async (userId: number): Promise<{ user: AuthResponse & { profile?: UserProfile } }> => {
+  getProfile = async (userId: string): Promise<{ user: AuthResponse & { profile?: UserProfile } }> => {
     const user = await this.authRepo.findById(userId)
     if (!user) throw buildError('not_found_error', 'User not found.')
     const authUser = await UserMapper.toAuthResponse(user)
@@ -93,7 +93,7 @@ export class SettingsService {
     return { user: { ...authUser, profile } }
   }
 
-  updateProfile = async (userId: number, _uid: string, payload: ProfilePayload) => {
+  updateProfile = async (userId: string, _uid: string, payload: ProfilePayload) => {
     const user = await this.authRepo.findById(userId)
     if (!user) throw buildError('not_found_error', 'User not found.')
 
@@ -148,7 +148,7 @@ export class SettingsService {
     }
   }
 
-  updateUserRole = async (userId: number, roleId: number) => {
+  updateUserRole = async (userId: string, roleId: string) => {
     const roles = await this.listRoles()
     const roleExists = roles.some((role) => role.id === roleId)
     if (!roleExists) throw buildValidationError('Rol inválido.')
@@ -168,7 +168,7 @@ export class SettingsService {
     }
   }
 
-  updateRolePermissions = async (roleKey: string, grants: Permission[], revokes: Permission[], actorId?: number) => {
+  updateRolePermissions = async (roleKey: string, grants: Permission[], revokes: Permission[], actorId?: string) => {
     const updated = await this.accessControlService.updateRoleOverride(roleKey, grants, revokes)
     if (actorId) auditPermissionChange(actorId, 'role', roleKey, grants, revokes)
     return { roleKey, override: updated }
@@ -186,7 +186,7 @@ export class SettingsService {
     }
   }
 
-  updateUserPermissions = async (userId: number, grants: Permission[], revokes: Permission[], actorId?: number) => {
+  updateUserPermissions = async (userId: string, grants: Permission[], revokes: Permission[], actorId?: string) => {
     const updated = await this.accessControlService.updateUserOverride(userId, grants, revokes)
     if (actorId) auditPermissionChange(actorId, 'user', String(userId), grants, revokes)
     return { userId, override: updated }
@@ -210,7 +210,7 @@ export class SettingsService {
     const tempPassword = this.generateTempPassword()
     const passwordHash = await hashPassword(tempPassword)
 
-    let userId: number
+    let userId: string
     try {
       userId = await this.authRepo.createUser({
         name,
@@ -278,7 +278,7 @@ export class SettingsService {
     }
   }
 
-  deleteUser = async (userId: number) => {
+  deleteUser = async (userId: string) => {
     const user = await this.authRepo.findById(userId)
     if (!user) throw buildError('not_found_error', 'Usuario no encontrado.')
     await this.authRepo.deleteUser(userId)
@@ -292,7 +292,7 @@ export class SettingsService {
     return { deleted: true }
   }
 
-  changeUserPassword = async (userId: number, newPassword: string) => {
+  changeUserPassword = async (userId: string, newPassword: string) => {
     if (!newPassword || newPassword.length < 6) {
       throw buildValidationError('La contraseña debe tener al menos 6 caracteres.')
     }

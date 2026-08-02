@@ -1,16 +1,24 @@
 import mysql, { Pool } from 'mysql2/promise'
+import { and, eq, isNull } from 'drizzle-orm'
 import { config } from '../../config/env'
+import { companies } from './schema/global'
+import {
+  createGlobalDatabase,
+  createTenantDatabase,
+  GlobalDatabase,
+  TenantDatabase,
+} from './drizzle'
 
 export interface Empresa {
-  CodigoEmpresa: string
-  NombreBaseDatos: string
-  ServidorDB: string
-  PuertoDB: number
-  Activo: number
+  id: string
+  code: string
+  databaseName: string
+  isActive: boolean
 }
 
 interface TenantEntry {
   pool: Pool
+  db: TenantDatabase
   dbName: string
   lastUsed: number
 }
@@ -21,14 +29,15 @@ const EVICT_MS =  5 * 60 * 1000  //  5 minutes
 class PoolManagerClass {
   private readonly tenants = new Map<string, TenantEntry>()
   private global: Pool | null = null
+  private globalDatabase: GlobalDatabase | null = null
 
   init(): void {
     this.global = mysql.createPool({
       host                 : config.DB_HOST,
       user                 : config.DB_USER,
       password             : config.DB_PASSWORD,
-      database             : 'medit_global',
-      port                 : parseInt(config.DB_PORT || '3306', 10),
+      database             : config.DB_GLOBAL_SCHEMA,
+      port                 : config.DB_PORT,
       waitForConnections   : true,
       connectionLimit      : 3,
       queueLimit           : 10,
@@ -37,6 +46,7 @@ class PoolManagerClass {
       keepAliveInitialDelay: 0,
       dateStrings          : true,
     })
+    this.globalDatabase = createGlobalDatabase(this.global)
 
     const timer = setInterval(() => this.evict(), EVICT_MS)
     if (timer.unref) timer.unref()
@@ -47,44 +57,47 @@ class PoolManagerClass {
     return this.global
   }
 
+  globalDb(): GlobalDatabase {
+    if (!this.globalDatabase) throw new Error('PoolManager not initialized. Call init() at server startup.')
+    return this.globalDatabase
+  }
+
   async resolveEmpresa(codigoEmpresa: string): Promise<Empresa> {
     const key = codigoEmpresa.toUpperCase()
-    const sql = 'SELECT CodigoEmpresa, NombreBaseDatos, ServidorDB, PuertoDB, Activo FROM empresas WHERE CodigoEmpresa = ? LIMIT 1'
-    let rows: any[]
-    try {
-      ;[rows] = await this.globalPool().execute<any[]>(sql, [key])
-    } catch (err: any) {
-      if (err?.code === 'ECONNRESET' || err?.code === 'PROTOCOL_CONNECTION_LOST' || err?.errno === -4077) {
-        ;[rows] = await this.globalPool().execute<any[]>(sql, [key])
-      } else {
-        throw err
-      }
-    }
-    const empresa: Empresa = rows[0]
+    const [empresa] = await this.globalDb()
+      .select({
+        id: companies.id,
+        code: companies.code,
+        databaseName: companies.databaseName,
+        isActive: companies.isActive,
+      })
+      .from(companies)
+      .where(and(eq(companies.code, key), isNull(companies.deletedAt)))
+      .limit(1)
     if (!empresa) {
       throw Object.assign(new Error('Código de empresa no encontrado.'), { name: 'not_found_error' })
     }
-    if (!empresa.Activo) {
+    if (!empresa.isActive) {
       throw Object.assign(new Error('La cuenta de la empresa está inactiva.'), { name: 'inactive_company' })
     }
     return empresa
   }
 
-  async getPool(codigoEmpresa: string): Promise<{ pool: Pool; dbName: string }> {
+  async getPool(codigoEmpresa: string): Promise<{ pool: Pool; db: TenantDatabase; dbName: string }> {
     const key = codigoEmpresa.toUpperCase()
     const existing = this.tenants.get(key)
     if (existing) {
       existing.lastUsed = Date.now()
-      return { pool: existing.pool, dbName: existing.dbName }
+      return { pool: existing.pool, db: existing.db, dbName: existing.dbName }
     }
 
     const empresa = await this.resolveEmpresa(key)
     const pool = mysql.createPool({
-      host                 : empresa.ServidorDB,
+      host                 : config.DB_HOST,
       user                 : config.DB_USER,
       password             : config.DB_PASSWORD,
-      database             : empresa.NombreBaseDatos,
-      port                 : empresa.PuertoDB,
+      database             : empresa.databaseName,
+      port                 : config.DB_PORT,
       waitForConnections   : true,
       connectionLimit      : 3,
       queueLimit           : 20,
@@ -93,9 +106,10 @@ class PoolManagerClass {
       keepAliveInitialDelay: 0,
       dateStrings          : true,
     })
+    const db = createTenantDatabase(pool)
 
-    this.tenants.set(key, { pool, dbName: empresa.NombreBaseDatos, lastUsed: Date.now() })
-    return { pool, dbName: empresa.NombreBaseDatos }
+    this.tenants.set(key, { pool, db, dbName: empresa.databaseName, lastUsed: Date.now() })
+    return { pool, db, dbName: empresa.databaseName }
   }
 
   evictCompany(codigoEmpresa: string): void {
