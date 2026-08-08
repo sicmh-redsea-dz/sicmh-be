@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { requirePermissions } from '../middlewares/permission.middleware'
+import { requireVisitOriginPermission } from '../middlewares/permission.middleware'
 import { OrRoomsController } from '../controllers/or-rooms.controller'
 
 const router = Router()
@@ -7,31 +7,31 @@ const controller = new OrRoomsController()
 
 router.get(
   '/',
-  requirePermissions('visits.read'),
+  requireVisitOriginPermission('read', 'operating-room'),
   controller.getRooms.bind(controller)
 )
 
 router.post(
   '/',
-  requirePermissions('visits.update'),
+  requireVisitOriginPermission('update', 'operating-room'),
   controller.createRoom.bind(controller)
 )
 
 router.patch(
   '/:roomId',
-  requirePermissions('visits.update'),
+  requireVisitOriginPermission('update', 'operating-room'),
   controller.updateRoom.bind(controller)
 )
 
 router.post(
   '/:roomId/assign',
-  requirePermissions('visits.update'),
+  requireVisitOriginPermission('update', 'operating-room'),
   controller.assignRoom.bind(controller)
 )
 
 router.post(
   '/:roomId/release',
-  requirePermissions('visits.update'),
+  requireVisitOriginPermission('update', 'operating-room'),
   controller.releaseRoom.bind(controller)
 )
 

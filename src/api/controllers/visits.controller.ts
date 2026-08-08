@@ -2,6 +2,7 @@ import { Request } from 'express';
 import { VisitsService } from '../../application/services/visits.service';
 import { asyncHandler } from '../decorators/asyncHandler';
 import { ServiceContainer } from '../../infrastructure/container/service.container';
+import { TokenPayload } from '../../utils/jwtUtils';
 
 
 
@@ -26,6 +27,12 @@ export class VisitsController {
     async getVisit(req:Request): Promise<any> {
         const { id } = req.params
         return this.visitsService.findVisitById( +id )
+    }
+
+    @asyncHandler()
+    async getPrescription(req: Request): Promise<any> {
+        const user = (req as any).user as TokenPayload
+        return this.visitsService.getPrescriptionContext(Number(req.params['id']), user.codigoEmpresa)
     }
 
     @asyncHandler()

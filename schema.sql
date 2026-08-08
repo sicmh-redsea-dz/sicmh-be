@@ -81,6 +81,11 @@ CREATE TABLE IF NOT EXISTS personal (
   Apellido    VARCHAR(100)  NOT NULL,
   Especialidad VARCHAR(100) NULL,
   Cargo       VARCHAR(50)   NULL,
+  Telefono    VARCHAR(20)   NULL,
+  CorreoElectronico VARCHAR(150) NULL,
+  Direccion   VARCHAR(255)  NULL,
+  FechaContratacion DATE    NULL,
+  GCalCalendarId VARCHAR(255) NULL,
   UsuarioID   INT           NULL,
   PRIMARY KEY (PersonalID),
   CONSTRAINT fk_personal_usuario FOREIGN KEY (UsuarioID) REFERENCES usuarios (UsuarioID) ON DELETE SET NULL

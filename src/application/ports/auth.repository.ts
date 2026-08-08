@@ -16,6 +16,7 @@ export interface PersonalCreateParams {
     apellido: string
     cargo?: string
     telefono?: string
+    direccion?: string
     correoElectronico?: string
     especialidad?: string
     usuarioId: number
@@ -33,6 +34,8 @@ export interface AuthRepository {
     createRole(name: string): Promise<number>
     updateUserRole(userId: number, roleId: number): Promise<void>
     updateUserProfile(userId: number, payload: { name: string; email: string }): Promise<void>
+    getPersonalProfile(userId: number): Promise<any | null>
+    updatePersonalProfile(userId: number, payload: { name: string; email: string; phone?: string; address?: string; department?: string; position?: string }): Promise<void>
     deleteUser(userId: number): Promise<void>
     changeUserPassword(userId: number, passwordHash: string): Promise<void>
     createPersonalRecord(params: PersonalCreateParams): Promise<number>

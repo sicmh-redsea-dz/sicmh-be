@@ -2,6 +2,7 @@ import { Request } from 'express'
 import { ServiceContainer } from '../../infrastructure/container/service.container'
 import { SettingsService } from '../../application/services/settings.service'
 import { asyncHandler } from '../decorators/asyncHandler'
+import { TokenPayload } from '../../utils/jwtUtils'
 
 export class SettingsController {
   private settingsService: SettingsService
@@ -21,6 +22,18 @@ export class SettingsController {
     const currentUser = (req as any).currentUser
     const payload = req.body ?? {}
     return await this.settingsService.updateProfile(Number(currentUser?._id), currentUser?.fireUID, payload)
+  }
+
+  @asyncHandler()
+  async getCompany(req: Request): Promise<any> {
+    const user = (req as any).user as TokenPayload
+    return this.settingsService.getCompany(user.codigoEmpresa)
+  }
+
+  @asyncHandler()
+  async updateCompany(req: Request): Promise<any> {
+    const user = (req as any).user as TokenPayload
+    return this.settingsService.updateCompany(user.codigoEmpresa, req.body?.name)
   }
 
   @asyncHandler()

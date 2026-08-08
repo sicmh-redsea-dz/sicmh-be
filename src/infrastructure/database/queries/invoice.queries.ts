@@ -26,6 +26,13 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                         f.FechaFactura, 
                         f.Estado, 
                         f.Monto,
+                        (
+                            select hm.TipoVisita
+                            from historia_medica as hm
+                            where hm.FacturaID = f.FacturaID
+                            order by hm.FechaVisita asc, hm.HistoriaID asc
+                            limit 1
+                        ) as TipoVisita,
                         f.InvoiceNumber,
                         count(*) over() as total_registries
                     from 

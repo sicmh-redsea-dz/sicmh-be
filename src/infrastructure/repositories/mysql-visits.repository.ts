@@ -25,6 +25,11 @@ export class MysqlVisitsRepository implements VisitsRepository {
         return result[0] ?? null
     }
 
+    async findPrescriptionContext(id: number): Promise<any | null> {
+        const result = await Database.execute<any[]>(visitsQueries('prescription-context'), [id])
+        return result[0] ?? null
+    }
+
     async create(data: Record<string, any>): Promise<number> {
         const { query, values } = this.buildInsertQuery('historia_medica', data)
         const resp = await Database.execute<ResultSetHeader>(query, values)

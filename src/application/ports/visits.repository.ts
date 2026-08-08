@@ -6,6 +6,7 @@ export interface VisitsRepository {
     findAll(args: { limit: number; offset: number; term: string; ext: string }): Promise<ShortHistory[]>
     findAllUnbounded(args: { term: string; ext?: string }): Promise<ShortHistory[]>
     findById(id: number): Promise<History | null>
+    findPrescriptionContext(id: number): Promise<any | null>
     create(data: Record<string, any>): Promise<number>
     update(id: number, data: Record<string, any>): Promise<number>
     softDelete(id: number): Promise<number>

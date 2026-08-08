@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { requirePermissions } from '../middlewares/permission.middleware'
+import { requireVisitOriginPermission } from '../middlewares/permission.middleware'
 import { BedsController } from '../controllers/beds.controller'
 
 const router = Router()
@@ -7,31 +7,31 @@ const controller = new BedsController()
 
 router.get(
   '/:module',
-  requirePermissions('visits.read'),
+  requireVisitOriginPermission('read', 'module'),
   controller.getBeds.bind(controller)
 )
 
 router.post(
   '/:module',
-  requirePermissions('visits.update'),
+  requireVisitOriginPermission('update', 'module'),
   controller.createBed.bind(controller)
 )
 
 router.patch(
   '/:module/:bedId',
-  requirePermissions('visits.update'),
+  requireVisitOriginPermission('update', 'module'),
   controller.updateBed.bind(controller)
 )
 
 router.post(
   '/:module/:bedId/assign',
-  requirePermissions('visits.update'),
+  requireVisitOriginPermission('update', 'module'),
   controller.assignBed.bind(controller)
 )
 
 router.post(
   '/:module/:bedId/release',
-  requirePermissions('visits.update'),
+  requireVisitOriginPermission('update', 'module'),
   controller.releaseBed.bind(controller)
 )
 

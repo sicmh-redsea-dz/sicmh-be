@@ -3,6 +3,7 @@ import { ServiceContainer } from '../../infrastructure/container/service.contain
 import { TokenPayload } from '../../utils/jwtUtils'
 import { parseRangeHeader } from '../../utils/httpRange'
 import { config } from '../../config/env'
+import { PrescriptionAssetType } from '../../application/services/clinical-attachments.service'
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   'image/jpeg': '.jpg',
@@ -80,6 +81,30 @@ export class AttachmentsController {
         })
       }
       const { objectPath } = await this.service.uploadLogo(user.codigoEmpresa, file.buffer)
+      res.status(201).json({
+        data: { url: `https://storage.googleapis.com/${config.GCS_PUBLIC_BUCKET}/${objectPath}` },
+      })
+    } catch (err) { next(err) }
+  }
+
+  uploadPrescriptionAsset = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user as TokenPayload
+      const type = req.params['type'] as PrescriptionAssetType
+      if (type !== 'signature' && type !== 'stamp') {
+        throw Object.assign(new Error('Validation error'), {
+          name: 'validation_errors', errors: [{ msg: 'Tipo de imagen inválido.' }]
+        })
+      }
+      const file = (req as any).file as Express.Multer.File | undefined
+      if (!file) {
+        throw Object.assign(new Error('Validation error'), {
+          name: 'validation_errors', errors: [{ msg: "La imagen es requerida (campo 'file')." }]
+        })
+      }
+      const { objectPath } = await this.service.uploadPrescriptionAsset(
+        user.codigoEmpresa, Number(user.uid), type, file.buffer
+      )
       res.status(201).json({
         data: { url: `https://storage.googleapis.com/${config.GCS_PUBLIC_BUCKET}/${objectPath}` },
       })

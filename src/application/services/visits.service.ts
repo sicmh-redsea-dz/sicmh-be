@@ -11,6 +11,8 @@ import { StockMapper } from '../../domain/mappers/StockMapper'
 import { ExpedientePayload, ExpedienteExtra, VisitOrigin } from '../../domain/entities/Expediente'
 import { ExpedienteRepository } from '../ports/expediente.repository'
 import { Database } from '../../infrastructure/database/Database'
+import { PoolManager } from '../../infrastructure/database/PoolManager'
+import { config } from '../../config/env'
 
 interface CreateVisitPayload {
     BMI:                    number
@@ -190,6 +192,27 @@ export class VisitsService {
             }
         } catch ( err ) {
             throw err
+        }
+    }
+
+    getPrescriptionContext = async (id: number, tenantCode: string): Promise<any> => {
+        const [prescription, company] = await Promise.all([
+            this.visitsRepo.findPrescriptionContext(id),
+            PoolManager.resolveEmpresa(tenantCode)
+        ])
+        if (!prescription) {
+            throw this.errorHandler('not_found_error', `No visit found with Id: ${id}`)
+        }
+        const publicBase = `https://storage.googleapis.com/${config.GCS_PUBLIC_BUCKET}`
+        const doctorAssetBase = prescription.doctorUserId
+            ? `${publicBase}/${tenantCode}/users/${prescription.doctorUserId}`
+            : null
+        return {
+            ...prescription,
+            clinicName: company.NombreEmpresa,
+            logoUrl: `${publicBase}/${tenantCode}/logo.png`,
+            signatureUrl: doctorAssetBase ? `${doctorAssetBase}/signature.png` : null,
+            stampUrl: doctorAssetBase ? `${doctorAssetBase}/stamp.png` : null
         }
     }
 

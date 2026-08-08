@@ -118,6 +118,26 @@ export const authQueries = (key: string, caller?:number) => {
                 where UsuarioID = ?;
             `
             break
+        case 'get-personal-profile':
+            query = `
+                select PersonalID, Telefono, Direccion, Especialidad, Cargo
+                from personal
+                where UsuarioID = ?
+                limit 1;
+            `
+            break
+        case 'update-personal-profile':
+            query = `
+                update personal
+                set Nombre = ?, Apellido = ?,
+                    Telefono = coalesce(?, Telefono),
+                    CorreoElectronico = ?,
+                    Direccion = coalesce(?, Direccion),
+                    Especialidad = coalesce(?, Especialidad),
+                    Cargo = coalesce(?, Cargo)
+                where UsuarioID = ?;
+            `
+            break
         case 'delete-user':
             query = `
                 delete from usuarios
@@ -138,12 +158,13 @@ export const authQueries = (key: string, caller?:number) => {
                     Apellido,
                     Cargo,
                     Telefono,
+                    Direccion,
                     CorreoElectronico,
                     FechaContratacion,
                     Especialidad,
                     UsuarioID,
                     GCalCalendarId
-                ) values ( ?, ?, ?, ?, ?, ?, ?, ?, ? );
+                ) values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );
             `
             break
         case 'get-session-version':

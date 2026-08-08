@@ -9,6 +9,7 @@ const MAX_FILE_UPLOAD_BYTES = 25 * 1024 * 1024
 const MAX_PROCESSED_IMAGE_BYTES = 3 * 1024 * 1024
 const CAMERA_TARGET_WIDTH = 2048
 const MAX_LOGO_BYTES = 5 * 1024 * 1024
+export type PrescriptionAssetType = 'signature' | 'stamp'
 
 // Whitelist enforced by content sniffing (magic bytes), never by filename extension.
 const ALLOWED_MIME_TYPES = new Set([
@@ -156,6 +157,29 @@ export class ClinicalAttachmentsService {
       .toBuffer()
 
     const objectPath = `${tenantCode}/logo.png`
+    await this.publicStorage.save(objectPath, png, {
+      contentType: 'image/png',
+      cacheControl: 'public, max-age=300',
+    })
+    return { objectPath }
+  }
+
+  uploadPrescriptionAsset = async (tenantCode: string, userId: number, type: PrescriptionAssetType, buffer: Buffer): Promise<{ objectPath: string }> => {
+    if (!buffer?.length) throw this.buildValidationError(['La imagen es requerida.'])
+    if (buffer.length > MAX_LOGO_BYTES) {
+      throw this.buildValidationError(['La imagen excede el tamaño máximo permitido (5MB).'])
+    }
+    const sniffed = await fromBuffer(buffer)
+    if (!sniffed || !IMAGE_MIME_TYPES.has(sniffed.mime)) {
+      throw this.buildValidationError(['La firma o sello debe ser una imagen (JPEG, PNG o WebP).'])
+    }
+
+    const png = await sharp(buffer)
+      .rotate()
+      .resize({ width: 1400, height: 700, fit: 'inside', withoutEnlargement: true })
+      .png()
+      .toBuffer()
+    const objectPath = `${tenantCode}/users/${userId}/${type}.png`
     await this.publicStorage.save(objectPath, png, {
       contentType: 'image/png',
       cacheControl: 'public, max-age=300',

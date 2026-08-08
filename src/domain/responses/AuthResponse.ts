@@ -8,6 +8,7 @@ export interface AuthResponse {
     fireUID  : string
     profile?: {
         phone?: string
+        address?: string
         identification?: string
         department?: string
         position?: string

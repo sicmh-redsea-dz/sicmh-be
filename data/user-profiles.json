@@ -25,7 +25,24 @@
       "theme": "light",
       "createdAt": "2026-06-22T15:51:41.866Z",
       "updatedAt": "2026-06-22T15:51:41.866Z"
+    },
+    {
+      "userId": 143,
+      "theme": "light",
+      "createdAt": "2026-08-08T22:00:51.039Z",
+      "updatedAt": "2026-08-08T22:01:10.636Z"
+    },
+    {
+      "userId": 152,
+      "phone": "50433764810",
+      "identification": "",
+      "department": "Podologia",
+      "position": "CEO",
+      "theme": "light",
+      "createdAt": "2026-08-08T22:17:05.759Z",
+      "updatedAt": "2026-08-08T22:45:25.739Z",
+      "address": "Torre Artemisa"
     }
   ],
-  "updatedAt": "2026-06-22T15:51:41.866Z"
+  "updatedAt": "2026-08-08T22:45:25.739Z"
 }

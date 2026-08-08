@@ -8,6 +8,7 @@ import { auditPermissionChange } from '../../utils/permissionAudit'
 import { UserMapper } from '../../domain/mappers/UserMapper'
 import { AuthResponse } from '../../domain/responses/AuthResponse'
 import { hashPassword } from '../../utils/passwordUtils'
+import { PoolManager } from '../../infrastructure/database/PoolManager'
 
 type InvitePayload = {
   name: string
@@ -88,9 +89,20 @@ export class SettingsService {
     const user = await this.authRepo.findById(userId)
     if (!user) throw buildError('not_found_error', 'User not found.')
     const authUser = await UserMapper.toAuthResponse(user)
-    const store = await this.profileRepo.load()
+    const [store, personal] = await Promise.all([
+      this.profileRepo.load(),
+      this.authRepo.getPersonalProfile(userId)
+    ])
     const profile = store.profiles.find((p) => p.userId === userId)
-    return { user: { ...authUser, profile } }
+    const mergedProfile = profile || personal ? {
+      ...profile,
+      userId,
+      phone: profile?.phone ?? personal?.Telefono ?? undefined,
+      address: profile?.address ?? personal?.Direccion ?? undefined,
+      department: profile?.department ?? personal?.Especialidad ?? undefined,
+      position: profile?.position ?? personal?.Cargo ?? undefined
+    } : undefined
+    return { user: { ...authUser, profile: mergedProfile } }
   }
 
   updateProfile = async (userId: number, _uid: string, payload: ProfilePayload) => {
@@ -111,6 +123,14 @@ export class SettingsService {
     }
 
     await this.authRepo.updateUserProfile(userId, { name, email })
+    await this.authRepo.updatePersonalProfile(userId, {
+      name,
+      email,
+      phone: payload.profile?.phone,
+      address: payload.profile?.address,
+      department: payload.profile?.department,
+      position: payload.profile?.position
+    })
 
     const updatedProfile = await this.profileRepo.update((store) => {
       const now = new Date().toISOString()
@@ -118,6 +138,7 @@ export class SettingsService {
       const nextProfile: UserProfile = {
         userId,
         phone: payload.profile?.phone ?? existingProfile?.phone,
+        address: payload.profile?.address ?? existingProfile?.address,
         identification: payload.profile?.identification ?? existingProfile?.identification,
         department: payload.profile?.department ?? existingProfile?.department,
         position: payload.profile?.position ?? existingProfile?.position,
@@ -237,6 +258,7 @@ export class SettingsService {
         store.profiles.push({
           userId,
           phone: payload.profile!.phone,
+          address: payload.profile!.address,
           identification: payload.profile!.identification,
           department: payload.profile!.department,
           position: payload.profile!.position,
@@ -259,6 +281,7 @@ export class SettingsService {
           apellido,
           cargo: payload.profile?.position || 'Doctor',
           telefono: payload.profile?.phone,
+          direccion: payload.profile?.address,
           correoElectronico: email,
           especialidad: payload.profile?.department,
           usuarioId: userId,
@@ -305,6 +328,18 @@ export class SettingsService {
 
   clearPasswordChangeFlag = async (_uid: string) => {
     return { updated: true }
+  }
+
+  getCompany = async (tenantCode: string) => {
+    const company = await PoolManager.resolveEmpresa(tenantCode)
+    return { name: company.NombreEmpresa }
+  }
+
+  updateCompany = async (tenantCode: string, name: string) => {
+    const normalized = name?.trim()
+    if (!normalized) throw buildValidationError('Nombre de la clínica requerido.')
+    await PoolManager.updateEmpresaName(tenantCode, normalized)
+    return { name: normalized }
   }
 
   private generateTempPassword() {

@@ -3,6 +3,7 @@ import { config } from '../../config/env'
 
 export interface Empresa {
   CodigoEmpresa: string
+  NombreEmpresa: string
   NombreBaseDatos: string
   ServidorDB: string
   PuertoDB: number
@@ -49,7 +50,7 @@ class PoolManagerClass {
 
   async resolveEmpresa(codigoEmpresa: string): Promise<Empresa> {
     const key = codigoEmpresa.toUpperCase()
-    const sql = 'SELECT CodigoEmpresa, NombreBaseDatos, ServidorDB, PuertoDB, Activo FROM empresas WHERE CodigoEmpresa = ? LIMIT 1'
+    const sql = 'SELECT CodigoEmpresa, NombreEmpresa, NombreBaseDatos, ServidorDB, PuertoDB, Activo FROM empresas WHERE CodigoEmpresa = ? LIMIT 1'
     let rows: any[]
     try {
       ;[rows] = await this.globalPool().execute<any[]>(sql, [key])
@@ -68,6 +69,13 @@ class PoolManagerClass {
       throw Object.assign(new Error('La cuenta de la empresa está inactiva.'), { name: 'inactive_company' })
     }
     return empresa
+  }
+
+  async updateEmpresaName(codigoEmpresa: string, name: string): Promise<void> {
+    await this.globalPool().execute(
+      'UPDATE empresas SET NombreEmpresa = ? WHERE CodigoEmpresa = ?',
+      [name, codigoEmpresa.toUpperCase()]
+    )
   }
 
   async getPool(codigoEmpresa: string): Promise<{ pool: Pool; dbName: string }> {

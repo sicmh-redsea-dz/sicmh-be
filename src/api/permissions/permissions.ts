@@ -9,6 +9,14 @@ export type Permission =
   | 'visits.update'
   | 'visits.delete'
   | 'visits.inventory.manage'
+  | 'visits.outpatient.read'
+  | 'visits.outpatient.update'
+  | 'visits.emergency.read'
+  | 'visits.emergency.update'
+  | 'visits.operating_room.read'
+  | 'visits.operating_room.update'
+  | 'visits.hospitalization.read'
+  | 'visits.hospitalization.update'
   | 'inventory.read'
   | 'inventory.create'
   | 'inventory.update'
@@ -24,6 +32,14 @@ export type Permission =
   | 'attachments.read'
   | 'attachments.create'
   | 'attachments.delete'
+  | 'settings.profile.read'
+  | 'settings.profile.update'
+  | 'settings.staff.read'
+  | 'settings.staff.update'
+  | 'settings.permissions.read'
+  | 'settings.permissions.update'
+  | 'settings.company.read'
+  | 'settings.company.update'
   | 'settings.permissions.manage'
 
 export type RoleKey = 'admin' | 'doctor' | 'enfermera' | 'recepcionista' | 'asistente'
@@ -39,6 +55,14 @@ export const ALL_PERMISSIONS: Permission[] = [
   'visits.update',
   'visits.delete',
   'visits.inventory.manage',
+  'visits.outpatient.read',
+  'visits.outpatient.update',
+  'visits.emergency.read',
+  'visits.emergency.update',
+  'visits.operating_room.read',
+  'visits.operating_room.update',
+  'visits.hospitalization.read',
+  'visits.hospitalization.update',
   'inventory.read',
   'inventory.create',
   'inventory.update',
@@ -54,8 +78,46 @@ export const ALL_PERMISSIONS: Permission[] = [
   'attachments.read',
   'attachments.create',
   'attachments.delete',
+  'settings.profile.read',
+  'settings.profile.update',
+  'settings.staff.read',
+  'settings.staff.update',
+  'settings.permissions.read',
+  'settings.permissions.update',
+  'settings.company.read',
+  'settings.company.update',
   'settings.permissions.manage'
 ]
+
+export const CLINICAL_READ_PERMISSIONS: Permission[] = [
+  'visits.outpatient.read',
+  'visits.emergency.read',
+  'visits.operating_room.read',
+  'visits.hospitalization.read'
+]
+
+export const CLINICAL_UPDATE_PERMISSIONS: Permission[] = [
+  'visits.outpatient.update',
+  'visits.emergency.update',
+  'visits.operating_room.update',
+  'visits.hospitalization.update'
+]
+
+// Old overrides remain meaningful after introducing module-level permissions.
+export const LEGACY_PERMISSION_EXPANSIONS: Partial<Record<Permission, Permission[]>> = {
+  'dashboard.view': ['settings.profile.read', 'settings.profile.update'],
+  'visits.read': CLINICAL_READ_PERMISSIONS,
+  'visits.create': CLINICAL_UPDATE_PERMISSIONS,
+  'visits.update': CLINICAL_UPDATE_PERMISSIONS,
+  'settings.permissions.manage': [
+    'settings.staff.read',
+    'settings.staff.update',
+    'settings.permissions.read',
+    'settings.permissions.update',
+    'settings.company.read',
+    'settings.company.update'
+  ]
+}
 
 // Feature-gated permissions are excluded from every role's defaults (including
 // admin) so they stay off for all tenants until granted per tenant via the
@@ -88,10 +150,14 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
   admin: DEFAULT_ADMIN_PERMISSIONS,
   doctor: [
     'dashboard.view',
+    'settings.profile.read',
+    'settings.profile.update',
     'patients.read',
     'visits.read',
     'visits.create',
     'visits.update',
+    ...CLINICAL_READ_PERMISSIONS,
+    ...CLINICAL_UPDATE_PERMISSIONS,
     'inventory.read',
     'invoice.read',
     'schedule.read',
@@ -104,10 +170,14 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
   ],
   enfermera: [
     'dashboard.view',
+    'settings.profile.read',
+    'settings.profile.update',
     'patients.read',
     'visits.read',
     'visits.create',
     'visits.update',
+    ...CLINICAL_READ_PERMISSIONS,
+    ...CLINICAL_UPDATE_PERMISSIONS,
     'inventory.read',
     'schedule.read',
     'attachments.read',
@@ -115,6 +185,8 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
   ],
   recepcionista: [
     'dashboard.view',
+    'settings.profile.read',
+    'settings.profile.update',
     'patients.read',
     'patients.create',
     'patients.update',
@@ -129,8 +201,11 @@ export const ROLE_PERMISSIONS: Record<RoleKey, Permission[]> = {
   ],
   asistente: [
     'dashboard.view',
+    'settings.profile.read',
+    'settings.profile.update',
     'patients.read',
     'visits.read',
+    ...CLINICAL_READ_PERMISSIONS,
     'inventory.read',
     'inventory.transfer',
     'attachments.read',

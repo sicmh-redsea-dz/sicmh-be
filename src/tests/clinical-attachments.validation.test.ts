@@ -177,6 +177,28 @@ describe('in_app_camera pipeline (sharp)', () => {
   })
 })
 
+describe('prescription identity assets', () => {
+  test('stores a normalized signature under the tenant and doctor path', async () => {
+    const { service, pub } = buildService()
+    const image = await sharp({ create: { width: 600, height: 240, channels: 4, background: '#ffffff00' } })
+      .png().toBuffer()
+
+    const result = await service.uploadPrescriptionAsset('HNCAMI', 7, 'signature', image)
+
+    assert.equal(result.objectPath, 'HNCAMI/users/7/signature.png')
+    assert.equal(pub.saved[0].path, result.objectPath)
+    assert.equal(pub.saved[0].options.contentType, 'image/png')
+  })
+
+  test('rejects non-image content for a stamp', async () => {
+    const { service } = buildService()
+    await expectValidationError(
+      service.uploadPrescriptionAsset('HNCAMI', 7, 'stamp', Buffer.from('%PDF-1.4 test')),
+      'debe ser una imagen'
+    )
+  })
+})
+
 describe('upload input validation', () => {
   test('rejects an unknown source value', async () => {
     const { service } = buildService()

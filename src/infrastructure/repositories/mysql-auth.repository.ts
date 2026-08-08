@@ -66,6 +66,22 @@ export class MysqlAuthRepository implements AuthRepository {
         await Database.execute(query, [payload.name, payload.email, userId])
     }
 
+    async getPersonalProfile(userId: number): Promise<any | null> {
+        const rows = await Database.execute<any[]>(authQueries('get-personal-profile'), [userId])
+        return rows[0] ?? null
+    }
+
+    async updatePersonalProfile(userId: number, payload: { name: string; email: string; phone?: string; address?: string; department?: string; position?: string }): Promise<void> {
+        const parts = payload.name.trim().split(/\s+/)
+        const nombre = parts.shift() || payload.name
+        const apellido = parts.join(' ')
+        await Database.execute(authQueries('update-personal-profile'), [
+            nombre, apellido, payload.phone ?? null, payload.email,
+            payload.address ?? null, payload.department ?? null,
+            payload.position ?? null, userId
+        ])
+    }
+
     async deleteUser(userId: number): Promise<void> {
         const query = authQueries('delete-user')
         await Database.execute(query, [userId])
@@ -84,6 +100,7 @@ export class MysqlAuthRepository implements AuthRepository {
             params.apellido,
             params.cargo ?? null,
             params.telefono ?? null,
+            params.direccion ?? null,
             params.correoElectronico ?? null,
             today,
             params.especialidad ?? null,

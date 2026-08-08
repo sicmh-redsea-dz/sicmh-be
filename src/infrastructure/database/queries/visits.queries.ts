@@ -145,6 +145,32 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                     hm.HistoriaID;
             `
             break
+        case 'prescription-context':
+            query = `
+                select
+                    hm.HistoriaID as visitId,
+                    hm.FechaVisita as visitDate,
+                    hm.Tratamiento as treatment,
+                    hm.Diagnostico as diagnosis,
+                    pa.PacienteID as patientId,
+                    concat(pa.Nombre, ' ', pa.Apellido) as patientName,
+                    pa.FechaNacimiento as patientBirthDate,
+                    pa.Identificacion as patientIdentification,
+                    pe.PersonalID as doctorId,
+                    pe.UsuarioID as doctorUserId,
+                    concat(pe.Nombre, ' ', pe.Apellido) as doctorName,
+                    pe.Especialidad as doctorSpecialty,
+                    pe.Cargo as doctorPosition,
+                    pe.Telefono as doctorPhone,
+                    pe.CorreoElectronico as doctorEmail,
+                    pe.Direccion as doctorAddress
+                from historia_medica hm
+                inner join pacientes pa on pa.PacienteID = hm.PacienteID
+                inner join personal pe on pe.PersonalID = hm.PersonalID
+                where hm.HistoriaID = ? and hm.isActive = 1
+                limit 1;
+            `
+            break
         case 'create-visit':
             query = `
                 insert into historia_medica(

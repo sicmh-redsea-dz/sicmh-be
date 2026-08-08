@@ -1,4 +1,4 @@
-import { Permission, RoleKey, getPermissionsForRoles, normalizeRoleName, ALL_PERMISSIONS } from '../../api/permissions/permissions'
+import { Permission, getPermissionsForRoles, normalizeRoleName, ALL_PERMISSIONS, LEGACY_PERMISSION_EXPANSIONS } from '../../api/permissions/permissions'
 import { RolePermissionsRepository } from '../ports/role-permissions.repository'
 import { UserPermissionsRepository } from '../ports/user-permissions.repository'
 import { PermissionOverride } from '../../domain/entities/AccessControl'
@@ -23,14 +23,20 @@ export class AccessControlService {
 
   async getRoleOverrides(): Promise<Record<string, PermissionOverride>> {
     const store = await this.roleRepo.load()
-    return store.roles ?? {}
+    return Object.fromEntries(
+      Object.entries(store.roles ?? {}).map(([key, override]) => [key, this.expandLegacyOverride(override)])
+    )
   }
 
   async getUserOverrides(): Promise<Record<number, PermissionOverride>> {
     const store = await this.userRepo.load()
     const map: Record<number, PermissionOverride> = {}
     store.users.forEach((item) => {
-      map[item.userId] = { grants: item.grants ?? [], revokes: item.revokes ?? [], updatedAt: item.updatedAt }
+      map[item.userId] = this.expandLegacyOverride({
+        grants: item.grants ?? [],
+        revokes: item.revokes ?? [],
+        updatedAt: item.updatedAt
+      })
     })
     return map
   }
@@ -83,17 +89,50 @@ export class AccessControlService {
       const normalized = normalizeRoleName(role) ?? normalizeKey(role)
       const override = roleOverrides.roles?.[normalized]
       if (!override) return
-      override.grants?.forEach((perm) => permissions.add(perm as Permission))
-      override.revokes?.forEach((perm) => permissions.delete(perm as Permission))
+      override.grants?.forEach((perm) => this.applyOverride(permissions, perm as Permission, true))
+      override.revokes?.forEach((perm) => this.applyOverride(permissions, perm as Permission, false))
     })
 
     if (userId) {
       const override = userOverrides.users?.find((u) => u.userId === userId)
-      override?.grants?.forEach((perm) => permissions.add(perm as Permission))
-      override?.revokes?.forEach((perm) => permissions.delete(perm as Permission))
+      override?.grants?.forEach((perm) => this.applyOverride(permissions, perm as Permission, true))
+      override?.revokes?.forEach((perm) => this.applyOverride(permissions, perm as Permission, false))
     }
 
     return permissions
+  }
+
+  private applyOverride(permissions: Set<Permission>, permission: Permission, grant: boolean) {
+    const affected = [permission, ...(LEGACY_PERMISSION_EXPANSIONS[permission] ?? [])]
+    affected.forEach((item) => grant ? permissions.add(item) : permissions.delete(item))
+  }
+
+  private expandLegacyOverride(override: PermissionOverride): PermissionOverride {
+    const hiddenLegacy = new Set<Permission>([
+      'visits.read',
+      'visits.create',
+      'visits.update',
+      'settings.permissions.manage'
+    ])
+    const allowed = new Set(ALL_PERMISSIONS)
+    const expand = (items: string[] = []) => {
+      const expanded = new Set<Permission>()
+      items.forEach((item) => {
+        const permission = item as Permission
+        if (!allowed.has(permission)) return
+        if (!hiddenLegacy.has(permission)) expanded.add(permission)
+        LEGACY_PERMISSION_EXPANSIONS[permission]?.forEach((expandedPermission) => expanded.add(expandedPermission))
+      })
+      return expanded
+    }
+    const grants = expand(override.grants)
+    const revokes = expand(override.revokes)
+    revokes.forEach((permission) => grants.delete(permission))
+    return {
+      grants: Array.from(grants),
+      revokes: Array.from(revokes),
+      updatedAt: override.updatedAt
+    }
   }
 
   private sanitizePermissions(list: Permission[]): Permission[] {
