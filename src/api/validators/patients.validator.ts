@@ -2,6 +2,8 @@ import { RequestHandler } from "express";
 import { body, param, query, ValidationChain } from "express-validator";
 import { handleValidationErrors } from './validationErrorHandler'
 
+const identificationTypes = ['identidad', 'pasaporte', 'carne_residencia']
+
 export const validateGetPatients: (ValidationChain | RequestHandler)[] = [
     query('limit')
         .optional()
@@ -44,20 +46,24 @@ export const validatePostPatient: (ValidationChain | RequestHandler)[] = [
         .notEmpty()
         .withMessage('gender is required'),
     body('phone')
+        .trim()
         .notEmpty()
-        .withMessage('phone is required')
-        .isLength({ min: 8, max: 8 })
-        .withMessage('Phone must be 8 characters long'),
+        .withMessage('phone is required'),
     body('email')
-        .notEmpty()
-        .withMessage('email is required')
+        .optional({ checkFalsy: true })
         .isEmail()
         .withMessage('Invalid email address'),
+    body('identificationType')
+        .notEmpty()
+        .withMessage('identificationType is required')
+        .isIn(identificationTypes)
+        .withMessage('Invalid identification type'),
     body('id')
+        .trim()
         .notEmpty()
         .withMessage('id is required')
-        .isLength({ min: 13, max: 13 })
-        .withMessage('id must be 13 characters long'),
+        .matches(/^[A-Za-z0-9]+$/)
+        .withMessage('id must contain only letters and numbers'),
     body('emergencyContact')
         .isObject()
         .withMessage('emergencyContact is required'),
@@ -71,8 +77,8 @@ export const validatePostPatient: (ValidationChain | RequestHandler)[] = [
         .withMessage('Emergency contact relationship must be at least 2 characters long'),
     body('emergencyContact.phone')
         .trim()
-        .isLength({ min: 8, max: 8 })
-        .withMessage('Emergency contact phone must be 8 characters long'),
+        .notEmpty()
+        .withMessage('Emergency contact phone is required'),
     body('emergencyContact.email')
         .optional({ checkFalsy: true })
         .isEmail()
@@ -115,16 +121,24 @@ export const validatePatchPatient: (ValidationChain | RequestHandler)[] = [
         .withMessage('gender is required'),
     body('phone')
         .optional()
+        .trim()
         .notEmpty()
-        .withMessage('phone is required')
-        .isLength({ min: 8, max: 8 })
-        .withMessage('Phone must be 8 characters long'),
+        .withMessage('phone is required'),
     body('email')
-        .optional()
-        .notEmpty()
-        .withMessage('email is required')
+        .optional({ checkFalsy: true })
         .isEmail()
         .withMessage('Invalid email address'),
+    body('identificationType')
+        .optional()
+        .isIn(identificationTypes)
+        .withMessage('Invalid identification type'),
+    body('id')
+        .optional()
+        .trim()
+        .notEmpty()
+        .withMessage('id is required')
+        .matches(/^[A-Za-z0-9]+$/)
+        .withMessage('id must contain only letters and numbers'),
     body('emergencyContact')
         .optional()
         .isObject()
@@ -142,8 +156,8 @@ export const validatePatchPatient: (ValidationChain | RequestHandler)[] = [
     body('emergencyContact.phone')
         .if(body('emergencyContact').exists())
         .trim()
-        .isLength({ min: 8, max: 8 })
-        .withMessage('Emergency contact phone must be 8 characters long'),
+        .notEmpty()
+        .withMessage('Emergency contact phone is required'),
     body('emergencyContact.email')
         .optional({ checkFalsy: true })
         .isEmail()

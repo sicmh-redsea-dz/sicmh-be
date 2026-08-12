@@ -43,7 +43,7 @@ export class PatientsService {
     }
 
     insertPatient = async (patientParams:PatientCreateParams):Promise<PatientResponse> => {
-        const { email } = patientParams
+        const { email, id } = patientParams
         try {
             const insertId = await this.patientsRepo.create(patientParams)
             return this.findOnePatient( insertId )
@@ -51,7 +51,7 @@ export class PatientsService {
             let error = new Error()
             if( err.code === 'ER_DUP_ENTRY') {
                 error.name = 'duplicate_entry'
-                error.message = `Duplicated entry ${email}`
+                error.message = `Duplicated entry ${email || id}`
                throw error 
             } else {
                 throw err

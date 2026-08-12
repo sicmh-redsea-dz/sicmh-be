@@ -22,10 +22,10 @@ export class MysqlPatientsRepository implements PatientsRepository {
     }
 
     async create(params: PatientCreateParams): Promise<number> {
-        const { birthdate, firstName, lastName, address, gender, phone, email, id, emergencyContact } = params
+        const { birthdate, firstName, lastName, address, gender, phone, email, identificationType, id, emergencyContact } = params
         return Database.transaction(async () => {
             const query = patientQueries('create')
-            const values = [firstName, lastName, birthdate, phone, email, address, id, gender]
+            const values = [firstName, lastName, birthdate, phone.trim(), email?.trim() || null, address, identificationType, id.trim(), gender]
             const result = await Database.execute<ResultSetHeader>(query, values)
             await this.saveEmergencyContact(result.insertId, emergencyContact)
             return result.insertId
@@ -33,10 +33,10 @@ export class MysqlPatientsRepository implements PatientsRepository {
     }
 
     async update(id: number, params: PatientUpdateParams): Promise<number> {
-        const { firstName, lastName, phone, email, address, gender, birthdate, emergencyContact } = params
+        const { firstName, lastName, phone, email, address, gender, birthdate, identificationType, id: identification, emergencyContact } = params
         return Database.transaction(async () => {
             const query = patientQueries('update')
-            const values = [firstName, lastName, birthdate, phone, email, address, gender, id]
+            const values = [firstName, lastName, birthdate, phone?.trim(), email?.trim() || null, address, identificationType, identification?.trim(), gender, id]
             const result = await Database.execute<ResultSetHeader>(query, values)
             await this.saveEmergencyContact(id, emergencyContact)
             return Math.max(result.affectedRows, 1)

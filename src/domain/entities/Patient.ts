@@ -4,9 +4,10 @@ export interface Patient {
     Apellido: string
     FechaNacimiento: Date
     Telefono: string
-    CorreoElectronico: string
+    CorreoElectronico: string | null
     Direccion: string
     Identificacion: string
+    TipoIdentificacion: 'identidad' | 'pasaporte' | 'carne_residencia'
     IsActive?: boolean
     Genero: string
     total_registries: number

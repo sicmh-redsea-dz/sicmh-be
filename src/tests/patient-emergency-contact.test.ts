@@ -24,6 +24,7 @@ describe('patient emergency contact', () => {
       CorreoElectronico: 'ana@example.com',
       Direccion: 'Tegucigalpa',
       Identificacion: '0801199000001',
+      TipoIdentificacion: 'identidad',
       Genero: 'female',
       total_registries: 1,
       EmergencyContactID: 3,
@@ -42,5 +43,6 @@ describe('patient emergency contact', () => {
       email: '',
       address: ''
     })
+    assert.equal(response.identificationType, 'identidad')
   })
 })

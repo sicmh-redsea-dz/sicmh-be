@@ -78,7 +78,29 @@ CREATE TABLE IF NOT EXISTS adjuntos_clinicos_accesos (
 ALTER TABLE `facturas` ADD INDEX `idx_facturas_active_fecha` (`IsActive`, `FechaFactura`);
 ALTER TABLE `facturas` ADD INDEX `idx_facturas_estado` (`Estado`);
 ALTER TABLE `pacientes` ADD INDEX `idx_pacientes_identificacion` (`Identificacion`);
+
+-- MedIT: documentos y datos de contacto internacionales de pacientes.
+ALTER TABLE `pacientes`
+  ADD COLUMN IF NOT EXISTS `TipoIdentificacion` VARCHAR(30) NOT NULL DEFAULT 'identidad' AFTER `Direccion`,
+  MODIFY COLUMN `Identificacion` VARCHAR(255) NULL,
+  MODIFY COLUMN `Telefono` VARCHAR(50) NULL,
+  MODIFY COLUMN `CorreoElectronico` VARCHAR(150) NULL;
+
+ALTER TABLE `contacto_emergencia`
+  MODIFY COLUMN `Telefono` VARCHAR(50) NOT NULL;
 ALTER TABLE `historia_medica` ADD INDEX `idx_historia_medica_active_fecha` (`isActive`, `FechaVisita`);
+
+-- MedIT: persistencia SQL de las secciones Historia clinica y Seguimiento.
+-- Desde febrero de 2026 estos valores solo se guardaban temporalmente en
+-- data/expedientes.json, por lo que no sobrevivian despliegues sin ese archivo.
+ALTER TABLE `historia_medica`
+  ADD COLUMN IF NOT EXISTS `MotivoConsulta` TEXT NULL,
+  ADD COLUMN IF NOT EXISTS `PadecimientoActual` TEXT NULL,
+  ADD COLUMN IF NOT EXISTS `ExploracionFisica` TEXT NULL,
+  ADD COLUMN IF NOT EXISTS `Alergias` TEXT NULL,
+  ADD COLUMN IF NOT EXISTS `MedicamentosActuales` TEXT NULL,
+  ADD COLUMN IF NOT EXISTS `PlanSeguimiento` TEXT NULL,
+  ADD COLUMN IF NOT EXISTS `ReferenciasInterconsultas` TEXT NULL;
 
 -- MedIT: redefine fn_dashboard_stats to drop a dead redundant SELECT (the
 -- first pacientes query used MONTH(PacienteID), which is nonsensical, and its

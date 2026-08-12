@@ -182,7 +182,10 @@ export class VisitsService {
                 throw this.errorHandler('not_found_error', `No visit found with Id: ${id}`)
             const stock = await this.stockService.findAll()
             const expediente = await this.expedienteRepo.findByHistoryId(id)
-            const expedientePayload = expediente ? { standard: expediente.standard, module: expediente.module } : null
+            const filePayload = expediente
+                ? { standard: expediente.standard, module: expediente.module }
+                : null
+            const expedientePayload = HistoryMapper.toExpedientePayload(medicalHistory, filePayload)
             return {
                 visit: {
                     ...HistoryMapper.toHistoryFormResponse( medicalHistory ),
@@ -280,7 +283,7 @@ export class VisitsService {
         }
 
         try {
-            if ( expediente ) {
+            if ( expediente && originKey !== 'visits' ) {
                 const now = new Date().toISOString()
                 const expedienteRecord: ExpedienteExtra = {
                     historyId: insertId,
@@ -294,8 +297,9 @@ export class VisitsService {
                 await this.expedienteRepo.upsert(insertId, expedienteRecord)
             }
         } catch (err) {
-            // The expediente lives in a file store outside the SQL transaction, so
-            // it needs its own compensating cleanup if it fails after commit.
+            // Module-specific expediente data for emergency, hospitalization and
+            // operating room still lives outside the SQL transaction, so it needs
+            // compensating cleanup if its file write fails after commit.
             console.error('error saving expediente after visit was committed, rolling back visit/invoice: ', err)
             await this.visitsRepo.softDelete(insertId).catch(cleanupErr =>
                 console.error(`rollback failed to soft-delete visit ${insertId}:`, cleanupErr))
@@ -503,7 +507,7 @@ export class VisitsService {
                 throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`);
             }
 
-            if ( body.expediente ) {
+            if ( body.expediente && originKey !== 'visits' ) {
                 const existingExpediente = await this.expedienteRepo.findByHistoryId(+id)
                 const now = new Date().toISOString()
                 const expedienteRecord: ExpedienteExtra = {

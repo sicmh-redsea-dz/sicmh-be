@@ -7,8 +7,9 @@ export interface PatientCreateParams {
     address: string
     gender: string
     phone: string
-    email: string
-    id?: string
+    email?: string | null
+    identificationType: 'identidad' | 'pasaporte' | 'carne_residencia'
+    id: string
     emergencyContact: EmergencyContactParams
 }
 

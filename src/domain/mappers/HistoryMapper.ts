@@ -1,4 +1,5 @@
 import { ShortHistory, History } from "../entities/History"
+import { ExpedientePayload } from "../entities/Expediente"
 import { HistoryResponse, ShortHistoryResponse } from "../responses/VisitsReponse"
 
 export class HistoryMapper {
@@ -121,6 +122,9 @@ export class HistoryMapper {
             pathologicalHst: Ant_Patologico,
             surgicalHst: Ant_Quirurgico,
         } = newHistory
+
+        const standard = newHistory.expediente?.standard
+        const module = newHistory.expediente?.module
     
         return {
             PacienteID,
@@ -145,7 +149,47 @@ export class HistoryMapper {
             Ant_Familiar,
             Ant_Habito,
             Ant_Patologico,
-            Ant_Quirurgico
+            Ant_Quirurgico,
+            MotivoConsulta: standard?.chiefComplaint,
+            PadecimientoActual: standard?.currentIllness,
+            ExploracionFisica: standard?.physicalExam,
+            Alergias: standard?.allergies,
+            MedicamentosActuales: standard?.currentMeds,
+            PlanSeguimiento: module?.followUpPlan,
+            ReferenciasInterconsultas: module?.referrals
+        }
+    }
+
+    static toExpedientePayload = (
+        history: History,
+        fallback: ExpedientePayload | null = null
+    ): ExpedientePayload | null => {
+        const sqlValues = [
+            history.MotivoConsulta,
+            history.PadecimientoActual,
+            history.ExploracionFisica,
+            history.Alergias,
+            history.MedicamentosActuales,
+            history.PlanSeguimiento,
+            history.ReferenciasInterconsultas
+        ]
+        const hasSqlData = sqlValues.some((value) => value !== undefined && value !== null)
+
+        if (!hasSqlData && !fallback) return null
+
+        return {
+            standard: {
+                chiefComplaint: history.MotivoConsulta ?? fallback?.standard.chiefComplaint ?? '',
+                currentIllness: history.PadecimientoActual ?? fallback?.standard.currentIllness ?? '',
+                physicalExam: history.ExploracionFisica ?? fallback?.standard.physicalExam ?? '',
+                allergies: history.Alergias ?? fallback?.standard.allergies ?? '',
+                currentMeds: history.MedicamentosActuales ?? fallback?.standard.currentMeds ?? ''
+            },
+            module: {
+                ...(fallback?.module ?? {}),
+                followUpPlan: history.PlanSeguimiento ?? fallback?.module.followUpPlan ?? '',
+                referrals: history.ReferenciasInterconsultas ?? fallback?.module.referrals ?? ''
+            }
         }
     }
 }

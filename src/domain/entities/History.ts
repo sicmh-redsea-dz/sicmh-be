@@ -40,6 +40,14 @@ export interface History {
     Ant_Patologico  : string | null
     Ant_Quirurgico  : string | null
 
+    MotivoConsulta           : string | null
+    PadecimientoActual       : string | null
+    ExploracionFisica        : string | null
+    Alergias                 : string | null
+    MedicamentosActuales     : string | null
+    PlanSeguimiento          : string | null
+    ReferenciasInterconsultas: string | null
+
     NombrePaciente  : string
     NombreDoctor    : string
 

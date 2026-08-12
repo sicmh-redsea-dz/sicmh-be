@@ -12,6 +12,7 @@ export class PatientMapper {
             CorreoElectronico: email,
             Direccion: address,
             Identificacion: idNumber,
+            TipoIdentificacion: identificationType,
             Genero: gender,
             EmergencyContactID: emergencyContactId,
             EmergencyContactName: emergencyContactName,
@@ -30,6 +31,7 @@ export class PatientMapper {
             email,
             address,
             idNumber,
+            identificationType: identificationType ?? 'identidad',
             gender,
             emergencyContact: emergencyContactId ? {
                 id: emergencyContactId,

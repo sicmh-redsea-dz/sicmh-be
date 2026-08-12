@@ -62,9 +62,10 @@ export const patientQueries = (key: string, pagination?: {limit:number, offset:n
             Telefono, 
             CorreoElectronico, 
             Direccion, 
+            TipoIdentificacion,
             Identificacion, 
             Genero
-          ) values(?,?,?,?,?,?,?,?);
+          ) values(?,?,?,?,?,?,?,?,?);
         `
         break
       case 'update':
@@ -77,6 +78,8 @@ export const patientQueries = (key: string, pagination?: {limit:number, offset:n
             p.Telefono=?,
             p.CorreoElectronico=?,
             p.Direccion=?,
+            p.TipoIdentificacion=?,
+            p.Identificacion=?,
             p.Genero=?
           where p.PacienteID = ?;
         `

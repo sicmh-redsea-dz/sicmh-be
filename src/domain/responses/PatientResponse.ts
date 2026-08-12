@@ -4,9 +4,10 @@ export interface PatientResponse {
     lastName: string
     birthDate:Date
     phone:    string
-    email:    string
+    email:    string | null
     address:  string
     idNumber: string
+    identificationType: 'identidad' | 'pasaporte' | 'carne_residencia'
     gender:   string
     emergencyContact: EmergencyContactResponse | null
 }
