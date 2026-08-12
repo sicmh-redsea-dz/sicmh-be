@@ -36,8 +36,8 @@ export const inventoryQueries = ( key: string, params?: QueryParams ): string =>
                     on inv.ProductoID = ei.ProductoID
             WHERE 1=1
                 ${hasTerm ? `AND inv.NombreProducto LIKE CONCAT("%", ?, "%")` : ''}
-                AND inv.Cantidad > 0
                 AND ei.SubinventarioID = ?
+                AND ei.Cantidad > 0
             LIMIT ${limit} OFFSET ${offset};
         `
     }

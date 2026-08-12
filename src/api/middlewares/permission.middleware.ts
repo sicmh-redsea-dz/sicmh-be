@@ -4,6 +4,14 @@ import { Permission } from '../permissions/permissions'
 
 type VisitPermissionAction = 'read' | 'update'
 type VisitOriginSource = 'query' | 'body' | 'id' | 'module' | 'operating-room'
+type InventoryLocationSource = 'query' | 'transfer'
+
+const SUBINVENTORY_READ_PERMISSIONS: Record<number, Permission> = {
+  1: 'inventory.read',
+  2: 'visits.emergency.read',
+  3: 'visits.operating_room.read',
+  4: 'visits.hospitalization.read'
+}
 
 const VISIT_PERMISSION_PREFIX: Record<string, string> = {
   visits: 'outpatient',
@@ -26,6 +34,12 @@ const normalizeOrigin = (value: unknown): string => String(value ?? '')
 const permissionForVisitOrigin = (origin: unknown, action: VisitPermissionAction): Permission | null => {
   const prefix = VISIT_PERMISSION_PREFIX[normalizeOrigin(origin)]
   return prefix ? `visits.${prefix}.${action}` as Permission : null
+}
+
+export const permissionForSubinventory = (value: unknown): Permission | null => {
+  const id = Number(value)
+  if (!Number.isInteger(id)) return null
+  return SUBINVENTORY_READ_PERMISSIONS[id] ?? null
 }
 
 const resolveUser = async (req: Request) => {
@@ -160,6 +174,40 @@ export const requireVisitOriginPermission = (
       next()
     } catch (error) {
       next(error)
+    }
+  }
+}
+
+export const requireInventoryLocationPermissions = (source: InventoryLocationSource) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = await resolveUser(req)
+      if (!user) {
+        res.status(403).json({ message: 'Access denied. User not found.' })
+        return
+      }
+      ;(req as any).currentUser = user
+
+      const locations = source === 'query'
+        ? [req.query.subinvId ?? 1]
+        : [req.body?.origin, req.body?.subinv]
+      const required = locations.map(permissionForSubinventory)
+
+      if (required.some((permission) => permission === null)) {
+        res.status(400).json({ message: 'Invalid inventory location.' })
+        return
+      }
+
+      const permissions = await resolveUserPermissions(user)
+      if (!required.every((permission) => permissions.has(permission!))) {
+        res.status(403).json({ message: 'Access denied. Insufficient permissions for this inventory location.' })
+        return
+      }
+
+      next()
+    } catch (error) {
+      console.error('[requireInventoryLocationPermissions] error:', error)
+      res.status(500).json({ message: 'Unable to validate permissions. Please try again.' })
     }
   }
 }

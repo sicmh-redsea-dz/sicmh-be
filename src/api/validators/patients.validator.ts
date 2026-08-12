@@ -58,6 +58,28 @@ export const validatePostPatient: (ValidationChain | RequestHandler)[] = [
         .withMessage('id is required')
         .isLength({ min: 13, max: 13 })
         .withMessage('id must be 13 characters long'),
+    body('emergencyContact')
+        .isObject()
+        .withMessage('emergencyContact is required'),
+    body('emergencyContact.name')
+        .trim()
+        .isLength({ min: 2 })
+        .withMessage('Emergency contact name must be at least 2 characters long'),
+    body('emergencyContact.relationship')
+        .trim()
+        .isLength({ min: 2 })
+        .withMessage('Emergency contact relationship must be at least 2 characters long'),
+    body('emergencyContact.phone')
+        .trim()
+        .isLength({ min: 8, max: 8 })
+        .withMessage('Emergency contact phone must be 8 characters long'),
+    body('emergencyContact.email')
+        .optional({ checkFalsy: true })
+        .isEmail()
+        .withMessage('Invalid emergency contact email address'),
+    body('emergencyContact.address')
+        .optional({ checkFalsy: true })
+        .trim(),
     handleValidationErrors
 ]
 
@@ -103,6 +125,32 @@ export const validatePatchPatient: (ValidationChain | RequestHandler)[] = [
         .withMessage('email is required')
         .isEmail()
         .withMessage('Invalid email address'),
+    body('emergencyContact')
+        .optional()
+        .isObject()
+        .withMessage('emergencyContact must be an object'),
+    body('emergencyContact.name')
+        .if(body('emergencyContact').exists())
+        .trim()
+        .isLength({ min: 2 })
+        .withMessage('Emergency contact name must be at least 2 characters long'),
+    body('emergencyContact.relationship')
+        .if(body('emergencyContact').exists())
+        .trim()
+        .isLength({ min: 2 })
+        .withMessage('Emergency contact relationship must be at least 2 characters long'),
+    body('emergencyContact.phone')
+        .if(body('emergencyContact').exists())
+        .trim()
+        .isLength({ min: 8, max: 8 })
+        .withMessage('Emergency contact phone must be 8 characters long'),
+    body('emergencyContact.email')
+        .optional({ checkFalsy: true })
+        .isEmail()
+        .withMessage('Invalid emergency contact email address'),
+    body('emergencyContact.address')
+        .optional({ checkFalsy: true })
+        .trim(),
     handleValidationErrors
 ]
 

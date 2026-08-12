@@ -5,9 +5,24 @@ export const patientQueries = (key: string, pagination?: {limit:number, offset:n
       case 'read-one':
         query = `
           select 
-            p.* 
-          from pacientes as p 
-          where PacienteID=?;
+            p.*,
+            ce.EmergencyContactID,
+            ce.Nombre as EmergencyContactName,
+            ce.Parentesco as EmergencyContactRelationship,
+            ce.Telefono as EmergencyContactPhone,
+            ce.CorreoElectronico as EmergencyContactEmail,
+            ce.Direccion as EmergencyContactAddress
+          from pacientes as p
+          left join contacto_emergencia as ce
+            on ce.EmergencyContactID = (
+              select ce2.EmergencyContactID
+              from contacto_emergencia as ce2
+              where ce2.PacienteID = p.PacienteID
+                and ce2.IsActive = 1
+              order by ce2.IsPrimary desc, ce2.EmergencyContactID asc
+              limit 1
+            )
+          where p.PacienteID=?;
         `
         break
       case 'read':
@@ -64,6 +79,44 @@ export const patientQueries = (key: string, pagination?: {limit:number, offset:n
             p.Direccion=?,
             p.Genero=?
           where p.PacienteID = ?;
+        `
+        break
+      case 'find-emergency-contact':
+        query = `
+          select EmergencyContactID
+          from contacto_emergencia
+          where PacienteID = ? and IsActive = 1
+          order by IsPrimary desc, EmergencyContactID asc
+          limit 1;
+        `
+        break
+      case 'create-emergency-contact':
+        query = `
+          insert into contacto_emergencia(
+            PacienteID,
+            Nombre,
+            Parentesco,
+            Telefono,
+            CorreoElectronico,
+            Direccion,
+            IsPrimary,
+            IsActive
+          ) values(?,?,?,?,?,?,1,1);
+        `
+        break
+      case 'update-emergency-contact':
+        query = `
+          update contacto_emergencia
+          set
+            Nombre = ?,
+            Parentesco = ?,
+            Telefono = ?,
+            CorreoElectronico = ?,
+            Direccion = ?,
+            IsPrimary = 1,
+            IsActive = 1,
+            UpdatedAt = current_timestamp
+          where EmergencyContactID = ?;
         `
         break
       case 'total-registries':

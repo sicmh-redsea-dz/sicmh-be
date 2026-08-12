@@ -12,7 +12,13 @@ export class PatientMapper {
             CorreoElectronico: email,
             Direccion: address,
             Identificacion: idNumber,
-            Genero: gender
+            Genero: gender,
+            EmergencyContactID: emergencyContactId,
+            EmergencyContactName: emergencyContactName,
+            EmergencyContactRelationship: emergencyContactRelationship,
+            EmergencyContactPhone: emergencyContactPhone,
+            EmergencyContactEmail: emergencyContactEmail,
+            EmergencyContactAddress: emergencyContactAddress
         } = patient
 
         return {
@@ -24,7 +30,15 @@ export class PatientMapper {
             email,
             address,
             idNumber,
-            gender
+            gender,
+            emergencyContact: emergencyContactId ? {
+                id: emergencyContactId,
+                name: emergencyContactName ?? '',
+                relationship: emergencyContactRelationship ?? '',
+                phone: emergencyContactPhone ?? '',
+                email: emergencyContactEmail ?? '',
+                address: emergencyContactAddress ?? ''
+            } : null
         }
     }
 

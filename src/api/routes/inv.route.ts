@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { InvController } from '../controllers/inv.controller'
-import { requirePermissions } from '../middlewares/permission.middleware'
+import { requireInventoryLocationPermissions, requirePermissions } from '../middlewares/permission.middleware'
 
 const router = Router()
 
@@ -9,6 +9,7 @@ const inventoryController = new InvController()
 router.get(
     '/',
     requirePermissions('inventory.read'),
+    requireInventoryLocationPermissions('query'),
     inventoryController.getInventory.bind( inventoryController )
 )
 
@@ -21,6 +22,7 @@ router.get(
 router.post(
     '/transfer',
     requirePermissions('inventory.transfer'),
+    requireInventoryLocationPermissions('transfer'),
     inventoryController.transferInventory.bind( inventoryController )
 )
 

@@ -9,9 +9,18 @@ export interface PatientCreateParams {
     phone: string
     email: string
     id?: string
+    emergencyContact: EmergencyContactParams
 }
 
 export type PatientUpdateParams = Partial<PatientCreateParams>
+
+export interface EmergencyContactParams {
+    name: string
+    relationship: string
+    phone: string
+    email?: string
+    address?: string
+}
 
 export interface PatientsRepository {
     findAll(args: { limit: number; offset: number; term?: string }): Promise<Patient[]>

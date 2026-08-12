@@ -292,7 +292,9 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                 inner join
                     ExistenciasInventario as ei
                         on i.ProductoID = ei.ProductoID
-                where ei.SubinventarioID = ?
+                where
+                    ei.SubinventarioID = ?
+                    and ei.Cantidad > 0
             `
             break
         default:
