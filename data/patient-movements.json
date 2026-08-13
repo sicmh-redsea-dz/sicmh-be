@@ -1,6 +1,19 @@
 {
   "events": [
     {
+      "id": "cf0ba18e-bd06-4608-81fd-44073e50905c",
+      "patientId": 2,
+      "patientName": "Jose Roberto  Martinez Rodriguez",
+      "encounterId": "7c4dc41b-fd76-446a-b517-feba264426b9",
+      "invoiceNumber": "9c123c20-5996-45e1",
+      "toStation": "consulta",
+      "occurredAt": "2026-08-13",
+      "source": "visit",
+      "reference": {
+        "visitId": 45
+      }
+    },
+    {
       "id": "63cc137a-7ef4-4d3b-8ccb-3ee0f3abe388",
       "patientId": 8,
       "patientName": "Sarah Elisa Martinez Rodriguez",
@@ -324,5 +337,5 @@
       }
     }
   ],
-  "updatedAt": "2026-07-23T22:11:13.005Z"
+  "updatedAt": "2026-08-13T15:02:01.957Z"
 }

@@ -220,11 +220,12 @@ export class VisitsService {
     }
 
     createVisit = async (createVisitPayload: CreateVisitPayload): Promise<any> => {
-        const { stockItems, date, doctor, patient, origin, expediente } = createVisitPayload
+        const date = createVisitPayload.date?.trim() || new Date().toISOString()
+        const normalizedPayload = { ...createVisitPayload, date }
+        const { stockItems, doctor, patient, origin, expediente } = normalizedPayload
         const originKey = this.assertOrigin(origin)
-        this.validateExpediente(expediente, originKey)
 
-        const fieldsForVisit = HistoryMapper.toDbForm(createVisitPayload)
+        const fieldsForVisit = HistoryMapper.toDbForm(normalizedPayload)
         const translatedFields = this.removeUndefined(fieldsForVisit)
 
         translatedFields['isActive'] = true
@@ -487,7 +488,6 @@ export class VisitsService {
    editVisit = async (editVisitPayload: EditVisitPayload): Promise<any> => {
         const { id, body } = editVisitPayload;
         const originKey = await this.resolveOrigin(body, +id)
-        this.validateExpediente(body.expediente, originKey)
 
         const existingVisit = await this.visitsRepo.findById(+id)
         if (!existingVisit) {
@@ -498,7 +498,11 @@ export class VisitsService {
         const incomingInventory = Array.isArray(body.stockItems) ? body.stockItems : []
         const stockDelta = this.computeStockDelta(existingInventory, incomingInventory)
 
-        const fieldsForVisit = HistoryMapper.toDbForm(body)
+        const date = body.date?.trim()
+            || existingVisit.FechaUltimaVisita?.toString()
+            || existingVisit.FechaVisita?.toString()
+            || new Date().toISOString()
+        const fieldsForVisit = HistoryMapper.toDbForm({ ...body, date })
         const translatedFields = this.removeUndefined(fieldsForVisit)
 
         try {
@@ -662,62 +666,6 @@ export class VisitsService {
             throw this.buildValidationError(['No se pudo determinar el origen de la visita.'])
         }
         return mapped
-    }
-
-    private validateExpediente(expediente: ExpedientePayload | undefined, origin: VisitOrigin) {
-        const errors: string[] = []
-        const isBlank = (value: any) => value === undefined || value === null || value === ''
-
-        if (!expediente) {
-            errors.push('El expediente es requerido.')
-        }
-
-        const standard = expediente?.standard ?? {}
-        const module = expediente?.module ?? {}
-
-        const fieldLabels: Record<string, string> = {
-            chiefComplaint: 'Motivo de consulta/ingreso',
-            currentIllness: 'Padecimiento actual',
-            physicalExam: 'Exploracion fisica',
-            triageLevel: 'Triage',
-            arrivalMode: 'Modo de llegada',
-            disposition: 'Destino/condicion al egreso',
-            preOpDiagnosis: 'Diagnostico preoperatorio',
-            postOpDiagnosis: 'Diagnostico postoperatorio',
-            procedure: 'Procedimiento quirurgico',
-            anesthesiaType: 'Tipo de anestesia',
-            surgeryStart: 'Inicio de cirugia',
-            surgeryEnd: 'Fin de cirugia',
-            admissionDiagnosis: 'Diagnostico de ingreso',
-            admissionReason: 'Motivo de ingreso',
-            service: 'Servicio',
-            bed: 'Cama',
-            evolutionSummary: 'Resumen de evolucion'
-        }
-
-        const requiredStandard = ['chiefComplaint', 'currentIllness', 'physicalExam']
-        requiredStandard.forEach((field) => {
-            if (isBlank((standard as any)[field])) {
-                errors.push(`Se requiere ${fieldLabels[field]}`)
-            }
-        })
-
-        const requiredByOrigin: Record<VisitOrigin, string[]> = {
-            visits: [],
-            emergency: ['triageLevel', 'arrivalMode', 'disposition'],
-            oroom: ['preOpDiagnosis', 'postOpDiagnosis', 'procedure', 'anesthesiaType', 'surgeryStart', 'surgeryEnd'],
-            hospitalization: ['admissionDiagnosis', 'admissionReason', 'service', 'bed', 'evolutionSummary']
-        }
-
-        requiredByOrigin[origin].forEach((field) => {
-            if (isBlank((module as any)[field])) {
-                errors.push(`Se requiere ${fieldLabels[field]}`)
-            }
-        })
-
-        if (errors.length > 0) {
-            throw this.buildValidationError(errors)
-        }
     }
 
     private errorHandler = (name:string, msg:string) => {

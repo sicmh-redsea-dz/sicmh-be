@@ -1,5 +1,5 @@
 import { ResultSetHeader } from 'mysql2'
-import { AuthCreateUserParams, AuthRepository, PersonalCreateParams } from '../../application/ports/auth.repository'
+import { AuthCreateUserParams, AuthRepository, PasswordResetToken, PersonalCreateParams } from '../../application/ports/auth.repository'
 import { User } from '../../domain/entities/User'
 import { Database } from '../database/Database'
 import { authQueries } from '../database/queries/auth.queries'
@@ -125,5 +125,31 @@ export class MysqlAuthRepository implements AuthRepository {
         }
         await Database.execute(authQueries('increment-session-version'), [userId])
         return this.getSessionVersion(userId)
+    }
+
+    async canIssuePasswordResetToken(userId: number): Promise<boolean> {
+        const rows = await Database.execute<{ id: number }[]>(authQueries('recent-password-reset-token'), [userId])
+        return rows.length === 0
+    }
+
+    async replacePasswordResetToken(userId: number, tokenHash: string, expiresAt: Date): Promise<void> {
+        await Database.transaction(async () => {
+            await Database.execute(authQueries('invalidate-password-reset-tokens'), [userId])
+            await Database.execute(authQueries('insert-password-reset-token'), [userId, tokenHash, expiresAt])
+        })
+    }
+
+    async consumePasswordResetToken(tokenHash: string, passwordHash: string): Promise<boolean> {
+        return Database.transaction(async () => {
+            const rows = await Database.execute<PasswordResetToken[]>(authQueries('lock-password-reset-token'), [tokenHash])
+            const token = rows[0]
+            if (!token) return false
+
+            await Database.execute(authQueries('change-password'), [passwordHash, token.userId])
+            await Database.execute(authQueries('increment-session-version'), [token.userId])
+            await Database.execute(authQueries('consume-password-reset-token'), [token.id])
+            await Database.execute(authQueries('invalidate-password-reset-tokens'), [token.userId])
+            return true
+        })
     }
 }

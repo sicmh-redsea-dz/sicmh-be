@@ -1,6 +1,21 @@
 -- MedIT: citas (appointments) table
 -- Run this once against your MySQL schema
 
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id          BIGINT        NOT NULL AUTO_INCREMENT,
+  UsuarioID   INT           NOT NULL,
+  token_hash  CHAR(64)      NOT NULL,
+  expires_at  DATETIME      NOT NULL,
+  used_at     DATETIME      NULL,
+  created_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_password_reset_token_hash (token_hash),
+  KEY idx_password_reset_user_created (UsuarioID, created_at),
+  KEY idx_password_reset_expiry (expires_at),
+  CONSTRAINT fk_password_reset_usuario FOREIGN KEY (UsuarioID)
+    REFERENCES usuarios (UsuarioID) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS citas (
   CitaID        INT            NOT NULL AUTO_INCREMENT,
   Titulo        VARCHAR(200)   NOT NULL,

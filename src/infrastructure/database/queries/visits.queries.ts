@@ -23,6 +23,7 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
             const visitType = validExt[normalizedExt]
             whereClause = `
                 hm.isActive = 1
+                ${!hasTerm ? `and lower(trim(fac.Estado)) = 'pendiente'` : ''}
                 ${hasTerm ? `and (
                 pc.Identificacion like concat('%', ?, '%') or
                 pc.Nombre like concat('%', ?, '%') or
@@ -71,6 +72,7 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
             const fullVisitType = validExt[normalizedFullExt]
             whereClause = `
                 hm.isActive = 1
+                ${!hasFullTerm ? `and lower(trim(fac.Estado)) = 'pendiente'` : ''}
                 ${hasFullTerm ? `and (
                 pc.Identificacion like concat('%', ?, '%') or
                 pc.Nombre like concat('%', ?, '%') or

@@ -29,6 +29,7 @@
     "mysql2": "^3.11.3",
     "nodemailer": "^6.9.14",
     "puppeteer": "^24.15.0",
+    "qrcode": "^1.5.4",
     "sharp": "^0.35.3",
     "uuid": "^11.0.5"
   },
@@ -40,6 +41,7 @@
     "@types/multer": "^2.2.0",
     "@types/node": "^22.7.2",
     "@types/nodemailer": "^6.4.23",
+    "@types/qrcode": "^1.5.6",
     "nodemon": "^3.1.7",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.2"

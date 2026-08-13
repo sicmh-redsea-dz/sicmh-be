@@ -19,6 +19,13 @@ export const config = {
     DB_SCHEMA: process.env.DB_SCHEMA,
     SECRET_JWT_TOKEN: process.env.SECRET_JWT_TOKEN || '',
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '2h',
+    FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:4200',
+    SMTP_HOST: process.env.SMTP_HOST || '',
+    SMTP_PORT: parsePort(process.env.SMTP_PORT, 465),
+    SMTP_SECURE: (process.env.SMTP_SECURE || 'true').toLowerCase() === 'true',
+    SMTP_USER: process.env.SMTP_USER || '',
+    SMTP_PASS: process.env.SMTP_PASS || '',
+    SMTP_FROM: process.env.SMTP_FROM || '',
     GCS_CLINICAL_BUCKET: process.env.GCS_CLINICAL_BUCKET || 'nubsmart-medit-clinical',
     GCS_PUBLIC_BUCKET: process.env.GCS_PUBLIC_BUCKET || 'nubsmart-medit-public',
     // Optional service-account key file; on GCP the default credentials are used.

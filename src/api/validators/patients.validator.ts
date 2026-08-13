@@ -38,24 +38,21 @@ export const validatePostPatient: (ValidationChain | RequestHandler)[] = [
         .isLength({ min: 2 })
         .withMessage('lastName must be at least 2 characters long'),
     body('address')
-        .notEmpty()
-        .withMessage('address is required')
+        .optional({ checkFalsy: true })
         .isLength({ min: 5 })
         .withMessage('address must be at least 5 characters long'),
     body('gender')
         .notEmpty()
         .withMessage('gender is required'),
     body('phone')
-        .trim()
-        .notEmpty()
-        .withMessage('phone is required'),
+        .optional({ checkFalsy: true })
+        .trim(),
     body('email')
         .optional({ checkFalsy: true })
         .isEmail()
         .withMessage('Invalid email address'),
     body('identificationType')
-        .notEmpty()
-        .withMessage('identificationType is required')
+        .optional({ checkFalsy: true })
         .isIn(identificationTypes)
         .withMessage('Invalid identification type'),
     body('id')
@@ -65,20 +62,22 @@ export const validatePostPatient: (ValidationChain | RequestHandler)[] = [
         .matches(/^[A-Za-z0-9]+$/)
         .withMessage('id must contain only letters and numbers'),
     body('emergencyContact')
+        .optional()
         .isObject()
-        .withMessage('emergencyContact is required'),
+        .withMessage('emergencyContact must be an object'),
     body('emergencyContact.name')
+        .optional({ checkFalsy: true })
         .trim()
         .isLength({ min: 2 })
         .withMessage('Emergency contact name must be at least 2 characters long'),
     body('emergencyContact.relationship')
+        .optional({ checkFalsy: true })
         .trim()
         .isLength({ min: 2 })
         .withMessage('Emergency contact relationship must be at least 2 characters long'),
     body('emergencyContact.phone')
-        .trim()
-        .notEmpty()
-        .withMessage('Emergency contact phone is required'),
+        .optional({ checkFalsy: true })
+        .trim(),
     body('emergencyContact.email')
         .optional({ checkFalsy: true })
         .isEmail()
@@ -110,9 +109,7 @@ export const validatePatchPatient: (ValidationChain | RequestHandler)[] = [
         .isLength({ min: 2 })
         .withMessage('lastName must be at least 2 characters long'),
     body('address')
-        .optional()
-        .notEmpty()
-        .withMessage('address is required')
+        .optional({ checkFalsy: true })
         .isLength({ min: 5 })
         .withMessage('address must be at least 5 characters long'),
     body('gender')
@@ -120,10 +117,8 @@ export const validatePatchPatient: (ValidationChain | RequestHandler)[] = [
         .notEmpty()
         .withMessage('gender is required'),
     body('phone')
-        .optional()
-        .trim()
-        .notEmpty()
-        .withMessage('phone is required'),
+        .optional({ checkFalsy: true })
+        .trim(),
     body('email')
         .optional({ checkFalsy: true })
         .isEmail()
@@ -144,20 +139,18 @@ export const validatePatchPatient: (ValidationChain | RequestHandler)[] = [
         .isObject()
         .withMessage('emergencyContact must be an object'),
     body('emergencyContact.name')
-        .if(body('emergencyContact').exists())
+        .optional({ checkFalsy: true })
         .trim()
         .isLength({ min: 2 })
         .withMessage('Emergency contact name must be at least 2 characters long'),
     body('emergencyContact.relationship')
-        .if(body('emergencyContact').exists())
+        .optional({ checkFalsy: true })
         .trim()
         .isLength({ min: 2 })
         .withMessage('Emergency contact relationship must be at least 2 characters long'),
     body('emergencyContact.phone')
-        .if(body('emergencyContact').exists())
-        .trim()
-        .notEmpty()
-        .withMessage('Emergency contact phone is required'),
+        .optional({ checkFalsy: true })
+        .trim(),
     body('emergencyContact.email')
         .optional({ checkFalsy: true })
         .isEmail()

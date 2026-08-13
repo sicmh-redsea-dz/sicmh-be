@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "55bce895-eda2-45f1-a8de-1cecc1d9a2a9",
+      "patientId": 2,
+      "patientName": "Jose Roberto  Martinez Rodriguez",
+      "encounterId": "7c4dc41b-fd76-446a-b517-feba264426b9",
+      "invoiceNumber": "9c123c20-5996-45e1",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-08-13",
+      "status": "Pendiente",
+      "source": "manual"
+    },
+    {
       "id": "e5805d84-331a-468b-b6d3-afebf5972d18",
       "patientId": 8,
       "patientName": "Sarah Elisa Martinez Rodriguez",
@@ -401,5 +417,5 @@
       }
     }
   ],
-  "updatedAt": "2026-07-23T22:55:07.337Z"
+  "updatedAt": "2026-08-13T15:02:01.959Z"
 }

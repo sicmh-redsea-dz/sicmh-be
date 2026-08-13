@@ -1,10 +1,13 @@
+import crypto from 'crypto'
 import { AuthRepository } from '../ports/auth.repository'
+import { MailService } from '../ports/mail.service'
 import { UserProfilesRepository } from '../ports/user-profiles.repository'
 import { AccessControlService } from './access-control.service'
 import { hashPassword, comparePassword } from '../../utils/passwordUtils'
 import { User } from '../../domain/entities/User'
 import { UserMapper } from '../../domain/mappers/UserMapper'
 import { AuthResponse } from '../../domain/responses/AuthResponse'
+import { config } from '../../config/env'
 
 interface AuthParams {
   name?: string
@@ -37,7 +40,8 @@ export class AuthService {
   constructor(
     private readonly authRepo: AuthRepository,
     private readonly profileRepo?: UserProfilesRepository,
-    private readonly accessControlService?: AccessControlService
+    private readonly accessControlService?: AccessControlService,
+    private readonly mailService?: MailService
   ) {}
 
   register = async (params: AuthParams): Promise<{ user: AuthResponse; sessionVersion: number }> => {
@@ -91,6 +95,34 @@ export class AuthService {
     if (!user.Activo) throw buildError('inactive_user', 'User is inactive.')
     const response = await UserMapper.toAuthResponse(user)
     return await this.attachProfile(response)
+  }
+
+  requestPasswordReset = async (email: string, companyCode: string): Promise<void> => {
+    const normalizedEmail = email.trim().toLowerCase()
+    const user = await this.authRepo.findByEmail(normalizedEmail)
+    if (!user || !user.Activo || !this.mailService) return
+    if (!(await this.authRepo.canIssuePasswordResetToken(user.UsuarioID))) return
+
+    const token = crypto.randomBytes(32).toString('hex')
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000)
+    await this.authRepo.replacePasswordResetToken(user.UsuarioID, tokenHash, expiresAt)
+
+    const resetUrl = new URL('/auth/reset-password', config.FRONTEND_URL)
+    resetUrl.searchParams.set('token', token)
+    resetUrl.searchParams.set('codigoEmpresa', companyCode.toUpperCase())
+    await this.mailService.sendPasswordReset({
+      name: user.NombreUsuario,
+      email: user.CorreoElectronico,
+      resetUrl: resetUrl.toString()
+    })
+  }
+
+  resetPassword = async (token: string, newPassword: string): Promise<void> => {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+    const passwordHash = await hashPassword(newPassword)
+    const changed = await this.authRepo.consumePasswordResetToken(tokenHash, passwordHash)
+    if (!changed) throw buildValidationError('El enlace es inválido, ya fue utilizado o ha vencido.')
   }
 
   private getUserData = async (identifier: number | string): Promise<User> => {

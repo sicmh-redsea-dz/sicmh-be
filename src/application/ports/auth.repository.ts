@@ -23,6 +23,11 @@ export interface PersonalCreateParams {
     gCalCalendarId?: string | null
 }
 
+export interface PasswordResetToken {
+    id: number
+    userId: number
+}
+
 export interface AuthRepository {
     createUser(params: AuthCreateUserParams): Promise<number>
     findByEmail(email: string): Promise<User | null>
@@ -44,4 +49,7 @@ export interface AuthRepository {
     // row) to skip the extra read-back query; omit it to fall back to a
     // fresh SELECT after the UPDATE.
     incrementSessionVersion(userId: number, currentVersion?: number): Promise<number>
+    canIssuePasswordResetToken(userId: number): Promise<boolean>
+    replacePasswordResetToken(userId: number, tokenHash: string, expiresAt: Date): Promise<void>
+    consumePasswordResetToken(tokenHash: string, passwordHash: string): Promise<boolean>
 }

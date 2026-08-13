@@ -8,17 +8,17 @@ export interface PatientCreateParams {
     gender: string
     phone: string
     email?: string | null
-    identificationType: 'identidad' | 'pasaporte' | 'carne_residencia'
+    identificationType?: 'identidad' | 'pasaporte' | 'carne_residencia'
     id: string
-    emergencyContact: EmergencyContactParams
+    emergencyContact?: EmergencyContactParams
 }
 
 export type PatientUpdateParams = Partial<PatientCreateParams>
 
 export interface EmergencyContactParams {
-    name: string
-    relationship: string
-    phone: string
+    name?: string
+    relationship?: string
+    phone?: string
     email?: string
     address?: string
 }

@@ -35,6 +35,7 @@ import { ClinicalAttachmentsService } from '../../application/services/clinical-
 import { MysqlClinicalAttachmentsRepository } from '../repositories/mysql-clinical-attachments.repository'
 import { GcsFileStorage } from '../storage/gcs-file-storage'
 import { config } from '../../config/env'
+import { NodemailerMailService } from '../mail/nodemailer-mail.service'
 
 export class ServiceContainer {
     private static authService: AuthService
@@ -78,7 +79,8 @@ export class ServiceContainer {
             this.authService = new AuthService(
                 this.getAuthRepository(),
                 this.getUserProfilesRepository(),
-                this.getAccessControlService()
+                this.getAccessControlService(),
+                new NodemailerMailService()
             )
         return this.authService
     }

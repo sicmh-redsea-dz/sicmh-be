@@ -4,11 +4,34 @@ import { AttachmentsController } from '../controllers/attachments.controller';
 import { validateGetPatient, validateGetPatients, validatePostPatient, validatePatchPatient, validateDeletePatient } from '../validators/patients.validator';
 import { requirePermissions } from '../middlewares/permission.middleware';
 import { singleFileUpload } from '../middlewares/upload.middleware';
+import { AttachmentCaptureController } from '../controllers/attachment-capture.controller';
+import { param } from 'express-validator';
+import { handleValidationErrors } from '../validators/validationErrorHandler';
 
 const router = Router();
 
 const patientController = new PatientsController();
 const attachmentsController = new AttachmentsController();
+const attachmentCaptureController = new AttachmentCaptureController();
+const validateCaptureToken = [param('token').isUUID().withMessage('El token de captura no es válido.'), handleValidationErrors]
+
+router.post(
+  '/attachment-capture',
+  requirePermissions('attachments.create'),
+  attachmentCaptureController.create.bind(attachmentCaptureController)
+);
+router.get(
+  '/attachment-capture/:token',
+  requirePermissions('attachments.create'),
+  validateCaptureToken,
+  attachmentCaptureController.status.bind(attachmentCaptureController)
+);
+router.delete(
+  '/attachment-capture/:token',
+  requirePermissions('attachments.create'),
+  validateCaptureToken,
+  attachmentCaptureController.remove.bind(attachmentCaptureController)
+);
 
 router.get(
   '/',

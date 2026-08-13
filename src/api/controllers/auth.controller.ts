@@ -53,6 +53,33 @@ export class AuthController {
     }
   }
 
+  forgotPassword = async (req: Request, res: Response) => {
+    const { email, codigoEmpresa } = req.body
+    const message = 'Si los datos coinciden con una cuenta activa, recibirás un enlace para restablecer tu contraseña.'
+    try {
+      const { pool } = await PoolManager.getPool(codigoEmpresa)
+      await TenantContext.run(pool, () =>
+        this.authService.requestPasswordReset(email, codigoEmpresa)
+      )
+    } catch (err: any) {
+      console.warn('Password reset request could not be completed:', err?.message || err)
+    }
+    res.status(202).json({ message })
+  }
+
+  resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+    const { token, newPassword, codigoEmpresa } = req.body
+    try {
+      const { pool } = await PoolManager.getPool(codigoEmpresa)
+      await TenantContext.run(pool, () =>
+        this.authService.resetPassword(token, newPassword)
+      )
+      res.status(200).json({ message: 'Tu contraseña fue actualizada. Ya puedes iniciar sesión.' })
+    } catch (err) {
+      next(err)
+    }
+  }
+
   checkToken = async (req: Request, res: Response, next: NextFunction) => {
     const { uid } = (req as any).user
     try {

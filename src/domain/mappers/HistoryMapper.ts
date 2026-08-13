@@ -125,38 +125,39 @@ export class HistoryMapper {
 
         const standard = newHistory.expediente?.standard
         const module = newHistory.expediente?.module
+        const nullable = (value: any) => value === '' || value === undefined ? null : value
     
         return {
             PacienteID,
-            Diagnostico,
-            Tratamiento,
-            Notas,
-            Presion,
-            Oxigenacion,
-            Temperatura,
-            Glucometria,
-            Peso,
-            Altura,
-            IMC,
-            PorcentajeGrasa,
-            GrasaVisceral,
-            EdadSegunPeso,
+            Diagnostico: nullable(Diagnostico),
+            Tratamiento: nullable(Tratamiento),
+            Notas: nullable(Notas),
+            Presion: nullable(Presion),
+            Oxigenacion: nullable(Oxigenacion),
+            Temperatura: nullable(Temperatura),
+            Glucometria: nullable(Glucometria),
+            Peso: nullable(Peso),
+            Altura: nullable(Altura),
+            IMC: nullable(IMC),
+            PorcentajeGrasa: nullable(PorcentajeGrasa),
+            GrasaVisceral: nullable(GrasaVisceral),
+            EdadSegunPeso: nullable(EdadSegunPeso),
             FechaVisita: date,
             FechaUltimaVisita: date,
             TipoVisita,
             FacturaID,
             PersonalID,
-            Ant_Familiar,
-            Ant_Habito,
-            Ant_Patologico,
-            Ant_Quirurgico,
-            MotivoConsulta: standard?.chiefComplaint,
-            PadecimientoActual: standard?.currentIllness,
-            ExploracionFisica: standard?.physicalExam,
-            Alergias: standard?.allergies,
-            MedicamentosActuales: standard?.currentMeds,
-            PlanSeguimiento: module?.followUpPlan,
-            ReferenciasInterconsultas: module?.referrals
+            Ant_Familiar: nullable(Ant_Familiar),
+            Ant_Habito: nullable(Ant_Habito),
+            Ant_Patologico: nullable(Ant_Patologico),
+            Ant_Quirurgico: nullable(Ant_Quirurgico),
+            MotivoConsulta: nullable(standard?.chiefComplaint),
+            PadecimientoActual: nullable(standard?.currentIllness),
+            ExploracionFisica: nullable(standard?.physicalExam),
+            Alergias: nullable(standard?.allergies),
+            MedicamentosActuales: nullable(standard?.currentMeds),
+            PlanSeguimiento: nullable(module?.followUpPlan),
+            ReferenciasInterconsultas: nullable(module?.referrals)
         }
     }
 

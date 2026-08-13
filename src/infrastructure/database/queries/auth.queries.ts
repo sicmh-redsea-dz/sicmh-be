@@ -182,6 +182,21 @@ export const authQueries = (key: string, caller?:number) => {
                 UPDATE usuarios SET SessionVersion = ? WHERE UsuarioID = ?;
             `
             break
+        case 'recent-password-reset-token':
+            query = `SELECT id FROM password_reset_tokens WHERE UsuarioID = ? AND created_at > DATE_SUB(NOW(), INTERVAL 2 MINUTE) LIMIT 1;`
+            break
+        case 'invalidate-password-reset-tokens':
+            query = `UPDATE password_reset_tokens SET used_at = COALESCE(used_at, NOW()) WHERE UsuarioID = ? AND used_at IS NULL;`
+            break
+        case 'insert-password-reset-token':
+            query = `INSERT INTO password_reset_tokens (UsuarioID, token_hash, expires_at) VALUES (?, ?, ?);`
+            break
+        case 'lock-password-reset-token':
+            query = `SELECT id, UsuarioID AS userId FROM password_reset_tokens WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW() LIMIT 1 FOR UPDATE;`
+            break
+        case 'consume-password-reset-token':
+            query = `UPDATE password_reset_tokens SET used_at = NOW() WHERE id = ?;`
+            break
         default:
             query = ''
             break

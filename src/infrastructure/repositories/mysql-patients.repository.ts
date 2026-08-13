@@ -25,7 +25,7 @@ export class MysqlPatientsRepository implements PatientsRepository {
         const { birthdate, firstName, lastName, address, gender, phone, email, identificationType, id, emergencyContact } = params
         return Database.transaction(async () => {
             const query = patientQueries('create')
-            const values = [firstName, lastName, birthdate, phone.trim(), email?.trim() || null, address, identificationType, id.trim(), gender]
+            const values = [firstName, lastName, birthdate, phone?.trim() || null, email?.trim() || null, address || null, identificationType || 'identidad', id.trim(), gender]
             const result = await Database.execute<ResultSetHeader>(query, values)
             await this.saveEmergencyContact(result.insertId, emergencyContact)
             return result.insertId
@@ -55,10 +55,15 @@ export class MysqlPatientsRepository implements PatientsRepository {
     ): Promise<void> {
         if (!contact) return
 
+        const hasContactData = Object.values(contact).some((value) =>
+            typeof value === 'string' && value.trim().length > 0
+        )
+        if (!hasContactData) return
+
         const values = [
-            contact.name,
-            contact.relationship,
-            contact.phone,
+            contact.name?.trim() || '',
+            contact.relationship?.trim() || '',
+            contact.phone?.trim() || '',
             contact.email?.trim() || null,
             contact.address?.trim() || null
         ]

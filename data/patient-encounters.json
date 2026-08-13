@@ -1,6 +1,18 @@
 {
   "encounters": [
     {
+      "id": "7c4dc41b-fd76-446a-b517-feba264426b9",
+      "patientId": 2,
+      "patientName": "Jose Roberto  Martinez Rodriguez",
+      "doctorId": 1,
+      "origin": "consulta",
+      "invoiceNumber": "9c123c20-5996-45e1",
+      "invoiceId": 45,
+      "status": "Pendiente",
+      "createdAt": "2026-08-13",
+      "updatedAt": "2026-08-13T15:02:01.956Z"
+    },
+    {
       "id": "a6b98422-133d-4304-ae90-3af92ad1aa3d",
       "patientId": 8,
       "patientName": "Sarah Elisa Martinez Rodriguez",
@@ -195,5 +207,5 @@
       "closedAt": "2026-06-16T00:54:24.706Z"
     }
   ],
-  "updatedAt": "2026-07-23T22:48:00.261Z"
+  "updatedAt": "2026-08-13T15:02:01.956Z"
 }

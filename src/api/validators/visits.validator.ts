@@ -5,7 +5,7 @@ import { handleValidationErrors } from './validationErrorHandler';
 const optionalNumeric = ( field: string, type: 'i'|'f' ) => {
     const chain = 
         body( field )
-            .optional()
+            .optional({ values: 'falsy' })
             // .isNumeric()
             // .withMessage(`${ field } must be a number`)
     return type === 'f' ? chain.toFloat() : chain.toInt()
@@ -13,21 +13,17 @@ const optionalNumeric = ( field: string, type: 'i'|'f' ) => {
 
 const optionalString = ( field: string ) => 
     body( field )
-        .optional()
+        .optional({ values: 'falsy' })
         // .withMessage(`${ field } must be at least 5 characters long.`)
     
 export const validateCreatePatient: (ValidationChain | RequestHandler)[] = [
     optionalNumeric('BMI', 'f'),
     optionalNumeric('ageAccordingToWeight', 'i'),
-    body('date')
-        .notEmpty()
-        .withMessage('Date is required'),
+    optionalString('date'),
     body('origin')
         .notEmpty()
         .withMessage('Origin is required'),
-    body('diagnosis')
-        .notEmpty()
-        .withMessage('Diagnosis is required'),
+    optionalString('diagnosis'),
     body('doctor')
         .notEmpty()
         .withMessage('Doctor ID is required')
@@ -41,13 +37,9 @@ export const validateCreatePatient: (ValidationChain | RequestHandler)[] = [
         .notEmpty()
         .withMessage('Patient ID is required.')
         .toInt(),
-    body('pressure')
-        .notEmpty()
-        .withMessage('Pressure is required'),
+    optionalString('pressure'),
     optionalNumeric('temperature', 'i'),
-    body('treatment')
-        .notEmpty()
-        .withMessage('Treatment is required'),
+    optionalString('treatment'),
     optionalNumeric('visceralFat', 'f'),
     optionalNumeric('weight', 'f'),
     handleValidationErrors
@@ -59,16 +51,14 @@ export const validateEditPatient: (ValidationChain | RequestHandler)[] = [
         .withMessage('Id must be a positive integer'),
     optionalNumeric('BMI', 'f'),
     optionalNumeric('ageAccordingToWeight', 'i'),
-    body('date')
-        .notEmpty()
-        .withMessage('Date is required'),
+    optionalString('date'),
     body('origin')
         .notEmpty()
         .withMessage('Origin is required'),
-    body('diagnosis')
-        .notEmpty()
-        .withMessage('Diagnosis is required'),
+    optionalString('diagnosis'),
     body('doctor')
+        .notEmpty()
+        .withMessage('Doctor ID is required')
         .toInt(),
     optionalNumeric('fatPercentage', 'f'),
     optionalNumeric('glucometry', 'f'),
@@ -76,14 +66,12 @@ export const validateEditPatient: (ValidationChain | RequestHandler)[] = [
     optionalString('notes'),
     optionalNumeric('oxygenation', 'i'),
     body('patient')
+        .notEmpty()
+        .withMessage('Patient ID is required.')
         .toInt(),
-    body('pressure')
-        .notEmpty()
-        .withMessage('Pressure is required'),
+    optionalString('pressure'),
     optionalNumeric('temperature', 'i'),
-    body('treatment')
-        .notEmpty()
-        .withMessage('Treatment is required'),
+    optionalString('treatment'),
     optionalNumeric('visceralFat', 'f'),
     optionalNumeric('weight', 'f'),
     handleValidationErrors

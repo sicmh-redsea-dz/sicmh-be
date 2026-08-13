@@ -37,6 +37,21 @@ CREATE TABLE IF NOT EXISTS usuarios (
   CONSTRAINT fk_usuarios_rol FOREIGN KEY (RolId) REFERENCES roles (RolID)
 );
 
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id          BIGINT        NOT NULL AUTO_INCREMENT,
+  UsuarioID   INT           NOT NULL,
+  token_hash  CHAR(64)      NOT NULL,
+  expires_at  DATETIME      NOT NULL,
+  used_at     DATETIME      NULL,
+  created_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_password_reset_token_hash (token_hash),
+  KEY idx_password_reset_user_created (UsuarioID, created_at),
+  KEY idx_password_reset_expiry (expires_at),
+  CONSTRAINT fk_password_reset_usuario FOREIGN KEY (UsuarioID)
+    REFERENCES usuarios (UsuarioID) ON DELETE CASCADE
+);
+
 -- ── 3. tipo_pago ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS tipo_pago (
   TipoPagoID  INT          NOT NULL AUTO_INCREMENT,
