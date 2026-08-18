@@ -1,6 +1,19 @@
 {
   "events": [
     {
+      "id": "e5730720-1bd4-4f51-8caa-994c98b439a2",
+      "patientId": 2,
+      "patientName": "Jose Roberto  Martinez Rodriguez",
+      "encounterId": "3a542087-64dc-4e31-a1ec-1e869069545f",
+      "invoiceNumber": "7e9ad9e8-f2a1-425e",
+      "toStation": "consulta",
+      "occurredAt": "2026-08-17",
+      "source": "visit",
+      "reference": {
+        "visitId": 52
+      }
+    },
+    {
       "id": "cf0ba18e-bd06-4608-81fd-44073e50905c",
       "patientId": 2,
       "patientName": "Jose Roberto  Martinez Rodriguez",
@@ -337,5 +350,5 @@
       }
     }
   ],
-  "updatedAt": "2026-08-13T15:02:01.957Z"
+  "updatedAt": "2026-08-18T00:22:23.647Z"
 }

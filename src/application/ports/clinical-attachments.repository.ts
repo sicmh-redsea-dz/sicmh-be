@@ -17,4 +17,5 @@ export interface ClinicalAttachmentsRepository {
   listByPatient(patientId: number, recordId?: number | null): Promise<ClinicalAttachment[]>
   softDelete(id: number): Promise<void>
   logAccess(attachmentId: number, accessedBy: number, ipAddress: string | null): Promise<void>
+  isAcceptedConsentAttachment?(attachmentId: number): Promise<boolean>
 }

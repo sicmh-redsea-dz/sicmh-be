@@ -1,6 +1,19 @@
 {
   "encounters": [
     {
+      "id": "3a542087-64dc-4e31-a1ec-1e869069545f",
+      "patientId": 2,
+      "patientName": "Jose Roberto  Martinez Rodriguez",
+      "doctorId": 7,
+      "origin": "consulta",
+      "invoiceNumber": "7e9ad9e8-f2a1-425e",
+      "invoiceId": 52,
+      "status": "Pendiente",
+      "createdAt": "2026-08-17",
+      "updatedAt": "2026-08-18T00:22:23.644Z",
+      "previousEncounterId": "7c4dc41b-fd76-446a-b517-feba264426b9"
+    },
+    {
       "id": "7c4dc41b-fd76-446a-b517-feba264426b9",
       "patientId": 2,
       "patientName": "Jose Roberto  Martinez Rodriguez",
@@ -207,5 +220,5 @@
       "closedAt": "2026-06-16T00:54:24.706Z"
     }
   ],
-  "updatedAt": "2026-08-13T15:02:01.956Z"
+  "updatedAt": "2026-08-18T00:22:23.644Z"
 }

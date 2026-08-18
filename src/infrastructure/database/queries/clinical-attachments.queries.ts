@@ -32,6 +32,12 @@ export const clinicalAttachmentsQueries = (key: string): string => {
         VALUES (?, ?, ?)
       `
 
+    case 'is-accepted-consent':
+      return `SELECT EXISTS(
+        SELECT 1 FROM consentimiento_instancias
+        WHERE attachment_id = ? AND status = 'accepted'
+      ) AS protected_attachment`
+
     default:
       throw new Error(`Unknown clinical attachments query: ${key}`)
   }

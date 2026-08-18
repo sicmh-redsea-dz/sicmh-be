@@ -125,9 +125,9 @@ Las rutas viven bajo `src/api/routes/*.route.ts`, un archivo por recurso.
 Composición: `app.ts` monta `/public` (sin autenticar), `/app`
 (`authMiddleware` aplicado una vez para todo el subárbol, y luego
 sub-routers para patients/visits/beds/or-rooms/invoice/billing/settings/
-scheduling/inventory/attachments/dashboard), y `/auth` (login/register sin
-autenticar; check-token/complete-password-change detrás de
-`authMiddleware`).
+scheduling/inventory/attachments/dashboard), y `/auth` (login/register/
+forgot-password/reset-password sin autenticar; check-token/
+complete-password-change detrás de `authMiddleware`).
 
 Convención por ruta:
 `requirePermissions(<perm>) → validadores → [middleware de subida] → método del controlador`.
@@ -213,7 +213,8 @@ ambos discrepen, y reconcílialos periódicamente.
 
 Grupos principales de tablas (esquema por tenant):
 - **Identidad/RBAC**: `roles`, `usuarios` (incl. `SessionVersion` — ver
-  §11.4), `personal` (personal/staff, FK a `usuarios`).
+  §11.4), `password_reset_tokens` (tokens de recuperación hasheados y de un
+  solo uso), `personal` (personal/staff, FK a `usuarios`).
 - **Catálogo**: `tipo_pago`, `servicios`.
 - **Clínico**: `pacientes`, `historia_medica` (visitas — signos vitales,
   ENUM `TipoVisita`).
@@ -360,6 +361,28 @@ La emisión de tokens ocurre únicamente en
    la vez.
 4. Adjunta `req.user = payload` y vuelve a entrar en
    `TenantContext.run(pool, next)`.
+
+### Recuperación de contraseña
+
+`POST /auth/forgot-password` recibe `{ email, codigoEmpresa }`, resuelve el
+tenant antes de consultar al usuario y siempre devuelve la misma respuesta
+202 para no revelar si una cuenta existe. Para un usuario activo,
+`AuthService` genera un token criptográficamente aleatorio, guarda solamente
+su hash SHA-256 en `password_reset_tokens` dentro del tenant y envía el token
+legible únicamente en un enlace a `${FRONTEND_URL}/auth/reset-password`. El
+token vence después de 30 minutos, es de un solo uso y se limita la emisión a
+una solicitud por usuario cada dos minutos.
+
+`POST /auth/reset-password` recibe `{ token, newPassword, codigoEmpresa }`.
+El repositorio bloquea y consume el token dentro de una transacción,
+actualiza `usuarios.ContrasenaHash` e incrementa `SessionVersion`, invalidando
+las sesiones existentes. La tabla debe crearse en **cada esquema tenant**;
+su DDL idempotente está incluido tanto en `schema.sql` como en
+`migration.sql`.
+
+Los mensajes pasan por el puerto `MailService` y el adaptador SMTP
+`NodemailerMailService`. El envío es síncrono para este flujo de bajo volumen;
+la arquitectura actual no incorpora una cola de correo.
 
 **No existe ningún mecanismo de refresh token.** Hay un único token de
 acceso con un TTL fijo y la verificación de versión de sesión es la única
@@ -554,23 +577,27 @@ arrancar. Asperezas conocidas:
 - `SECRET_JWT_TOKEN` por defecto es `''` si no está configurado — un
   valor por defecto silencioso y peligroso en cualquier entorno donde la
   variable de entorno no esté realmente configurada.
-- La configuración SMTP (`SMTP_HOST/PORT/USER/PASS/FROM`) se lee de forma
-  puntual directamente de `process.env` dentro de
-  `SettingsService.sendInviteEmail`, saltándose por completo el objeto
-  `config` central. Si alguna falta, los correos de invitación se omiten en
-  silencio (`console.warn`, devuelve `false`) en lugar de fallar de forma
-  ruidosa.
-- No hay ningún `.env.example` en el repositorio (`.env` está en
-  `.gitignore`). Las variables de entorno realmente en uso, como
-  referencia:
+- La configuración SMTP para recuperación está centralizada en `config` y la
+  consume `NodemailerMailService`. `SettingsService.sendInviteEmail` todavía
+  lee las mismas variables directamente desde `process.env`; ese flujo de
+  invitaciones anterior aún no ha sido migrado a `MailService`.
+- `.env.example` documenta el contrato local/de despliegue (`.env` continúa
+  en `.gitignore`). Las variables en uso incluyen:
 
   ```
   PORT, HOST, PUBLIC_BASE_URL
   DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_SCHEMA
   SECRET_JWT_TOKEN, JWT_EXPIRES_IN
   GCS_CLINICAL_BUCKET, GCS_PUBLIC_BUCKET, GCS_KEY_FILE
-  SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
+  FRONTEND_URL
+  SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS, SMTP_FROM
   ```
+
+  En producción, `SMTP_PASS` debe provenir de un gestor de secretos, nunca de
+  un valor literal de Cloud Run ni de un archivo versionado. El despliegue
+  actual en Google Cloud utiliza el secreto `smtp-password` de Secret
+  Manager; las demás variables SMTP y `FRONTEND_URL` son variables normales
+  de Cloud Run. El valor del secreto nunca debe documentarse.
 
   La sección "Configuration" de `README.md` solo lista un subconjunto de
   estas (e incorrectamente lista MongoDB como requisito — este proyecto es
@@ -582,23 +609,20 @@ arrancar. Asperezas conocidas:
 `npm test` ejecuta `tsc && node --test "dist/tests/*.test.js"` — el test
 runner integrado de Node, sin Jest/Mocha/Vitest.
 
-Solo existe un archivo de pruebas automatizadas real:
-`src/tests/clinical-attachments.validation.test.ts`, que cubre
-`ClinicalAttachmentsService` vía fakes en memoria (`FakeStorage implements
-FileStorage`, `FakeRepo implements ClinicalAttachmentsRepository`) — lista
-blanca de MIME/sniffing de magic bytes, el pipeline de cámara con sharp,
-validación de entrada de subida, la verificación de defensa en profundidad
-por tenant, y `parseRangeHeader`. Que el service se pueda probar de forma
-tan limpia contra fakes es una buena señal para el límite de
-puertos/adaptadores en esa área concreta.
+La suite contiene pruebas enfocadas de servicios y repositorios. En
+particular, `src/tests/password-reset.test.ts` verifica que la recuperación
+guarde solamente el hash, construya la URL pública con tenant y rechace tokens
+vencidos o consumidos. `src/tests/clinical-attachments.validation.test.ts`
+cubre la lista blanca MIME/sniffing de magic bytes, el pipeline de cámara con
+sharp, validación de subida y defensa en profundidad por tenant.
 
 `src/tests/range-harness.ts` **no** es una prueba automatizada — es un
 servidor de smoke-test manual para el comportamiento de Range
 (`node dist/tests/range-harness.js` + `curl -H "Range: ..."`), excluido del
 glob de `node --test` por su nombre de archivo.
 
-**Vacío de cobertura** que vale la pena señalar explícitamente: no hay
-cobertura de pruebas para auth/JWT, resolución de permisos
+**Vacío de cobertura** que vale la pena señalar explícitamente: la
+recuperación tiene pruebas enfocadas, pero login/JWT, resolución de permisos
 (`AccessControlService`), multitenancy (`PoolManager`/`TenantContext`),
 ningún repositorio MySQL, ni los services basados en archivos de
 billing/movements/encounters — a pesar de que el §12 anterior describe

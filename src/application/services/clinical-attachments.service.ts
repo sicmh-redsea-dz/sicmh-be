@@ -132,6 +132,9 @@ export class ClinicalAttachmentsService {
 
   softDelete = async (id: number, tenantCode: string): Promise<void> => {
     await this.getForAccess(id, tenantCode)
+    if (this.attachmentsRepo.isAcceptedConsentAttachment && await this.attachmentsRepo.isAcceptedConsentAttachment(id)) {
+      throw this.buildValidationError(['Un consentimiento aceptado no puede eliminarse del expediente.'])
+    }
     await this.attachmentsRepo.softDelete(id)
   }
 
@@ -185,6 +188,15 @@ export class ClinicalAttachmentsService {
       cacheControl: 'public, max-age=300',
     })
     return { objectPath }
+  }
+
+  hasPrescriptionAssets = async (tenantCode: string, userId: number): Promise<{ signature: boolean; stamp: boolean }> => {
+    if (!this.publicStorage.exists) return { signature: false, stamp: false }
+    const [signature, stamp] = await Promise.all([
+      this.publicStorage.exists(`${tenantCode}/users/${userId}/signature.png`),
+      this.publicStorage.exists(`${tenantCode}/users/${userId}/stamp.png`),
+    ])
+    return { signature, stamp }
   }
 
   private parseSource(source: string): AttachmentSource {

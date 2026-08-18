@@ -38,4 +38,11 @@ export class MysqlClinicalAttachmentsRepository implements ClinicalAttachmentsRe
   async logAccess(attachmentId: number, accessedBy: number, ipAddress: string | null): Promise<void> {
     await Database.execute(clinicalAttachmentsQueries('log-access'), [attachmentId, accessedBy, ipAddress])
   }
+
+  async isAcceptedConsentAttachment(attachmentId: number): Promise<boolean> {
+    const rows = await Database.execute<Array<{ protected_attachment: number }>>(
+      clinicalAttachmentsQueries('is-accepted-consent'), [attachmentId]
+    )
+    return !!rows[0]?.protected_attachment
+  }
 }

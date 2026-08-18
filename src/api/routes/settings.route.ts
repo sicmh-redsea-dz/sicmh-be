@@ -4,10 +4,36 @@ import { AttachmentsController } from '../controllers/attachments.controller'
 import { requireAnyPermission, requirePermissions } from '../middlewares/permission.middleware'
 import { singleFileUpload } from '../middlewares/upload.middleware'
 import { validateChangeUserPassword } from '../validators/settings.validator'
+import { ConsentsController } from '../controllers/consents.controller'
 
 const router = Router()
 const settingsController = new SettingsController()
 const attachmentsController = new AttachmentsController()
+const consentsController = new ConsentsController()
+
+router.get(
+  '/consents',
+  requirePermissions('settings.company.read'),
+  consentsController.listTemplates.bind(consentsController)
+)
+
+router.post(
+  '/consents',
+  requirePermissions('settings.company.update'),
+  consentsController.createTemplate.bind(consentsController)
+)
+
+router.put(
+  '/consents/:id',
+  requirePermissions('settings.company.update'),
+  consentsController.updateTemplate.bind(consentsController)
+)
+
+router.patch(
+  '/consents/:id/status',
+  requirePermissions('settings.company.update'),
+  consentsController.setTemplateActive.bind(consentsController)
+)
 
 router.get(
   '/profile',

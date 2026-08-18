@@ -106,8 +106,9 @@ Routes live under `src/api/routes/*.route.ts`, one file per resource.
 Composition: `app.ts` mounts `/public` (unauthenticated), `/app`
 (`authMiddleware` applied once for the whole subtree, then sub-routers for
 patients/visits/beds/or-rooms/invoice/billing/settings/scheduling/inventory/
-attachments/dashboard), and `/auth` (login/register unauthenticated;
-check-token/complete-password-change behind `authMiddleware`).
+attachments/dashboard), and `/auth` (login/register/forgot-password/
+reset-password unauthenticated; check-token/complete-password-change behind
+`authMiddleware`).
 
 Per-route convention:
 `requirePermissions(<perm>) → validators → [upload middleware] → controller method`.
@@ -183,7 +184,8 @@ more current source when the two disagree, and reconcile them periodically.
 
 Major table groups (per-tenant schema):
 - **Identity/RBAC**: `roles`, `usuarios` (incl. `SessionVersion` — see §11.4),
-  `personal` (staff, FK to `usuarios`).
+  `password_reset_tokens` (one-use, hashed recovery tokens), `personal`
+  (staff, FK to `usuarios`).
 - **Catalog**: `tipo_pago`, `servicios`.
 - **Clinical**: `pacientes`, `historia_medica` (visits — vitals, `TipoVisita`
   ENUM).
@@ -313,6 +315,28 @@ of `/app/*` plus `/auth/check-token` and `/auth/complete-password-change`:
    support. Keep that in mind before assuming a user can be logged in from
    two devices at once.
 4. Attaches `req.user = payload` and re-enters `TenantContext.run(pool, next)`.
+
+### Password recovery
+
+`POST /auth/forgot-password` accepts `{ email, codigoEmpresa }`, resolves the
+tenant before querying the user, and always returns the same 202 response so
+the endpoint does not disclose whether an account exists. For an active user,
+`AuthService` creates a cryptographically random token, stores only its
+SHA-256 hash in the tenant's `password_reset_tokens` table, and sends the raw
+token only in a link to `${FRONTEND_URL}/auth/reset-password`. Tokens expire
+after 30 minutes, are single-use, and requests are limited to one token per
+user every two minutes.
+
+`POST /auth/reset-password` accepts `{ token, newPassword, codigoEmpresa }`.
+The repository locks and consumes the matching token in a transaction,
+updates `usuarios.ContrasenaHash`, and increments `SessionVersion`, which
+invalidates existing sessions. The table must be created in **every tenant
+schema**; its idempotent DDL is present in both `schema.sql` and
+`migration.sql`.
+
+Password-reset messages are sent through the `MailService` port and the
+`NodemailerMailService` SMTP adapter. Sending remains synchronous for this
+low-volume flow; a mail queue is not part of the current architecture.
 
 **No refresh-token mechanism exists.** There is a single access token with a
 fixed TTL and the session-version check is the only invalidation lever. When
@@ -481,21 +505,27 @@ at the point of use rather than at boot. Known rough edges:
   it as documentation of the real default.
 - `SECRET_JWT_TOKEN` defaults to `''` if unset — a silent, dangerous default
   in any environment where the env var isn't actually set.
-- SMTP config (`SMTP_HOST/PORT/USER/PASS/FROM`) is read ad hoc directly from
-  `process.env` inside `SettingsService.sendInviteEmail`, bypassing the
-  central `config` object entirely. If any are unset, invite emails are
-  silently skipped (`console.warn`, returns `false`) rather than failing
-  loudly.
-- There is no `.env.example` in the repo (`.env` is gitignored). The env vars
-  actually in use, for reference:
+- Password-reset SMTP configuration is centralized in `config` and consumed
+  by `NodemailerMailService`. `SettingsService.sendInviteEmail` still reads
+  the same SMTP variables directly from `process.env`; that older invitation
+  path has not yet been refactored to use `MailService`.
+- `.env.example` documents the local/deployment contract (`.env` remains
+  gitignored). The environment variables in use include:
 
   ```
   PORT, HOST, PUBLIC_BASE_URL
   DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_SCHEMA
   SECRET_JWT_TOKEN, JWT_EXPIRES_IN
   GCS_CLINICAL_BUCKET, GCS_PUBLIC_BUCKET, GCS_KEY_FILE
-  SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
+  FRONTEND_URL
+  SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS, SMTP_FROM
   ```
+
+  In production, `SMTP_PASS` must be supplied from a secret manager rather
+  than stored as a literal Cloud Run environment value or committed file.
+  The current Google Cloud deployment uses the Secret Manager secret
+  `smtp-password`; the other SMTP settings and `FRONTEND_URL` are ordinary
+  Cloud Run environment variables. Never document the secret value.
 
   `README.md`'s "Configuration" section only lists a subset of these (and
   incorrectly lists MongoDB as a requirement — this project is MySQL-only).
@@ -506,21 +536,19 @@ at the point of use rather than at boot. Known rough edges:
 `npm test` runs `tsc && node --test "dist/tests/*.test.js"` — Node's built-in
 test runner, no Jest/Mocha/Vitest.
 
-Only one real automated test file exists:
-`src/tests/clinical-attachments.validation.test.ts`, covering
-`ClinicalAttachmentsService` via in-memory fakes (`FakeStorage implements
-FileStorage`, `FakeRepo implements ClinicalAttachmentsRepository`) — MIME
-whitelist/magic-byte sniffing, the sharp camera pipeline, upload input
-validation, the tenant-path defense-in-depth check, and `parseRangeHeader`.
-That the service can be tested this cleanly against fakes is a good sign for
-the ports/adapters boundary in that one area.
+The suite contains focused service/repository tests. In particular,
+`src/tests/password-reset.test.ts` verifies that recovery stores only a token
+hash, builds the tenant-aware public URL, and rejects expired or consumed
+tokens. `src/tests/clinical-attachments.validation.test.ts` covers the MIME
+whitelist/magic-byte sniffing, sharp camera pipeline, upload validation, and
+tenant-path defense in depth.
 
 `src/tests/range-harness.ts` is **not** an automated test — it's a manual
 smoke-test server for Range-header behavior (`node dist/tests/range-harness.js`
 + `curl -H "Range: ..."`), excluded from the `node --test` glob by filename.
 
-**Coverage gap** worth flagging explicitly: there is no test coverage for
-auth/JWT, permission resolution (`AccessControlService`), multitenancy
+**Coverage gap** worth flagging explicitly: password recovery has focused
+service tests, but login/JWT, permission resolution (`AccessControlService`), multitenancy
 (`PoolManager`/`TenantContext`), any MySQL repository, or the
 billing/movements/encounters file-backed services — despite §12 above
 describing real race conditions in exactly that last area. If this project

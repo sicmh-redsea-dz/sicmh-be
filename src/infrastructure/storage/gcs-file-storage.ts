@@ -33,4 +33,9 @@ export class GcsFileStorage implements FileStorage {
       validation: range?.start !== undefined || range?.end !== undefined ? false : undefined,
     })
   }
+
+  async exists(objectPath: string): Promise<boolean> {
+    const [exists] = await getClient().bucket(this.bucketName).file(objectPath).exists()
+    return exists
+  }
 }

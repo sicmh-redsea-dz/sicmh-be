@@ -11,4 +11,5 @@ export interface SaveFileOptions {
 export interface FileStorage {
   save(objectPath: string, data: Buffer, options: SaveFileOptions): Promise<void>
   createReadStream(objectPath: string, range?: FileReadRange): NodeJS.ReadableStream
+  exists?(objectPath: string): Promise<boolean>
 }

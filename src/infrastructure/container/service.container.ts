@@ -36,6 +36,8 @@ import { MysqlClinicalAttachmentsRepository } from '../repositories/mysql-clinic
 import { GcsFileStorage } from '../storage/gcs-file-storage'
 import { config } from '../../config/env'
 import { NodemailerMailService } from '../mail/nodemailer-mail.service'
+import { ConsentsService } from '../../application/services/consents.service'
+import { MysqlConsentsRepository } from '../repositories/mysql-consents.repository'
 
 export class ServiceContainer {
     private static authService: AuthService
@@ -73,6 +75,8 @@ export class ServiceContainer {
     private static userPermissionsRepo: MysqlUserPermissionsRepository
     private static clinicalAttachmentsService: ClinicalAttachmentsService
     private static clinicalAttachmentsRepo: MysqlClinicalAttachmentsRepository
+    private static consentsService: ConsentsService
+    private static consentsRepo: MysqlConsentsRepository
 
     static getAuthService(): AuthService {
         if (!this.authService)
@@ -206,6 +210,21 @@ export class ServiceContainer {
             )
         }
         return this.clinicalAttachmentsService
+    }
+
+    static getConsentsService(): ConsentsService {
+        if (!this.consentsService) {
+            this.consentsService = new ConsentsService(
+                this.getConsentsRepository(),
+                this.getClinicalAttachmentsService()
+            )
+        }
+        return this.consentsService
+    }
+
+    private static getConsentsRepository(): MysqlConsentsRepository {
+        if (!this.consentsRepo) this.consentsRepo = new MysqlConsentsRepository()
+        return this.consentsRepo
     }
 
     private static getClinicalAttachmentsRepository(): MysqlClinicalAttachmentsRepository {

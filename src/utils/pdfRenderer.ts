@@ -48,6 +48,15 @@ export const renderPdfFromHtml = async (html: string): Promise<Buffer> => {
     page.setDefaultNavigationTimeout(15000)
 
     await page.setContent(html, { waitUntil: 'domcontentloaded' })
+    await page.evaluate(async () => {
+      const images = Array.from(document.images)
+      await Promise.all(images.map((img) => img.complete
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            img.addEventListener('load', () => resolve(), { once: true })
+            img.addEventListener('error', () => resolve(), { once: true })
+          })))
+    })
 
     const pdf = await page.pdf({
       format: 'A4',
@@ -77,4 +86,3 @@ export const renderPdfFromHtml = async (html: string): Promise<Buffer> => {
     }
   }
 }
-
