@@ -4,6 +4,9 @@ import { InvoiceMapper } from '../../domain/mappers/InvoiceMapper'
 import { PatientsService } from './patients.service'
 import { BillingService } from './billing.service'
 import { renderPdfFromHtml } from '../../utils/pdfRenderer'
+import { DocumentDeliveryService } from './document-delivery.service'
+import { Database } from '../../infrastructure/database/Database'
+import { PoolManager } from '../../infrastructure/database/PoolManager'
 
 interface Delimiters {
   limit: number,
@@ -14,9 +17,14 @@ interface Delimiters {
 export class InvoiceService {
 
     private patientService: PatientsService
-    private billingService?: BillingService
+    private billingService: BillingService
 
-    constructor( patientService: PatientsService, private readonly invoiceRepo: InvoiceRepository, billingService?: BillingService ) {
+    constructor(
+        patientService: PatientsService,
+        private readonly invoiceRepo: InvoiceRepository,
+        billingService: BillingService,
+        private readonly documentDelivery: DocumentDeliveryService
+    ) {
         this.patientService = patientService
         this.billingService = billingService
     }
@@ -83,27 +91,7 @@ export class InvoiceService {
         }
     }
 
-    updateInvById = async (id: string, updInvoicePayload: Record<string, any>): Promise<any> => {
-        const currentInvoice = await this.invoiceRepo.findByInvoiceNumber(id)
-        if (!currentInvoice) {
-            const error = new Error(`Invoice with Id ${id} not found`)
-            error.name = 'not_found_error'
-            throw error
-        }
-        const normalizedStatus = String(currentInvoice.Estado || '').toLowerCase()
-        if (normalizedStatus.includes('pag')) {
-            const error = new Error('Invoice already paid')
-            error.name = 'validation_errors'
-            ;(error as any).errors = [{ msg: 'No se puede editar una factura pagada.' }]
-            throw error
-        }
-        if (normalizedStatus.includes('anul')) {
-            const error = new Error('Invoice already annulled')
-            error.name = 'validation_errors'
-            ;(error as any).errors = [{ msg: 'No se puede editar una factura anulada.' }]
-            throw error
-        }
-
+    updateInvById = async (id: string, updInvoicePayload: Record<string, any>, tenantCode: string): Promise<any> => {
         const mappedFields = InvoiceMapper.toDbForm({
             ...updInvoicePayload,
             invoiceNum: id,
@@ -116,20 +104,102 @@ export class InvoiceService {
         delete translatedFields['InvoiceNumber']
 
         try {
-            await this.invoiceRepo.updateByInvoiceNumber( id, translatedFields )
-            if (this.billingService) {
-                try {
-                    await this.billingService.updateEncounterStatusByInvoice(id, 'Pagado')
-                } catch (err) {
-                    console.warn('encounter status update warning:', (err as any)?.message || err)
+            const company = await PoolManager.resolveEmpresa(tenantCode)
+            await Database.transaction(async () => {
+                const currentInvoice = await this.invoiceRepo.findByInvoiceNumberForUpdate(id)
+                if (!currentInvoice) {
+                    const error = new Error(`Invoice with Id ${id} not found`)
+                    error.name = 'not_found_error'
+                    throw error
                 }
+                const normalizedStatus = String(currentInvoice.Estado || '').toLowerCase()
+                if (normalizedStatus.includes('pag')) {
+                    const error = new Error('Invoice already paid')
+                    error.name = 'validation_errors'
+                    ;(error as any).errors = [{ msg: 'No se puede editar una factura pagada.' }]
+                    throw error
+                }
+                if (normalizedStatus.includes('anul')) {
+                    const error = new Error('Invoice already annulled')
+                    error.name = 'validation_errors'
+                    ;(error as any).errors = [{ msg: 'No se puede editar una factura anulada.' }]
+                    throw error
+                }
+
+                await this.invoiceRepo.updateByInvoiceNumber(id, translatedFields)
+
+                {
+                    const finalInvoice = await this.invoiceRepo.findByInvoiceNumber(id)
+                    if (!finalInvoice) throw new Error('No se pudo leer la factura pagada para su entrega.')
+                    const billingSnapshot = await this.billingService.getInvoiceSnapshot(id)
+                    const cai = String(finalInvoice.CAI ?? '').trim()
+                    const paidAt = new Date().toISOString()
+                    const invoiceSnapshot = (billingSnapshot as any).invoice ?? {}
+                    const summary = (billingSnapshot as any).summary ?? {}
+                    const charges = Array.isArray((billingSnapshot as any).charges)
+                        ? (billingSnapshot as any).charges
+                        : []
+                    const lineItems = (charges.length ? charges : [{
+                        description: invoiceSnapshot.visitType ? `Factura - ${invoiceSnapshot.visitType}` : 'Servicios médicos',
+                        quantity: 1,
+                        unitPrice: Number(finalInvoice.Monto ?? 0),
+                        discount: 0,
+                        total: Number(finalInvoice.Monto ?? 0),
+                    }]).map((item: any) => ({
+                        description: item.description,
+                        quantity: Number(item.quantity ?? 0),
+                        unitPrice: Number(item.unitPrice ?? 0),
+                        discount: Number(item.discount ?? 0),
+                        total: Number(item.total ?? 0),
+                    }))
+                    await this.documentDelivery.enqueue({
+                        documentType: cai ? 'invoice' : 'receipt',
+                        sourceId: finalInvoice.InvoiceNumber,
+                        sourceVersion: '1',
+                        recipientEmail: finalInvoice.PacienteEmail,
+                        snapshot: {
+                            ...billingSnapshot,
+                            InvoiceNumber: finalInvoice.InvoiceNumber,
+                            CAI: finalInvoice.CAI ?? null,
+                            issueDate: finalInvoice.FechaFactura,
+                            paymentDate: paidAt,
+                            patientName: finalInvoice.PacienteNombre ?? invoiceSnapshot.patientName ?? null,
+                            patientIdentification: finalInvoice.PacienteIdentificacion ?? invoiceSnapshot.patientIdentification ?? null,
+                            patientRtn: finalInvoice.RTN ?? invoiceSnapshot.patientRtn ?? null,
+                            patientAddress: finalInvoice.PacienteDireccion ?? invoiceSnapshot.patientAddress ?? null,
+                            patientEmail: finalInvoice.PacienteEmail ?? invoiceSnapshot.patientEmail ?? null,
+                            doctorName: finalInvoice.DoctorNombre ?? invoiceSnapshot.doctorName ?? null,
+                            paymentMethod: finalInvoice.MetodoPago ?? invoiceSnapshot.paymentMethod ?? null,
+                            lineItems,
+                            subtotal: Number(summary.subtotal ?? finalInvoice.Monto ?? 0),
+                            discounts: Number(summary.discounts ?? summary.discountAmount ?? 0),
+                            taxAmounts: summary.taxAmounts ?? [],
+                            finalTotal: Number(summary.finalTotal ?? finalInvoice.Monto ?? 0),
+                            tenantCode,
+                            tenantDisplayName: company.NombreEmpresa,
+                            tenant: {
+                                code: tenantCode,
+                                displayName: company.NombreEmpresa,
+                                fiscalSettings: {
+                                    rtn: finalInvoice.RTN ?? null,
+                                    cai: finalInvoice.CAI ?? null,
+                                },
+                            },
+                        },
+                    })
+                }
+            })
+            try {
+                await this.billingService.updateEncounterStatusByInvoice(id, 'Pagado')
+            } catch (err) {
+                console.warn('encounter status update warning:', (err as any)?.message || err)
             }
             return {
                 id
             }
         } catch (err) {
             console.error('Error en updateInvById:', err)
-            throw new Error((err as any)?.message || 'Error desconocido')
+            throw err
         }
     }
 
@@ -157,17 +227,15 @@ export class InvoiceService {
 
         await this.invoiceRepo.updateByInvoiceNumber(invoiceId, { Estado: 'Anulado' })
 
-        if (this.billingService) {
-            try {
-                await this.billingService.updateEncounterStatusByInvoice(invoiceId, 'Anulado')
-            } catch (err) {
-                console.warn('billing encounter annul warning:', (err as any)?.message || err)
-            }
-            try {
-                await this.billingService.voidLedgerItemsByInvoice(invoiceId)
-            } catch (err) {
-                console.warn('billing ledger annul warning:', (err as any)?.message || err)
-            }
+        try {
+            await this.billingService.updateEncounterStatusByInvoice(invoiceId, 'Anulado')
+        } catch (err) {
+            console.warn('billing encounter annul warning:', (err as any)?.message || err)
+        }
+        try {
+            await this.billingService.voidLedgerItemsByInvoice(invoiceId)
+        } catch (err) {
+            console.warn('billing ledger annul warning:', (err as any)?.message || err)
         }
 
         return { invoiceId, newInvoiceId: null }

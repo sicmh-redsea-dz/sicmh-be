@@ -134,6 +134,10 @@ CREATE TABLE IF NOT EXISTS consentimiento_instancias (
   signer_identification VARCHAR(100)   NULL,
   signer_relationship   VARCHAR(100)   NULL,
   signer_phone          VARCHAR(50)    NULL,
+  signer_email          VARCHAR(254)   NULL,
+  signature_object      VARCHAR(1024)  NULL,
+  doctor_signature_object VARCHAR(1024) NULL,
+  doctor_stamp_object   VARCHAR(1024)  NULL,
   attachment_id         INT            NULL,
   document_sha256       CHAR(64)       NULL,
   snapshot_json         JSON           NOT NULL,
@@ -162,6 +166,37 @@ CREATE TABLE IF NOT EXISTS consentimiento_instancias (
   CONSTRAINT fk_consentimiento_instancia_accepted_by FOREIGN KEY (accepted_by)
     REFERENCES usuarios(UsuarioID)
 );
+
+-- Immutable delivery outbox. The API only inserts the initial request fields;
+-- the document worker exclusively updates processing/output/retry fields.
+CREATE TABLE IF NOT EXISTS document_delivery (
+  id                BIGINT       NOT NULL AUTO_INCREMENT,
+  document_type     VARCHAR(32)  NOT NULL,
+  source_id         VARCHAR(191) NOT NULL,
+  source_version    VARCHAR(64)  NOT NULL,
+  recipient_email   VARCHAR(254) NULL,
+  status            VARCHAR(32)  NOT NULL,
+  skip_reason       VARCHAR(64)  NULL,
+  snapshot_json     JSON         NOT NULL,
+  source_object     VARCHAR(1024) NULL,
+  storage_object    VARCHAR(1024) NULL,
+  pdf_sha256        CHAR(64)     NULL,
+  email_provider_id VARCHAR(255) NULL,
+  attempt_count     INT          NOT NULL DEFAULT 0,
+  last_error        TEXT         NULL,
+  sent_at           DATETIME     NULL,
+  created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_document_delivery_source (document_type, source_id, source_version),
+  KEY idx_document_delivery_status_created (status, created_at)
+);
+
+ALTER TABLE consentimiento_instancias
+  ADD COLUMN IF NOT EXISTS signer_email VARCHAR(254) NULL AFTER signer_phone,
+  ADD COLUMN IF NOT EXISTS signature_object VARCHAR(1024) NULL AFTER signer_email,
+  ADD COLUMN IF NOT EXISTS doctor_signature_object VARCHAR(1024) NULL AFTER signature_object,
+  ADD COLUMN IF NOT EXISTS doctor_stamp_object VARCHAR(1024) NULL AFTER doctor_signature_object;
 
 -- MedIT: performance indexes for existing tenant databases (schema.sql already
 -- has these for newly-provisioned tenants). Billing/invoice report and search
@@ -192,6 +227,31 @@ ALTER TABLE `historia_medica`
   ADD COLUMN IF NOT EXISTS `MedicamentosActuales` TEXT NULL,
   ADD COLUMN IF NOT EXISTS `PlanSeguimiento` TEXT NULL,
   ADD COLUMN IF NOT EXISTS `ReferenciasInterconsultas` TEXT NULL;
+
+-- MedIT: persistencia SQL de los bloques especificos de Emergencia,
+-- Quirofano y Hospitalizacion. Antes solo existian en expedientes.json.
+ALTER TABLE `historia_medica`
+  ADD COLUMN `NivelTriage` VARCHAR(20) NULL,
+  ADD COLUMN `ModoLlegada` VARCHAR(50) NULL,
+  ADD COLUMN `EscalaDolor` TINYINT UNSIGNED NULL,
+  ADD COLUMN `Glasgow` TINYINT UNSIGNED NULL,
+  ADD COLUMN `DestinoEmergencia` VARCHAR(50) NULL,
+  ADD COLUMN `MecanismoLesion` TEXT NULL,
+  ADD COLUMN `DiagnosticoPreoperatorio` TEXT NULL,
+  ADD COLUMN `DiagnosticoPostoperatorio` TEXT NULL,
+  ADD COLUMN `ProcedimientoQuirurgico` TEXT NULL,
+  ADD COLUMN `TipoAnestesia` VARCHAR(100) NULL,
+  ADD COLUMN `InicioCirugia` TIME NULL,
+  ADD COLUMN `FinCirugia` TIME NULL,
+  ADD COLUMN `Hallazgos` TEXT NULL,
+  ADD COLUMN `Complicaciones` TEXT NULL,
+  ADD COLUMN `DiagnosticoIngreso` TEXT NULL,
+  ADD COLUMN `MotivoIngreso` TEXT NULL,
+  ADD COLUMN `ServicioHospitalizacion` VARCHAR(150) NULL,
+  ADD COLUMN `CamaHospitalizacion` VARCHAR(100) NULL,
+  ADD COLUMN `ResumenEvolucion` TEXT NULL,
+  ADD COLUMN `PlanEgreso` TEXT NULL,
+  ADD COLUMN `FechaEgreso` DATE NULL;
 
 -- MedIT: redefine fn_dashboard_stats to drop a dead redundant SELECT (the
 -- first pacientes query used MONTH(PacienteID), which is nonsensical, and its

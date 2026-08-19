@@ -937,9 +937,16 @@ export class BillingService {
         id: invoice.FacturaID,
         invoiceNumber,
         patientId: invoice.PacienteID,
-        patientName: invoiceRow?.Paciente ?? '',
-        doctorName: invoiceRow?.Doctor ?? '',
+        patientName: invoice.PacienteNombre ?? invoiceRow?.Paciente ?? '',
+        patientIdentification: invoice.PacienteIdentificacion ?? null,
+        patientIdentificationType: invoice.PacienteTipoIdentificacion ?? null,
+        patientRtn: invoice.RTN ?? null,
+        patientAddress: invoice.PacienteDireccion ?? null,
+        patientEmail: invoice.PacienteEmail ?? null,
+        doctorName: invoice.DoctorNombre ?? invoiceRow?.Doctor ?? '',
         date: invoiceDate,
+        cai: invoice.CAI ?? null,
+        paymentMethod: invoice.MetodoPago ?? null,
         status: this.normalizeStatus(invoice.Estado),
         visitType: invoiceRow?.TipoVisita ?? null,
         amount: Number(invoice.Monto ?? 0),
@@ -952,9 +959,16 @@ export class BillingService {
       summary: {
         subtotal,
         discountAmount,
+        discounts: discountAmount,
+        taxAmounts: [],
+        taxTotal: 0,
+        finalTotal: Number(invoice.Monto ?? total),
         total
       },
-      charges
+      charges: charges.map((charge) => ({
+        ...charge,
+        discount: 0,
+      }))
     }
   }
 

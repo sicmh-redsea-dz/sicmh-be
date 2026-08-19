@@ -8,7 +8,7 @@ import { BillingService } from './billing.service'
 import { StaffMapper } from '../../domain/mappers/StaffMapper'
 import { PatientMapper } from '../../domain/mappers/PatientMapper'
 import { StockMapper } from '../../domain/mappers/StockMapper'
-import { ExpedientePayload, ExpedienteExtra, VisitOrigin } from '../../domain/entities/Expediente'
+import { ExpedientePayload, VisitOrigin } from '../../domain/entities/Expediente'
 import { ExpedienteRepository } from '../ports/expediente.repository'
 import { Database } from '../../infrastructure/database/Database'
 import { PoolManager } from '../../infrastructure/database/PoolManager'
@@ -222,7 +222,7 @@ export class VisitsService {
     createVisit = async (createVisitPayload: CreateVisitPayload): Promise<any> => {
         const date = createVisitPayload.date?.trim() || new Date().toISOString()
         const normalizedPayload = { ...createVisitPayload, date }
-        const { stockItems, doctor, patient, origin, expediente } = normalizedPayload
+        const { stockItems, doctor, patient, origin } = normalizedPayload
         const originKey = this.assertOrigin(origin)
 
         const fieldsForVisit = HistoryMapper.toDbForm(normalizedPayload)
@@ -280,32 +280,6 @@ export class VisitsService {
             insertId = result.insertId
         } catch (err) {
             console.error('error creating visit, transaction rolled back: ', err)
-            throw err
-        }
-
-        try {
-            if ( expediente && originKey !== 'visits' ) {
-                const now = new Date().toISOString()
-                const expedienteRecord: ExpedienteExtra = {
-                    historyId: insertId,
-                    patientId: patient,
-                    origin: originKey,
-                    standard: expediente.standard,
-                    module: expediente.module,
-                    createdAt: now,
-                    updatedAt: now
-                }
-                await this.expedienteRepo.upsert(insertId, expedienteRecord)
-            }
-        } catch (err) {
-            // Module-specific expediente data for emergency, hospitalization and
-            // operating room still lives outside the SQL transaction, so it needs
-            // compensating cleanup if its file write fails after commit.
-            console.error('error saving expediente after visit was committed, rolling back visit/invoice: ', err)
-            await this.visitsRepo.softDelete(insertId).catch(cleanupErr =>
-                console.error(`rollback failed to soft-delete visit ${insertId}:`, cleanupErr))
-            await this.invoiceService.removeInvoiceById(invoice.invoiceNumber).catch(cleanupErr =>
-                console.error(`rollback failed to soft-delete invoice ${invoice.invoiceNumber}:`, cleanupErr))
             throw err
         }
 
@@ -509,21 +483,6 @@ export class VisitsService {
             const affectedRows = await this.visitsRepo.update( +id, translatedFields )
             if (affectedRows === 0) {
                 throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`);
-            }
-
-            if ( body.expediente && originKey !== 'visits' ) {
-                const existingExpediente = await this.expedienteRepo.findByHistoryId(+id)
-                const now = new Date().toISOString()
-                const expedienteRecord: ExpedienteExtra = {
-                    historyId: +id,
-                    patientId: body.patient ?? existingExpediente?.patientId,
-                    origin: originKey,
-                    standard: body.expediente.standard,
-                    module: body.expediente.module,
-                    createdAt: existingExpediente?.createdAt ?? now,
-                    updatedAt: now
-                }
-                await this.expedienteRepo.upsert(+id, expedienteRecord)
             }
 
             if (stockDelta.length > 0) {

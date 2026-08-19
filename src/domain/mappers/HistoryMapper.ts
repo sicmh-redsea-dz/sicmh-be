@@ -157,7 +157,31 @@ export class HistoryMapper {
             Alergias: nullable(standard?.allergies),
             MedicamentosActuales: nullable(standard?.currentMeds),
             PlanSeguimiento: nullable(module?.followUpPlan),
-            ReferenciasInterconsultas: nullable(module?.referrals)
+            ReferenciasInterconsultas: nullable(module?.referrals),
+
+            NivelTriage: nullable(module?.triageLevel),
+            ModoLlegada: nullable(module?.arrivalMode),
+            EscalaDolor: nullable(module?.painScale),
+            Glasgow: nullable(module?.glasgow),
+            DestinoEmergencia: nullable(module?.disposition),
+            MecanismoLesion: nullable(module?.injuryMechanism),
+
+            DiagnosticoPreoperatorio: nullable(module?.preOpDiagnosis),
+            DiagnosticoPostoperatorio: nullable(module?.postOpDiagnosis),
+            ProcedimientoQuirurgico: nullable(module?.procedure),
+            TipoAnestesia: nullable(module?.anesthesiaType),
+            InicioCirugia: nullable(module?.surgeryStart),
+            FinCirugia: nullable(module?.surgeryEnd),
+            Hallazgos: nullable(module?.findings),
+            Complicaciones: nullable(module?.complications),
+
+            DiagnosticoIngreso: nullable(module?.admissionDiagnosis),
+            MotivoIngreso: nullable(module?.admissionReason),
+            ServicioHospitalizacion: nullable(module?.service),
+            CamaHospitalizacion: nullable(module?.bed),
+            ResumenEvolucion: nullable(module?.evolutionSummary),
+            PlanEgreso: nullable(module?.dischargePlan),
+            FechaEgreso: nullable(module?.dischargeDate)
         }
     }
 
@@ -172,7 +196,28 @@ export class HistoryMapper {
             history.Alergias,
             history.MedicamentosActuales,
             history.PlanSeguimiento,
-            history.ReferenciasInterconsultas
+            history.ReferenciasInterconsultas,
+            history.NivelTriage,
+            history.ModoLlegada,
+            history.EscalaDolor,
+            history.Glasgow,
+            history.DestinoEmergencia,
+            history.MecanismoLesion,
+            history.DiagnosticoPreoperatorio,
+            history.DiagnosticoPostoperatorio,
+            history.ProcedimientoQuirurgico,
+            history.TipoAnestesia,
+            history.InicioCirugia,
+            history.FinCirugia,
+            history.Hallazgos,
+            history.Complicaciones,
+            history.DiagnosticoIngreso,
+            history.MotivoIngreso,
+            history.ServicioHospitalizacion,
+            history.CamaHospitalizacion,
+            history.ResumenEvolucion,
+            history.PlanEgreso,
+            history.FechaEgreso
         ]
         const hasSqlData = sqlValues.some((value) => value !== undefined && value !== null)
 
@@ -189,7 +234,28 @@ export class HistoryMapper {
             module: {
                 ...(fallback?.module ?? {}),
                 followUpPlan: history.PlanSeguimiento ?? fallback?.module.followUpPlan ?? '',
-                referrals: history.ReferenciasInterconsultas ?? fallback?.module.referrals ?? ''
+                referrals: history.ReferenciasInterconsultas ?? fallback?.module.referrals ?? '',
+                triageLevel: history.NivelTriage ?? fallback?.module.triageLevel ?? '',
+                arrivalMode: history.ModoLlegada ?? fallback?.module.arrivalMode ?? '',
+                painScale: history.EscalaDolor ?? fallback?.module.painScale,
+                glasgow: history.Glasgow ?? fallback?.module.glasgow,
+                disposition: history.DestinoEmergencia ?? fallback?.module.disposition ?? '',
+                injuryMechanism: history.MecanismoLesion ?? fallback?.module.injuryMechanism ?? '',
+                preOpDiagnosis: history.DiagnosticoPreoperatorio ?? fallback?.module.preOpDiagnosis ?? '',
+                postOpDiagnosis: history.DiagnosticoPostoperatorio ?? fallback?.module.postOpDiagnosis ?? '',
+                procedure: history.ProcedimientoQuirurgico ?? fallback?.module.procedure ?? '',
+                anesthesiaType: history.TipoAnestesia ?? fallback?.module.anesthesiaType ?? '',
+                surgeryStart: history.InicioCirugia ?? fallback?.module.surgeryStart ?? '',
+                surgeryEnd: history.FinCirugia ?? fallback?.module.surgeryEnd ?? '',
+                findings: history.Hallazgos ?? fallback?.module.findings ?? '',
+                complications: history.Complicaciones ?? fallback?.module.complications ?? '',
+                admissionDiagnosis: history.DiagnosticoIngreso ?? fallback?.module.admissionDiagnosis ?? '',
+                admissionReason: history.MotivoIngreso ?? fallback?.module.admissionReason ?? '',
+                service: history.ServicioHospitalizacion ?? fallback?.module.service ?? '',
+                bed: history.CamaHospitalizacion ?? fallback?.module.bed ?? '',
+                evolutionSummary: history.ResumenEvolucion ?? fallback?.module.evolutionSummary ?? '',
+                dischargePlan: history.PlanEgreso ?? fallback?.module.dischargePlan ?? '',
+                dischargeDate: history.FechaEgreso ?? fallback?.module.dischargeDate ?? ''
             }
         }
     }

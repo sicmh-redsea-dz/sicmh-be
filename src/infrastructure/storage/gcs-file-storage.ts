@@ -22,6 +22,7 @@ export class GcsFileStorage implements FileStorage {
       resumable: false,
       contentType: options.contentType,
       metadata: options.cacheControl ? { cacheControl: options.cacheControl } : undefined,
+      preconditionOpts: options.ifNotExists ? { ifGenerationMatch: 0 } : undefined,
     })
   }
 

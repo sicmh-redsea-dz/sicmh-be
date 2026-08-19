@@ -69,15 +69,29 @@ export const invoiceQueries = (key: string, delimiters?: Delimiters): string => 
                     f.CAI,
                     f.InvoiceNumber,
                     f.TipoPagoID,
+                    p.CorreoElectronico AS PacienteEmail,
+                    p.Direccion AS PacienteDireccion,
+                    p.Identificacion AS PacienteIdentificacion,
+                    p.TipoIdentificacion AS PacienteTipoIdentificacion,
+                    CONCAT(p.Nombre, ' ', p.Apellido) AS PacienteNombre,
+                    CONCAT(d.Nombre, ' ', d.Apellido) AS DoctorNombre,
+                    tp.Descripcion AS MetodoPago,
                     hm.TipoVisita
                 from
                     facturas as f
+                    left join pacientes as p on p.PacienteID = f.PacienteID
+                    left join personal as d on d.PersonalID = f.PersonalID
+                    left join tipo_pago as tp on tp.TipoPagoID = f.TipoPagoID
                     left join historia_medica as hm
                         on hm.FacturaID = f.FacturaID
                 where
                     f.InvoiceNumber = ?
                 group by
-                    f.FacturaID, f.PacienteID, f.PersonalID, f.FechaFactura, f.Monto, f.Estado, f.InvoiceNumber, f.TipoPagoID, hm.TipoVisita;
+                    f.FacturaID, f.PacienteID, f.PersonalID, f.FechaFactura, f.Monto, f.Estado,
+                    f.DescuentoElderly, f.CodigoPromocional, f.DescuentoPromocional,
+                    f.AseguradoraID, f.RTN, f.CAI, f.InvoiceNumber, f.TipoPagoID,
+                    p.CorreoElectronico, p.Direccion, p.Identificacion, p.TipoIdentificacion,
+                    p.Nombre, p.Apellido, d.Nombre, d.Apellido, tp.Descripcion, hm.TipoVisita;
             `
             break
         case 'find-pending-by-patient':

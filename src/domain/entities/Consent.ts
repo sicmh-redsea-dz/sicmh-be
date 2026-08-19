@@ -28,7 +28,13 @@ export interface ConsentInstance {
   signer_identification: string | null
   signer_relationship: string | null
   signer_phone: string | null
+  signer_email: string | null
+  signature_object: string | null
+  doctor_signature_object: string | null
+  doctor_stamp_object: string | null
   attachment_id: number | null
+  source_object?: string | null
+  snapshot_json: string | Record<string, unknown>
   accepted_at: string | null
   created_at: string
 }
@@ -41,11 +47,13 @@ export interface ConsentDocumentContext {
   patientBirthDate: string | null
   patientAge: number | null
   patientPhone: string | null
+  patientEmail: string | null
   patientIdentification: string | null
   doctorId: number
   doctorUserId: number | null
   doctorName: string
   clinicName: string
+  tenantCode: string
   logoUrl: string
   signatureUrl: string | null
   stampUrl: string | null

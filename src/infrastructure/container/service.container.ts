@@ -38,6 +38,8 @@ import { config } from '../../config/env'
 import { NodemailerMailService } from '../mail/nodemailer-mail.service'
 import { ConsentsService } from '../../application/services/consents.service'
 import { MysqlConsentsRepository } from '../repositories/mysql-consents.repository'
+import { DocumentDeliveryService } from '../../application/services/document-delivery.service'
+import { MysqlDocumentDeliveryRepository } from '../repositories/mysql-document-delivery.repository'
 
 export class ServiceContainer {
     private static authService: AuthService
@@ -77,6 +79,7 @@ export class ServiceContainer {
     private static clinicalAttachmentsRepo: MysqlClinicalAttachmentsRepository
     private static consentsService: ConsentsService
     private static consentsRepo: MysqlConsentsRepository
+    private static documentDeliveryService: DocumentDeliveryService
 
     static getAuthService(): AuthService {
         if (!this.authService)
@@ -159,7 +162,8 @@ export class ServiceContainer {
             this.invoiceService = new InvoiceService(
                 this.getPatientsService(),
                 this.getInvoiceRepository(),
-                this.getBillingService()
+                this.getBillingService(),
+                this.getDocumentDeliveryService()
             )
         }
         return this.invoiceService
@@ -216,7 +220,8 @@ export class ServiceContainer {
         if (!this.consentsService) {
             this.consentsService = new ConsentsService(
                 this.getConsentsRepository(),
-                this.getClinicalAttachmentsService()
+                this.getClinicalAttachmentsService(),
+                this.getDocumentDeliveryService()
             )
         }
         return this.consentsService
@@ -225,6 +230,13 @@ export class ServiceContainer {
     private static getConsentsRepository(): MysqlConsentsRepository {
         if (!this.consentsRepo) this.consentsRepo = new MysqlConsentsRepository()
         return this.consentsRepo
+    }
+
+    private static getDocumentDeliveryService(): DocumentDeliveryService {
+        if (!this.documentDeliveryService) {
+            this.documentDeliveryService = new DocumentDeliveryService(new MysqlDocumentDeliveryRepository())
+        }
+        return this.documentDeliveryService
     }
 
     private static getClinicalAttachmentsRepository(): MysqlClinicalAttachmentsRepository {

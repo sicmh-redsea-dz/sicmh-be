@@ -6,6 +6,7 @@ export interface FileReadRange {
 export interface SaveFileOptions {
   contentType: string
   cacheControl?: string
+  ifNotExists?: boolean
 }
 
 export interface FileStorage {

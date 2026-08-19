@@ -55,8 +55,9 @@ export class MysqlConsentsRepository implements ConsentsRepository {
       p.templateId, p.templateVersionId, p.patientId, p.recordId, p.doctorId,
       p.status, p.acceptanceMethod ?? null, p.signerType ?? null, p.signerName ?? null,
       p.signerIdentification ?? null, p.signerRelationship ?? null, p.signerPhone ?? null,
-      p.attachmentId ?? null, p.documentHash ?? null, p.snapshotJson, p.createdBy,
-      p.status, p.templateId,
+      p.signerEmail ?? null, p.signatureObject ?? null, p.doctorSignatureObject ?? null,
+      p.doctorStampObject ?? null, p.attachmentId ?? null, p.documentHash ?? null,
+      p.snapshotJson, p.createdBy, p.acceptedAt ?? null, p.templateId,
     ]
     const result = await Database.execute<ResultSetHeader>(consentsQueries('create-instance'), values)
     return result.insertId
@@ -67,8 +68,10 @@ export class MysqlConsentsRepository implements ConsentsRepository {
     return rows[0] ?? null
   }
 
-  async acceptPhysicalInstance(id: number, attachmentId: number, documentHash: string, acceptedBy: number): Promise<void> {
-    const result = await Database.execute<ResultSetHeader>(consentsQueries('accept-physical'), [attachmentId, documentHash, acceptedBy, id])
+  async acceptPhysicalInstance(p: { id: number; attachmentId: number; documentHash: string; acceptedBy: number; acceptedAt: string; snapshotJson: string }): Promise<void> {
+    const result = await Database.execute<ResultSetHeader>(consentsQueries('accept-physical'), [
+      p.attachmentId, p.documentHash, p.acceptedBy, p.acceptedAt, p.snapshotJson, p.id,
+    ])
     if (!result.affectedRows) throw Object.assign(new Error('El consentimiento impreso no está pendiente.'), { name: 'validation_errors', errors: [{ msg: 'El consentimiento impreso no está pendiente.' }] })
   }
 }

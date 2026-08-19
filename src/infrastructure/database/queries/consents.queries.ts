@@ -35,7 +35,7 @@ export const consentsQueries = (key: string): string => {
         SELECT hm.HistoriaID AS visitId, hm.FechaVisita AS visitDate,
                pa.PacienteID AS patientId, CONCAT(pa.Nombre, ' ', pa.Apellido) AS patientName,
                pa.FechaNacimiento AS patientBirthDate, pa.Telefono AS patientPhone,
-               pa.Identificacion AS patientIdentification,
+               pa.Identificacion AS patientIdentification, pa.CorreoElectronico AS patientEmail,
                pe.PersonalID AS doctorId, pe.UsuarioID AS doctorUserId,
                CONCAT(pe.Nombre, ' ', pe.Apellido) AS doctorName
         FROM historia_medica hm
@@ -48,7 +48,7 @@ export const consentsQueries = (key: string): string => {
         SELECT NULL AS visitId, NULL AS visitDate,
                pa.PacienteID AS patientId, CONCAT(pa.Nombre, ' ', pa.Apellido) AS patientName,
                pa.FechaNacimiento AS patientBirthDate, pa.Telefono AS patientPhone,
-               pa.Identificacion AS patientIdentification,
+               pa.Identificacion AS patientIdentification, pa.CorreoElectronico AS patientEmail,
                pe.PersonalID AS doctorId, pe.UsuarioID AS doctorUserId,
                CONCAT(pe.Nombre, ' ', pe.Apellido) AS doctorName
         FROM pacientes pa
@@ -62,7 +62,9 @@ export const consentsQueries = (key: string): string => {
                v.version_number AS template_version, i.patient_id, i.record_id,
                i.doctor_id, i.status, i.acceptance_method, i.signer_type,
                i.signer_name, i.signer_identification, i.signer_relationship,
-               i.signer_phone, i.attachment_id, i.accepted_at, i.created_at
+               i.signer_phone, i.signer_email, i.signature_object,
+               i.doctor_signature_object, i.doctor_stamp_object,
+               i.attachment_id, i.accepted_at, i.created_at
         FROM consentimiento_instancias i
         INNER JOIN consentimiento_plantilla_versiones v ON v.id = i.template_version_id
         WHERE i.record_id = ?
@@ -73,10 +75,10 @@ export const consentsQueries = (key: string): string => {
         INSERT INTO consentimiento_instancias
           (template_id, template_version_id, template_name, patient_id, record_id,
            doctor_id, status, acceptance_method, signer_type, signer_name,
-           signer_identification, signer_relationship, signer_phone, attachment_id,
+           signer_identification, signer_relationship, signer_phone, signer_email,
+           signature_object, doctor_signature_object, doctor_stamp_object, attachment_id,
            document_sha256, snapshot_json, created_by, accepted_at)
-        SELECT ?, ?, p.name, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-               CASE WHEN ? = 'accepted' THEN CURRENT_TIMESTAMP ELSE NULL END
+        SELECT ?, ?, p.name, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         FROM consentimiento_plantillas p WHERE p.id = ?
       `
     case 'find-instance':
@@ -85,15 +87,19 @@ export const consentsQueries = (key: string): string => {
                v.version_number AS template_version, i.patient_id, i.record_id,
                i.doctor_id, i.status, i.acceptance_method, i.signer_type,
                i.signer_name, i.signer_identification, i.signer_relationship,
-               i.signer_phone, i.attachment_id, i.accepted_at, i.created_at
+               i.signer_phone, i.signer_email, i.signature_object,
+               i.doctor_signature_object, i.doctor_stamp_object,
+               i.attachment_id, a.gcs_object_path AS source_object,
+               i.snapshot_json, i.accepted_at, i.created_at
         FROM consentimiento_instancias i
         INNER JOIN consentimiento_plantilla_versiones v ON v.id = i.template_version_id
+        LEFT JOIN adjuntos_clinicos a ON a.id = i.attachment_id
         WHERE i.id = ? LIMIT 1
       `
     case 'accept-physical':
       return `UPDATE consentimiento_instancias
               SET status = 'accepted', acceptance_method = 'physical', attachment_id = ?,
-                  document_sha256 = ?, accepted_at = CURRENT_TIMESTAMP, accepted_by = ?
+                  document_sha256 = ?, accepted_by = ?, accepted_at = ?, snapshot_json = ?
               WHERE id = ? AND status = 'printed'`
     default:
       throw new Error(`Unknown consents query: ${key}`)

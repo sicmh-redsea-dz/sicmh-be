@@ -19,10 +19,15 @@ export interface CreateConsentInstanceParams {
   signerIdentification?: string | null
   signerRelationship?: string | null
   signerPhone?: string | null
+  signerEmail?: string | null
+  signatureObject?: string | null
+  doctorSignatureObject?: string | null
+  doctorStampObject?: string | null
   attachmentId?: number | null
   documentHash?: string | null
   snapshotJson: string
   createdBy: number
+  acceptedAt?: string | null
 }
 
 export interface ConsentsRepository {
@@ -36,5 +41,12 @@ export interface ConsentsRepository {
   listByVisit(recordId: number): Promise<ConsentInstance[]>
   createInstance(params: CreateConsentInstanceParams): Promise<number>
   findInstance(id: number): Promise<ConsentInstance | null>
-  acceptPhysicalInstance(id: number, attachmentId: number, documentHash: string, acceptedBy: number): Promise<void>
+  acceptPhysicalInstance(params: {
+    id: number
+    attachmentId: number
+    documentHash: string
+    acceptedBy: number
+    acceptedAt: string
+    snapshotJson: string
+  }): Promise<void>
 }

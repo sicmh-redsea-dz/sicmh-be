@@ -162,6 +162,32 @@ CREATE TABLE IF NOT EXISTS facturas (
   CONSTRAINT fk_facturas_tipopago  FOREIGN KEY (TipoPagoID)  REFERENCES tipo_pago  (TipoPagoID)  ON DELETE SET NULL
 );
 
+-- Finalized document delivery outbox. Application code inserts only the
+-- source/recipient/snapshot fields; the separate worker owns all output,
+-- retry, provider and error fields.
+CREATE TABLE IF NOT EXISTS document_delivery (
+  id                BIGINT       NOT NULL AUTO_INCREMENT,
+  document_type     VARCHAR(32)  NOT NULL,
+  source_id         VARCHAR(191) NOT NULL,
+  source_version    VARCHAR(64)  NOT NULL,
+  recipient_email   VARCHAR(254) NULL,
+  status            VARCHAR(32)  NOT NULL,
+  skip_reason       VARCHAR(64)  NULL,
+  snapshot_json     JSON         NOT NULL,
+  source_object     VARCHAR(1024) NULL,
+  storage_object    VARCHAR(1024) NULL,
+  pdf_sha256        CHAR(64)     NULL,
+  email_provider_id VARCHAR(255) NULL,
+  attempt_count     INT          NOT NULL DEFAULT 0,
+  last_error        TEXT         NULL,
+  sent_at           DATETIME     NULL,
+  created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_document_delivery_source (document_type, source_id, source_version),
+  KEY idx_document_delivery_status_created (status, created_at)
+);
+
 -- ── 11. historia_medica (visits) ────────────────────────────────────
 CREATE TABLE IF NOT EXISTS historia_medica (
   HistoriaID       INT            NOT NULL AUTO_INCREMENT,
@@ -196,6 +222,27 @@ CREATE TABLE IF NOT EXISTS historia_medica (
   MedicamentosActuales      TEXT  NULL,
   PlanSeguimiento           TEXT  NULL,
   ReferenciasInterconsultas TEXT  NULL,
+  NivelTriage               VARCHAR(20)  NULL,
+  ModoLlegada               VARCHAR(50)  NULL,
+  EscalaDolor               TINYINT UNSIGNED NULL,
+  Glasgow                   TINYINT UNSIGNED NULL,
+  DestinoEmergencia         VARCHAR(50)  NULL,
+  MecanismoLesion           TEXT NULL,
+  DiagnosticoPreoperatorio  TEXT NULL,
+  DiagnosticoPostoperatorio TEXT NULL,
+  ProcedimientoQuirurgico   TEXT NULL,
+  TipoAnestesia             VARCHAR(100) NULL,
+  InicioCirugia             TIME NULL,
+  FinCirugia                TIME NULL,
+  Hallazgos                 TEXT NULL,
+  Complicaciones            TEXT NULL,
+  DiagnosticoIngreso        TEXT NULL,
+  MotivoIngreso             TEXT NULL,
+  ServicioHospitalizacion  VARCHAR(150) NULL,
+  CamaHospitalizacion      VARCHAR(100) NULL,
+  ResumenEvolucion          TEXT NULL,
+  PlanEgreso                TEXT NULL,
+  FechaEgreso               DATE NULL,
   PRIMARY KEY (HistoriaID),
   KEY idx_historia_medica_active_fecha (isActive, FechaVisita),
   CONSTRAINT fk_hm_paciente FOREIGN KEY (PacienteID) REFERENCES pacientes      (PacienteID) ON DELETE SET NULL,

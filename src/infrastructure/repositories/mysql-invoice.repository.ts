@@ -66,6 +66,14 @@ export class MysqlInvoiceRepository implements InvoiceRepository {
         return Database.execute<any[]>(query)
     }
 
+    async findByInvoiceNumberForUpdate(invoiceNumber: string): Promise<Record<string, any> | null> {
+        const rows = await Database.execute<any[]>(
+            'SELECT * FROM facturas WHERE InvoiceNumber = ? LIMIT 1 FOR UPDATE',
+            [invoiceNumber]
+        )
+        return rows[0] ?? null
+    }
+
     async fetchPaymentMethods(): Promise<any[]> {
         const query = invoiceQueries('getPaymentMethods')
         return Database.execute<any[]>(query)

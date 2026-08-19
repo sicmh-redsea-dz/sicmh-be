@@ -1,5 +1,6 @@
 import { fromBuffer } from 'file-type'
 import sharp from 'sharp'
+import crypto from 'crypto'
 import { ClinicalAttachmentsRepository } from '../ports/clinical-attachments.repository'
 import { FileStorage } from '../ports/file-storage'
 import { AttachmentSource, ClinicalAttachment } from '../../domain/entities/ClinicalAttachment'
@@ -33,6 +34,13 @@ export interface UploadAttachmentParams {
   originalName: string
   declaredMime: string
   uploadedBy: number
+  immutable?: boolean
+}
+
+export interface ImmutableConsentAssets {
+  signerObject: string
+  doctorSignatureObject: string
+  doctorStampObject: string
 }
 
 export class ClinicalAttachmentsService {
@@ -83,10 +91,12 @@ export class ClinicalAttachmentsService {
       fileName = `${fileName.replace(/\.[^.]*$/, '') || 'captura'}.jpg`
     }
 
-    const gcsObjectPath = `${params.tenantCode}/patients/${params.patientId}/${Date.now()}_${fileName}`
+    const objectId = params.immutable ? crypto.randomUUID() : String(Date.now())
+    const gcsObjectPath = `${params.tenantCode}/patients/${params.patientId}/${objectId}_${fileName}`
     await this.clinicalStorage.save(gcsObjectPath, finalBuffer, {
       contentType: finalMime,
       cacheControl: 'private, no-store',
+      ifNotExists: params.immutable,
     })
 
     const id = await this.attachmentsRepo.create({
@@ -199,6 +209,44 @@ export class ClinicalAttachmentsService {
     return { signature, stamp }
   }
 
+  preserveConsentAssets = async (params: {
+    tenantCode: string
+    doctorUserId: number
+    acceptanceMethod: 'checkbox' | 'drawn_signature'
+    signatureDataUrl?: string | null
+    acceptedAt: string
+    signerType: 'patient' | 'guardian'
+    signerName: string
+  }): Promise<ImmutableConsentAssets> => {
+    const immutableId = crypto.randomUUID()
+    const base = `${params.tenantCode}/consents/accepted/${immutableId}`
+    const signatureMatch = params.signatureDataUrl?.match(/^data:image\/png;base64,(.+)$/)
+    const signerData = signatureMatch
+      ? Buffer.from(signatureMatch[1], 'base64')
+      : Buffer.from(JSON.stringify({
+          acceptanceMethod: params.acceptanceMethod,
+          acceptedAt: params.acceptedAt,
+          signerType: params.signerType,
+          signerName: params.signerName,
+        }))
+    const signerContentType = signatureMatch ? 'image/png' : 'application/json'
+    const signerObject = `${base}/signer.${signatureMatch ? 'png' : 'json'}`
+
+    const publicDoctorBase = `${params.tenantCode}/users/${params.doctorUserId}`
+    const [doctorSignature, doctorStamp] = await Promise.all([
+      this.readAll(this.publicStorage.createReadStream(`${publicDoctorBase}/signature.png`)),
+      this.readAll(this.publicStorage.createReadStream(`${publicDoctorBase}/stamp.png`)),
+    ])
+    const doctorSignatureObject = `${base}/doctor-signature.png`
+    const doctorStampObject = `${base}/doctor-stamp.png`
+    await Promise.all([
+      this.clinicalStorage.save(signerObject, signerData, { contentType: signerContentType, cacheControl: 'private, no-store', ifNotExists: true }),
+      this.clinicalStorage.save(doctorSignatureObject, doctorSignature, { contentType: 'image/png', cacheControl: 'private, no-store', ifNotExists: true }),
+      this.clinicalStorage.save(doctorStampObject, doctorStamp, { contentType: 'image/png', cacheControl: 'private, no-store', ifNotExists: true }),
+    ])
+    return { signerObject, doctorSignatureObject, doctorStampObject }
+  }
+
   private parseSource(source: string): AttachmentSource {
     if (source === 'in_app_camera' || source === 'file_upload') return source
     throw this.buildValidationError(["El campo 'source' debe ser 'in_app_camera' o 'file_upload'."])
@@ -221,6 +269,15 @@ export class ClinicalAttachmentsService {
     const base = (name ?? '').split(/[\\/]/).pop() ?? ''
     const cleaned = base.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^\.+/, '').slice(0, 120)
     return cleaned || 'archivo'
+  }
+
+  private readAll(stream: NodeJS.ReadableStream): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const chunks: Buffer[] = []
+      stream.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
+      stream.on('end', () => resolve(Buffer.concat(chunks)))
+      stream.on('error', reject)
+    })
   }
 
   private buildValidationError(messages: string[]) {

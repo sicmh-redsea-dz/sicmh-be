@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express"
 import { ServiceContainer } from "../../infrastructure/container/service.container"
 import { InvoiceService } from "../../application/services/invoice.service"
 import { asyncHandler } from "../decorators/asyncHandler"
+import { TokenPayload } from '../../utils/jwtUtils'
 
 export class InvoiceController {
 
@@ -41,7 +42,8 @@ export class InvoiceController {
     async updateOne( req: Request ): Promise<any> {
         const { params, body } = req
         const { id } = params
-        return this.invoiceService.updateInvById( id, body )
+        const user = (req as any).user as TokenPayload
+        return this.invoiceService.updateInvById( id, body, user.codigoEmpresa )
     }
 
     @asyncHandler()

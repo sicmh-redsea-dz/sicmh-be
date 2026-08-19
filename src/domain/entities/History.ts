@@ -48,6 +48,30 @@ export interface History {
     PlanSeguimiento          : string | null
     ReferenciasInterconsultas: string | null
 
+    NivelTriage              : string | null
+    ModoLlegada              : string | null
+    EscalaDolor              : number | null
+    Glasgow                  : number | null
+    DestinoEmergencia        : string | null
+    MecanismoLesion          : string | null
+
+    DiagnosticoPreoperatorio : string | null
+    DiagnosticoPostoperatorio: string | null
+    ProcedimientoQuirurgico  : string | null
+    TipoAnestesia            : string | null
+    InicioCirugia            : string | null
+    FinCirugia               : string | null
+    Hallazgos                : string | null
+    Complicaciones           : string | null
+
+    DiagnosticoIngreso       : string | null
+    MotivoIngreso            : string | null
+    ServicioHospitalizacion : string | null
+    CamaHospitalizacion      : string | null
+    ResumenEvolucion         : string | null
+    PlanEgreso               : string | null
+    FechaEgreso              : string | null
+
     NombrePaciente  : string
     NombreDoctor    : string
 

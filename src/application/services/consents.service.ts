@@ -1,12 +1,13 @@
 import crypto from 'crypto'
 import { fromBuffer } from 'file-type'
-import sharp from 'sharp'
 import { ConsentsRepository } from '../ports/consents.repository'
 import { ConsentDocumentContext, ConsentTemplate } from '../../domain/entities/Consent'
 import { ClinicalAttachmentsService } from './clinical-attachments.service'
 import { PoolManager } from '../../infrastructure/database/PoolManager'
 import { config } from '../../config/env'
 import { renderPdfFromHtml } from '../../utils/pdfRenderer'
+import { DocumentDeliveryService } from './document-delivery.service'
+import { Database } from '../../infrastructure/database/Database'
 
 interface SignerPayload {
   mode: 'checkbox' | 'drawn_signature'
@@ -16,13 +17,16 @@ interface SignerPayload {
   signerIdentification?: string | null
   signerRelationship?: string | null
   signerPhone?: string | null
+  signerEmail?: string | null
+  signer_email?: string | null
   expectedTemplateVersion?: number | null
 }
 
 export class ConsentsService {
   constructor(
     private readonly repo: ConsentsRepository,
-    private readonly attachments: ClinicalAttachmentsService
+    private readonly attachments: ClinicalAttachmentsService,
+    private readonly documentDelivery: DocumentDeliveryService
   ) {}
 
   listTemplates = (includeInactive = false) => this.repo.listTemplates(includeInactive)
@@ -78,6 +82,7 @@ export class ConsentsService {
       ...visit,
       patientAge: this.calculateAge(visit.patientBirthDate, new Date()),
       clinicName: company.NombreEmpresa,
+      tenantCode,
       logoUrl: `${publicBase}/${tenantCode}/logo.png`,
       signatureUrl: doctorBase && assets.signature ? `${doctorBase}/signature.png` : null,
       stampUrl: doctorBase && assets.stamp ? `${doctorBase}/stamp.png` : null,
@@ -126,70 +131,122 @@ export class ConsentsService {
     }
     this.validateSigner(context, signer)
     const acceptedAt = new Date()
-    const html = this.buildDocumentHtml(context, { ...signer, acceptedAt }, false)
-    const pdf = await renderPdfFromHtml(html)
-    const hash = crypto.createHash('sha256').update(pdf).digest('hex')
-    const attachment = await this.attachments.upload({
-      tenantCode,
-      patientId: context.patientId,
-      recordId,
-      label: `${context.template.name} - aceptado`,
-      source: 'file_upload',
-      buffer: pdf,
-      originalName: `consentimiento-${context.template.id}.pdf`,
-      declaredMime: 'application/pdf',
-      uploadedBy: userId,
-    })
     const signerName = signer.signerType === 'patient' ? context.patientName : signer.signerName!.trim()
     const signerIdentification = signer.signerType === 'patient'
       ? context.patientIdentification
       : signer.signerIdentification!.trim()
-    const id = await this.repo.createInstance({
-      templateId: context.template.id,
-      templateVersionId: Number((context.template as any).version_id),
-      patientId: context.patientId,
-      recordId,
-      doctorId: context.doctorId,
-      status: 'accepted',
+    const acceptedAtIso = acceptedAt.toISOString()
+    const signerEmail = signer.signerType === 'patient'
+      ? context.patientEmail
+      : signer.signerEmail ?? signer.signer_email ?? null
+    const assets = await this.attachments.preserveConsentAssets({
+      tenantCode,
+      doctorUserId: Number(context.doctorUserId),
       acceptanceMethod: signer.mode,
+      signatureDataUrl: signer.signatureDataUrl,
+      acceptedAt: acceptedAtIso,
       signerType: signer.signerType,
       signerName,
-      signerIdentification,
-      signerRelationship: signer.signerRelationship?.trim() || null,
-      signerPhone: signer.signerPhone?.trim() || null,
-      attachmentId: attachment.id,
-      documentHash: hash,
-      snapshotJson: JSON.stringify({ ...this.snapshot(context), acceptedAt: acceptedAt.toISOString() }),
-      createdBy: userId,
     })
-    return { id, attachmentId: attachment.id }
+    const snapshot = {
+      ...this.snapshot(context),
+      acceptedAt: acceptedAtIso,
+      acceptanceMethod: signer.mode,
+      signer: {
+        type: signer.signerType,
+        name: signerName,
+        identification: signerIdentification,
+        relationship: signer.signerRelationship?.trim() || null,
+        phone: signer.signerPhone?.trim() || null,
+        email: signerEmail,
+        signatureObject: assets.signerObject,
+      },
+      doctorSignatureObject: assets.doctorSignatureObject,
+      doctorStampObject: assets.doctorStampObject,
+    }
+    const id = await Database.transaction(async () => {
+      const instanceId = await this.repo.createInstance({
+        templateId: context.template.id,
+        templateVersionId: Number((context.template as any).version_id),
+        patientId: context.patientId,
+        recordId,
+        doctorId: context.doctorId,
+        status: 'accepted',
+        acceptanceMethod: signer.mode,
+        signerType: signer.signerType,
+        signerName,
+        signerIdentification,
+        signerRelationship: signer.signerRelationship?.trim() || null,
+        signerPhone: signer.signerPhone?.trim() || null,
+        signerEmail,
+        signatureObject: assets.signerObject,
+        doctorSignatureObject: assets.doctorSignatureObject,
+        doctorStampObject: assets.doctorStampObject,
+        snapshotJson: JSON.stringify(snapshot),
+        createdBy: userId,
+        acceptedAt: acceptedAtIso,
+      })
+      await this.documentDelivery.enqueue({
+        documentType: 'consent',
+        sourceId: String(instanceId),
+        sourceVersion: String(context.template.current_version),
+        recipientEmail: signerEmail,
+        snapshot,
+      })
+      return instanceId
+    })
+    return { id, signatureObject: assets.signerObject }
   }
 
   acceptPhysical = async (instanceId: number, tenantCode: string, userId: number, file: Express.Multer.File) => {
     const instance = await this.repo.findInstance(instanceId)
     if (!instance || instance.status !== 'printed') this.notFound('Consentimiento impreso pendiente no encontrado.')
-    let pdf = file.buffer
     const detected = await fromBuffer(file.buffer)
     if (!detected) this.validation('No se pudo determinar el tipo del documento firmado.')
     if (detected!.mime !== 'application/pdf') {
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(detected!.mime)) {
         this.validation('El documento firmado debe ser PDF, JPEG, PNG o WebP.')
       }
-      const normalized = await sharp(file.buffer).rotate().jpeg({ quality: 88 }).toBuffer()
-      const dataUrl = `data:image/jpeg;base64,${normalized.toString('base64')}`
-      pdf = await renderPdfFromHtml(`<html><head><style>@page{size:A4;margin:12mm}body{margin:0;text-align:center}img{max-width:100%;max-height:273mm;object-fit:contain}</style></head><body><img src="${dataUrl}"></body></html>`)
     }
-    const hash = crypto.createHash('sha256').update(pdf).digest('hex')
+    const hash = crypto.createHash('sha256').update(file.buffer).digest('hex')
     const attachment = await this.attachments.upload({
       tenantCode,
       patientId: instance.patient_id,
       recordId: instance.record_id,
       label: `${instance.template_name} - firma física`,
-      source: 'file_upload', buffer: pdf,
-      originalName: `consentimiento-firmado-${instance.id}.pdf`,
-      declaredMime: 'application/pdf', uploadedBy: userId,
+      source: 'file_upload', buffer: file.buffer,
+      originalName: file.originalname || `consentimiento-firmado-${instance.id}`,
+      declaredMime: detected!.mime, uploadedBy: userId,
+      immutable: true,
     })
-    await this.repo.acceptPhysicalInstance(instance.id, attachment.id, hash, userId)
+    const acceptedAt = new Date().toISOString()
+    const originalSnapshot = typeof instance.snapshot_json === 'string'
+      ? JSON.parse(instance.snapshot_json)
+      : instance.snapshot_json
+    const snapshot = {
+      ...originalSnapshot,
+      acceptedAt,
+      acceptanceMethod: 'physical',
+      sourceObject: attachment.gcs_object_path,
+    }
+    await Database.transaction(async () => {
+      await this.repo.acceptPhysicalInstance({
+        id: instance.id,
+        attachmentId: attachment.id,
+        documentHash: hash,
+        acceptedBy: userId,
+        acceptedAt,
+        snapshotJson: JSON.stringify(snapshot),
+      })
+      await this.documentDelivery.enqueue({
+        documentType: 'consent',
+        sourceId: String(instance.id),
+        sourceVersion: String(instance.template_version),
+        recipientEmail: (originalSnapshot as any)?.patientEmail ?? null,
+        snapshot,
+        sourceObject: attachment.gcs_object_path,
+      })
+    })
     return { id: instance.id, attachmentId: attachment.id }
   }
 
@@ -218,8 +275,25 @@ export class ConsentsService {
   }
 
   private snapshot(context: ConsentDocumentContext) {
-    const { template, signatureUrl, stampUrl, hasDoctorSignature, hasDoctorStamp, ...data } = context
-    return { ...data, templateId: template.id, templateVersion: template.current_version, templateName: template.name, templateContent: template.content }
+    return {
+      tenantCode: context.tenantCode,
+      tenantDisplayName: context.clinicName,
+      logoReference: context.logoUrl,
+      templateId: context.template.id,
+      templateVersion: context.template.current_version,
+      templateName: context.template.name,
+      templateContent: context.template.content,
+      patientId: context.patientId,
+      patientName: context.patientName,
+      patientAge: context.patientAge,
+      patientIdentification: context.patientIdentification,
+      patientPhone: context.patientPhone,
+      patientEmail: context.patientEmail,
+      visitId: context.visitId,
+      visitDate: context.visitDate,
+      doctorId: context.doctorId,
+      doctorName: context.doctorName,
+    }
   }
 
   private buildDocumentHtml(context: ConsentDocumentContext, signer: (SignerPayload & { acceptedAt: Date }) | null, physical: boolean): string {
