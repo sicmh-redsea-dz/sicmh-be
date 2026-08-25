@@ -242,15 +242,12 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
             break
         case 'get-doctor':
             const { term: doctTerm } = delimiters!
-            whereClause = `
-                ${
-                    !!doctTerm
-                    ? (
-                        `p.Nombre like concat('%', ?, '%') or
-                        p.Apellido like concat('%', ?, '%')`
-                    ) : ''
-                }
-            `
+            whereClause = doctTerm
+                ? `where (
+                    p.Nombre like concat(?, '%') or
+                    p.Apellido like concat(?, '%')
+                )`
+                : ''
             query = `
                 select 
                     p.PersonalID,
@@ -258,20 +255,27 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                     p.Especialidad
                 from
                     personal as p
-                where
-                    ${whereClause}
-                limit 20;
+                ${whereClause}
+                order by p.Nombre, p.Apellido
+                limit ${doctTerm ? 20 : 500};
             `
             break
         case 'get-patients':
             const { term: patTerm } = delimiters!
+            const hasFullPatientName = (patTerm?.trim().split(/\s+/).length ?? 0) > 1
             whereClause = `
                 ${
                     !!patTerm
                     ? (
-                        `p.Nombre like concat('%', ?, '%') or
-                        p.Apellido like concat('%', ?, '%') or
-                        p.Identificacion like concat('%', ?, '%')`
+                        `and (
+                            p.Nombre like concat(?, '%') or
+                            p.Apellido like concat(?, '%') or
+                            p.Identificacion like concat(?, '%') or
+                            ${hasFullPatientName ? `(
+                                p.Nombre like concat(?, '%') and
+                                p.Apellido like concat(?, '%')
+                            )` : 'false'}
+                        )`
                     ) : ''
                 }
             `
@@ -281,7 +285,12 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                     concat(p.Nombre, ' ', p.Apellido) as NombrePersonal
                 from pacientes as p
                 where
+                    p.isActive = 1
                     ${whereClause}
+                order by
+                    case when p.Identificacion = ? then 0 else 1 end,
+                    p.Nombre,
+                    p.Apellido
                 limit 20;
             `
             break

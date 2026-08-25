@@ -57,7 +57,11 @@ export class MysqlVisitsRepository implements VisitsRepository {
 
     async findPatients(term: string): Promise<ShortPatient[]> {
         const query = visitsQueries('get-patients', { term })
-        const values = term ? [term, term, term] : []
+        const parts = term.trim().split(/\s+/)
+        const fullNameValues = parts.length > 1
+            ? [parts[0], parts.slice(1).join(' ')]
+            : []
+        const values = term ? [term, term, term, ...fullNameValues, term] : ['']
         return Database.execute<ShortPatient[]>(query, values)
     }
 

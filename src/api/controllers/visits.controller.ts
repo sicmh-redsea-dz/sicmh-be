@@ -55,19 +55,14 @@ export class VisitsController {
 
     @asyncHandler()
     async getDoctors( req:Request ) {
-        const term = String(req.query.term) || ''
-        
-        if( term.trim().length === 0 ) return
-
+        const term = String(req.query.term ?? '').trim()
         return this.visitsService.getDoctors( term )
     }
 
     @asyncHandler()
     async getPatients( req:Request ) {
-        const term = String(req.query.term) || ''
-
-        if( term.trim().length === 0 ) return
-
+        const term = String(req.query.term ?? '').trim()
+        if (term.length < 2) return { patients: [] }
         return this.visitsService.getPatients( term )
     }
 
