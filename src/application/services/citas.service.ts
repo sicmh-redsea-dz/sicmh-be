@@ -16,6 +16,33 @@ const validationError = (msg: string) => {
 export class CitasService {
   constructor(private readonly repo: CitasRepository) {}
 
+  private normalizeSourceKey = (value: string): string => {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase()
+  }
+
+  private resolveSource = async (requested?: string | null): Promise<string> => {
+    const sources = await this.repo.listSources()
+    if (sources.length === 0) {
+      throw validationError('No hay orígenes de cita configurados.')
+    }
+
+    const value = requested?.trim()
+    if (!value) return sources[0]
+
+    const key = this.normalizeSourceKey(value)
+    const match = sources.find(source => this.normalizeSourceKey(source) === key)
+    if (!match) {
+      throw validationError('El origen de la cita seleccionado no es válido.')
+    }
+    return match
+  }
+
   list = async (start: string, end: string) => {
     return this.repo.list(start, end)
   }
@@ -43,13 +70,14 @@ export class CitasService {
       throw validationError('El inicio debe ser anterior al fin.')
 
     const pacienteId = await this.resolveIdentificacion(params.pacienteIdentificacion)
+    const source = await this.resolveSource(params.source)
 
     if (params.personalId) {
       const conflict = await this.repo.checkDoctorConflict(params.personalId, params.inicio, params.fin)
       if (conflict) throw validationError('El doctor ya tiene una cita programada en ese horario.')
     }
 
-    const id = await this.repo.create({ ...params, pacienteId })
+    const id = await this.repo.create({ ...params, pacienteId, source })
     return this.repo.findById(id)
   }
 
@@ -61,13 +89,14 @@ export class CitasService {
       throw validationError('El inicio debe ser anterior al fin.')
 
     const pacienteId = await this.resolveIdentificacion(params.pacienteIdentificacion)
+    const source = await this.resolveSource(params.source ?? existing.Source)
 
     if (params.personalId) {
       const conflict = await this.repo.checkDoctorConflict(params.personalId, params.inicio, params.fin, params.citaId)
       if (conflict) throw validationError('El doctor ya tiene una cita programada en ese horario.')
     }
 
-    await this.repo.update({ ...params, pacienteId })
+    await this.repo.update({ ...params, pacienteId, source })
     return this.repo.findById(params.citaId)
   }
 

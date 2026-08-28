@@ -287,6 +287,7 @@ CREATE TABLE IF NOT EXISTS citas (
   Estado        ENUM('pendiente','confirmada','cancelada','completada')           NOT NULL DEFAULT 'pendiente',
   Source        VARCHAR(50)    NOT NULL DEFAULT 'manual',
   ExternalId    VARCHAR(255)   NULL,
+  ChatbotSesionID VARCHAR(255) NULL,
   Notas         TEXT           NULL,
   CreadoPor     INT            NULL,
   CreadoEn      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,

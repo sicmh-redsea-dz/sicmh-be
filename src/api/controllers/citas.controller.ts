@@ -45,7 +45,7 @@ export class CitasController {
         recursoId:   recursoId   || null,
         tipo:   tipo   || 'consulta',
         estado: estado || 'pendiente',
-        source: source || 'en_persona',
+        source: typeof source === 'string' ? source : null,
         notas,
         creadoPor: uid ? Number(uid) : null,
       })
@@ -68,7 +68,7 @@ export class CitasController {
         recursoId:   recursoId   || null,
         tipo:   tipo   || 'consulta',
         estado: estado || 'pendiente',
-        source: source || 'en_persona',
+        source: typeof source === 'string' ? source : null,
         notas,
       })
       res.json({ data })

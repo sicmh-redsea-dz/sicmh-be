@@ -26,7 +26,8 @@ export class ConsentsService {
   constructor(
     private readonly repo: ConsentsRepository,
     private readonly attachments: ClinicalAttachmentsService,
-    private readonly documentDelivery: DocumentDeliveryService
+    private readonly documentDelivery: DocumentDeliveryService,
+    private readonly renderPdf: (html: string) => Promise<Buffer> = renderPdfFromHtml
   ) {}
 
   listTemplates = (includeInactive = false) => this.repo.listTemplates(includeInactive)
@@ -94,12 +95,12 @@ export class ConsentsService {
 
   previewDraft = async (patientId: number, doctorId: number, visitDate: string | null, templateId: number, tenantCode: string): Promise<Buffer> => {
     const context = await this.getDraftContext(patientId, doctorId, visitDate, templateId, tenantCode)
-    return renderPdfFromHtml(this.buildDocumentHtml(context, null, true))
+    return this.renderPdf(this.buildDocumentHtml(context, null, true))
   }
 
   preview = async (recordId: number, templateId: number, tenantCode: string): Promise<Buffer> => {
     const context = await this.getContext(recordId, templateId, tenantCode)
-    return renderPdfFromHtml(this.buildDocumentHtml(context, null, false))
+    return this.renderPdf(this.buildDocumentHtml(context, null, false))
   }
 
   markPrinted = async (recordId: number, templateId: number, tenantCode: string, userId: number, expectedTemplateVersion?: number | null) => {
@@ -107,7 +108,7 @@ export class ConsentsService {
     if (expectedTemplateVersion && Number(expectedTemplateVersion) !== Number(context.template.current_version)) {
       this.validation('La plantilla cambió después de ser impresa. Debe imprimirse nuevamente.')
     }
-    const pdf = await renderPdfFromHtml(this.buildDocumentHtml(context, null, true))
+    const pdf = await this.renderPdf(this.buildDocumentHtml(context, null, true))
     const id = await this.repo.createInstance({
       templateId: context.template.id,
       templateVersionId: Number((context.template as any).version_id),
@@ -148,10 +149,25 @@ export class ConsentsService {
       signerType: signer.signerType,
       signerName,
     })
+    const pdf = await this.renderPdf(this.buildDocumentHtml(context, { ...signer, acceptedAt }, false))
+    const documentHash = crypto.createHash('sha256').update(pdf).digest('hex')
+    const attachment = await this.attachments.upload({
+      tenantCode,
+      patientId: context.patientId,
+      recordId,
+      label: `${context.template.name} - aceptado`,
+      source: 'file_upload',
+      buffer: pdf,
+      originalName: `consentimiento-${context.template.id}.pdf`,
+      declaredMime: 'application/pdf',
+      uploadedBy: userId,
+      immutable: true,
+    })
     const snapshot = {
       ...this.snapshot(context),
       acceptedAt: acceptedAtIso,
       acceptanceMethod: signer.mode,
+      sourceObject: attachment.gcs_object_path,
       signer: {
         type: signer.signerType,
         name: signerName,
@@ -182,6 +198,8 @@ export class ConsentsService {
         signatureObject: assets.signerObject,
         doctorSignatureObject: assets.doctorSignatureObject,
         doctorStampObject: assets.doctorStampObject,
+        attachmentId: attachment.id,
+        documentHash,
         snapshotJson: JSON.stringify(snapshot),
         createdBy: userId,
         acceptedAt: acceptedAtIso,
@@ -192,10 +210,11 @@ export class ConsentsService {
         sourceVersion: String(context.template.current_version),
         recipientEmail: signerEmail,
         snapshot,
+        sourceObject: attachment.gcs_object_path,
       })
       return instanceId
     })
-    return { id, signatureObject: assets.signerObject }
+    return { id, attachmentId: attachment.id, signatureObject: assets.signerObject }
   }
 
   acceptPhysical = async (instanceId: number, tenantCode: string, userId: number, file: Express.Multer.File) => {

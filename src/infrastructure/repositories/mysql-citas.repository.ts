@@ -31,7 +31,7 @@ export class MysqlCitasRepository implements CitasRepository {
       p.recursoId ?? null,
       p.tipo,
       p.estado,
-      p.source ?? 'manual',
+      p.source,
       p.chatbotSesionId ?? null,
       p.notas ?? null,
       p.creadoPor ?? null,
@@ -52,7 +52,7 @@ export class MysqlCitasRepository implements CitasRepository {
       p.recursoId ?? null,
       p.tipo,
       p.estado,
-      p.source ?? 'en_persona',
+      p.source,
       p.notas ?? null,
       p.citaId,
     ])

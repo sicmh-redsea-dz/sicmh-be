@@ -1,4 +1,4 @@
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { VisitsService } from '../../application/services/visits.service';
 import { asyncHandler } from '../decorators/asyncHandler';
 import { ServiceContainer } from '../../infrastructure/container/service.container';
@@ -60,10 +60,42 @@ export class VisitsController {
     }
 
     @asyncHandler()
-    async getPatients( req:Request ) {
+    async getPatients( req:Request, res:Response ) {
         const term = String(req.query.term ?? '').trim()
         if (term.length < 2) return { patients: [] }
-        return this.visitsService.getPatients( term )
+
+        const incomingTraceId = String(req.header('x-trace-id') ?? '')
+        const traceId = /^[a-zA-Z0-9_-]{8,80}$/.test(incomingTraceId)
+            ? incomingTraceId
+            : `ps-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+        const startedAt = Date.now()
+        const tenantCode = ((req as any).user as TokenPayload | undefined)?.codigoEmpresa ?? 'unknown'
+
+        res.setHeader('X-Trace-Id', traceId)
+
+        try {
+            const result = await this.visitsService.getPatients(term)
+            const durationMs = Date.now() - startedAt
+            res.setHeader('Server-Timing', `patient-search;dur=${durationMs}`)
+            console.info(JSON.stringify({
+                event: 'patient_search_complete',
+                traceId,
+                tenantCode,
+                durationMs,
+                termLength: term.length,
+                resultCount: result.patients?.length ?? 0
+            }))
+            return result
+        } catch (err: any) {
+            console.error(JSON.stringify({
+                event: 'patient_search_failed',
+                traceId,
+                tenantCode,
+                durationMs: Date.now() - startedAt,
+                errorCode: err?.code ?? err?.name ?? 'unknown'
+            }))
+            throw err
+        }
     }
 
     @asyncHandler()

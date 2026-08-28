@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS citas (
   Estado        ENUM('pendiente','confirmada','cancelada','completada')           NOT NULL DEFAULT 'pendiente',
   Source        VARCHAR(50)    NOT NULL DEFAULT 'manual',
   ExternalId    VARCHAR(255)   NULL,
+  ChatbotSesionID VARCHAR(255) NULL,
   Notas         TEXT           NULL,
   CreadoPor     INT            NULL,
   CreadoEn      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -43,6 +44,7 @@ CREATE TABLE IF NOT EXISTS citas (
 
 -- Run this to upgrade an existing citas table
 ALTER TABLE citas ADD COLUMN IF NOT EXISTS NombrePaciente VARCHAR(200) NULL AFTER PacienteID;
+ALTER TABLE citas ADD COLUMN IF NOT EXISTS ChatbotSesionID VARCHAR(255) NULL AFTER ExternalId;
 
 -- MedIT: fix facturas.Estado column to support 'Anulado' status
 -- The column was defined as an ENUM without 'Anulado', preventing invoice annulment.

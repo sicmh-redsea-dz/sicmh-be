@@ -58,12 +58,15 @@ export const citasQueries = (key: string): string => {
 
     case 'list-doctors':
       return `
-        SELECT PersonalID AS id,
-               CONCAT(Nombre, ' ', Apellido) AS nombre,
-               Especialidad AS especialidad
-        FROM personal
-        WHERE Cargo = 'regente'
-        ORDER BY Nombre ASC
+        SELECT p.PersonalID AS id,
+               CONCAT(p.Nombre, ' ', p.Apellido) AS nombre,
+               p.Especialidad AS especialidad
+        FROM personal p
+        LEFT JOIN usuarios u ON u.UsuarioID = p.UsuarioID
+        LEFT JOIN roles r ON r.RolID = u.RolId
+        WHERE LOWER(TRIM(COALESCE(r.NombreRol, ''))) IN ('doctor', 'medico', 'médico', 'medic')
+           OR LOWER(TRIM(COALESCE(p.Cargo, ''))) IN ('doctor', 'medico', 'médico', 'medic', 'regente')
+        ORDER BY p.Nombre ASC, p.Apellido ASC
       `
 
     case 'list-sources':

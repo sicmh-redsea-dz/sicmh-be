@@ -13,7 +13,7 @@ export interface CreateCitaParams {
   recursoId?:               string | null
   tipo:                     CitaTipo
   estado:                   CitaEstado
-  source?:                  string
+  source?:                  string | null
   chatbotSesionId?:         string | null
   notas?:                   string | null
   creadoPor?:               number | null
@@ -33,7 +33,7 @@ export interface UpdateCitaParams {
   recursoId?:               string | null
   tipo:                     CitaTipo
   estado:                   CitaEstado
-  source?:                  string
+  source?:                  string | null
   notas?:                   string | null
 }
 

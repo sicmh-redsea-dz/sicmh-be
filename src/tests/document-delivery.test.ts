@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import crypto from 'node:crypto'
 import { afterEach, describe, test } from 'node:test'
 import { DocumentDeliveryService } from '../application/services/document-delivery.service'
 import { CreateDocumentDeliveryParams, DocumentDeliveryRepository } from '../application/ports/document-delivery.repository'
@@ -145,7 +146,7 @@ describe('paid invoice delivery', () => {
 })
 
 describe('accepted consent delivery', () => {
-  test('stores immutable signer/template snapshot and queues without rendering a PDF or sending mail', async () => {
+  test('generates and attaches the PDF, stores the immutable snapshot, and queues the same document', async () => {
     Database.transaction = async <T>(fn: () => Promise<T>) => fn()
     PoolManager.resolveEmpresa = async () => ({ CodigoEmpresa: 'TEN', NombreEmpresa: 'Clínica Uno', NombreBaseDatos: 'db', ServidorDB: 'db', PuertoDB: 3306, Activo: 1 })
     let created: any
@@ -158,6 +159,7 @@ describe('accepted consent delivery', () => {
       findTemplate: async () => ({ id: 7, version_id: 12, current_version: 3, name: 'Cirugía', content: 'Contenido congelado', is_active: 1 }),
       createInstance: async (params: any) => { created = params; return 44 },
     }
+    let uploaded: any
     const attachments: any = {
       hasPrescriptionAssets: async () => ({ signature: true, stamp: true }),
       preserveConsentAssets: async () => ({
@@ -165,13 +167,31 @@ describe('accepted consent delivery', () => {
         doctorSignatureObject: 'TEN/consents/accepted/x/doctor-signature.png',
         doctorStampObject: 'TEN/consents/accepted/x/doctor-stamp.png',
       }),
+      upload: async (params: any) => {
+        uploaded = params
+        return { id: 91, gcs_object_path: 'TEN/patients/4/accepted.pdf' }
+      },
     }
     const deliveries = new MemoryDeliveryRepository()
-    const service = new ConsentsService(consentRepo, attachments, new DocumentDeliveryService(deliveries))
+    const pdf = Buffer.from('%PDF-1.7 generated consent')
+    let renderedHtml = ''
+    const service = new ConsentsService(
+      consentRepo,
+      attachments,
+      new DocumentDeliveryService(deliveries),
+      async (html) => { renderedHtml = html; return pdf },
+    )
     const result = await service.acceptElectronic(8, 7, 'TEN', 6, { mode: 'checkbox', signerType: 'patient' })
     const snapshot = JSON.parse(created.snapshotJson)
     const delivery = [...deliveries.rows.values()][0]
     assert.equal(result.id, 44)
+    assert.equal(result.attachmentId, 91)
+    assert.match(renderedHtml, /Contenido congelado/)
+    assert.deepEqual(uploaded.buffer, pdf)
+    assert.equal(uploaded.declaredMime, 'application/pdf')
+    assert.equal(uploaded.immutable, true)
+    assert.equal(created.attachmentId, 91)
+    assert.equal(created.documentHash, crypto.createHash('sha256').update(pdf).digest('hex'))
     assert.equal(snapshot.templateContent, 'Contenido congelado')
     assert.equal(snapshot.templateVersion, 3)
     assert.equal(snapshot.signer.signatureObject, 'TEN/consents/accepted/x/signer.json')
@@ -180,6 +200,7 @@ describe('accepted consent delivery', () => {
     assert.equal(delivery.sourceId, '44')
     assert.equal(delivery.sourceVersion, '3')
     assert.equal(delivery.status, 'pending')
+    assert.equal(delivery.sourceObject, 'TEN/patients/4/accepted.pdf')
   })
 
   test('keeps an approved physical image unchanged and queues its source object', async () => {

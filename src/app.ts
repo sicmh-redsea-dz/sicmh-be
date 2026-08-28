@@ -14,7 +14,7 @@ app.set('trust proxy', true)
 app.use(helmet())
 app.use(compression())
 app.use(express.json({ limit: '5mb' }));
-app.use(cors());
+app.use(cors({ exposedHeaders: ['X-Trace-Id', 'Server-Timing'] }));
 
 app.use('/public', publicRoutes)
 app.use('/app', appRoutes)
