@@ -1,6 +1,19 @@
 {
   "encounters": [
     {
+      "id": "8d57ce89-2d4e-4c0d-a2d6-72f36e630d96",
+      "patientId": 1,
+      "patientName": "Irma Yolanda Rodriguez Hernandez",
+      "doctorId": 7,
+      "origin": "consulta",
+      "invoiceNumber": "4106e7c8-2d9b-48cf",
+      "invoiceId": 12,
+      "status": "Pendiente",
+      "createdAt": "2026-09-01",
+      "updatedAt": "2026-09-01T21:15:08.262Z",
+      "previousEncounterId": "18236ba0-18b5-4cd8-8129-402f080ba806"
+    },
+    {
       "id": "80f46d78-65ce-43bf-b737-65b531bc34e6",
       "patientId": 7,
       "patientName": "Jose Roberto Martinez Rodriguez",
@@ -257,5 +270,5 @@
       "closedAt": "2026-06-16T00:54:24.706Z"
     }
   ],
-  "updatedAt": "2026-09-01T20:56:54.232Z"
+  "updatedAt": "2026-09-01T21:15:08.262Z"
 }

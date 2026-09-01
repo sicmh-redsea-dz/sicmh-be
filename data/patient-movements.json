@@ -1,6 +1,19 @@
 {
   "events": [
     {
+      "id": "e42e0658-a176-4efa-8179-6cca8ed1161b",
+      "patientId": 1,
+      "patientName": "Irma Yolanda Rodriguez Hernandez",
+      "encounterId": "8d57ce89-2d4e-4c0d-a2d6-72f36e630d96",
+      "invoiceNumber": "4106e7c8-2d9b-48cf",
+      "toStation": "consulta",
+      "occurredAt": "2026-09-01",
+      "source": "visit",
+      "reference": {
+        "visitId": 12
+      }
+    },
+    {
       "id": "fc369eee-710f-4043-b732-9a514a9354bc",
       "patientId": 7,
       "patientName": "Jose Roberto Martinez Rodriguez",
@@ -389,5 +402,5 @@
       }
     }
   ],
-  "updatedAt": "2026-09-01T20:56:54.237Z"
+  "updatedAt": "2026-09-01T21:15:08.267Z"
 }

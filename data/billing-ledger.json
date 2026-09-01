@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "338ce4b8-d1f7-44f6-bf9c-389c50b737c6",
+      "patientId": 1,
+      "patientName": "Irma Yolanda Rodriguez Hernandez",
+      "encounterId": "8d57ce89-2d4e-4c0d-a2d6-72f36e630d96",
+      "invoiceNumber": "4106e7c8-2d9b-48cf",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-09-01",
+      "status": "Pendiente",
+      "source": "manual"
+    },
+    {
       "id": "a95108bb-ca57-416f-b43f-b7e674cd4f7d",
       "patientId": 7,
       "patientName": "Jose Roberto Martinez Rodriguez",
@@ -481,5 +497,5 @@
       }
     }
   ],
-  "updatedAt": "2026-09-01T20:56:54.244Z"
+  "updatedAt": "2026-09-01T21:15:08.275Z"
 }
