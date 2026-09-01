@@ -2,6 +2,7 @@ import { ResultSetHeader } from 'mysql2'
 import { ConsentsRepository, CreateConsentInstanceParams, CreateConsentTemplateParams } from '../../application/ports/consents.repository'
 import { ConsentInstance, ConsentTemplate } from '../../domain/entities/Consent'
 import { Database } from '../database/Database'
+import { toMysqlDatetime } from '../database/mysql-datetime'
 import { consentsQueries } from '../database/queries/consents.queries'
 
 export class MysqlConsentsRepository implements ConsentsRepository {
@@ -57,7 +58,7 @@ export class MysqlConsentsRepository implements ConsentsRepository {
       p.signerIdentification ?? null, p.signerRelationship ?? null, p.signerPhone ?? null,
       p.signerEmail ?? null, p.signatureObject ?? null, p.doctorSignatureObject ?? null,
       p.doctorStampObject ?? null, p.attachmentId ?? null, p.documentHash ?? null,
-      p.snapshotJson, p.createdBy, p.acceptedAt ?? null, p.templateId,
+      p.snapshotJson, p.createdBy, p.acceptedAt ? toMysqlDatetime(p.acceptedAt) : null, p.templateId,
     ]
     const result = await Database.execute<ResultSetHeader>(consentsQueries('create-instance'), values)
     return result.insertId
@@ -70,7 +71,7 @@ export class MysqlConsentsRepository implements ConsentsRepository {
 
   async acceptPhysicalInstance(p: { id: number; attachmentId: number; documentHash: string; acceptedBy: number; acceptedAt: string; snapshotJson: string }): Promise<void> {
     const result = await Database.execute<ResultSetHeader>(consentsQueries('accept-physical'), [
-      p.attachmentId, p.documentHash, p.acceptedBy, p.acceptedAt, p.snapshotJson, p.id,
+      p.attachmentId, p.documentHash, p.acceptedBy, toMysqlDatetime(p.acceptedAt), p.snapshotJson, p.id,
     ])
     if (!result.affectedRows) throw Object.assign(new Error('El consentimiento impreso no está pendiente.'), { name: 'validation_errors', errors: [{ msg: 'El consentimiento impreso no está pendiente.' }] })
   }

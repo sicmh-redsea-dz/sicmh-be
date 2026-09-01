@@ -1,6 +1,30 @@
 {
   "encounters": [
     {
+      "id": "80f46d78-65ce-43bf-b737-65b531bc34e6",
+      "patientId": 7,
+      "patientName": "Jose Roberto Martinez Rodriguez",
+      "doctorId": 7,
+      "origin": "consulta",
+      "invoiceNumber": "8484e673-5796-4756",
+      "invoiceId": 6,
+      "status": "Pendiente",
+      "createdAt": "2026-09-01",
+      "updatedAt": "2026-09-01T20:56:54.232Z"
+    },
+    {
+      "id": "18236ba0-18b5-4cd8-8129-402f080ba806",
+      "patientId": 1,
+      "patientName": "Irma Yolanda Rodriguez Hernandez",
+      "doctorId": 7,
+      "origin": "consulta",
+      "invoiceNumber": "7355f60f-a915-425e",
+      "invoiceId": 2,
+      "status": "Pendiente",
+      "createdAt": "2026-09-01",
+      "updatedAt": "2026-09-01T20:41:59.728Z"
+    },
+    {
       "id": "6da2ac69-2adf-46ff-9137-64418f728582",
       "patientId": 2,
       "patientName": "Jose Roberto  Martinez Rodriguez",
@@ -233,5 +257,5 @@
       "closedAt": "2026-06-16T00:54:24.706Z"
     }
   ],
-  "updatedAt": "2026-08-25T12:45:44.966Z"
+  "updatedAt": "2026-09-01T20:56:54.232Z"
 }
