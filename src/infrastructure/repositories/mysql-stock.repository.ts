@@ -26,8 +26,8 @@ export class MysqlStockRepository implements StockRepository {
                 ProductoID in (${ids.join(', ')});
         `
 
-        const result = await Database.execute<{ total: number }[]>(query)
-        return result[0]?.total ?? 0.00
+        const result = await Database.execute<{ total: number | string | null }[]>(query)
+        return Number(result[0]?.total ?? 0) || 0
     }
 
     async reduceStockQuantities(

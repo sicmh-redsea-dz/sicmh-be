@@ -13,9 +13,10 @@ export class StockService {
         }
     }
 
-    readAmountByStockQty = async(items: { id: number; qty: number }[]): Promise<any> => {
+    readAmountByStockQty = async(items: { id: number; qty: number }[]): Promise<number> => {
         try {
-            return await this.stockRepo.readAmountByStockQty( items )
+            const amount = await this.stockRepo.readAmountByStockQty( items )
+            return Number(amount) || 0
         } catch ( err: any ) {
             throw err
         }

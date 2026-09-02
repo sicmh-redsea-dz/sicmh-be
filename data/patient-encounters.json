@@ -1,6 +1,18 @@
 {
   "encounters": [
     {
+      "id": "c031e587-ff5e-4cc5-b8c4-ecf87ad80224",
+      "patientId": 11,
+      "patientName": "Tomas Martinez",
+      "doctorId": 7,
+      "origin": "consulta",
+      "invoiceNumber": "0085192c-38f0-4e1f",
+      "invoiceId": 23,
+      "status": "Pendiente",
+      "createdAt": "2026-09-01",
+      "updatedAt": "2026-09-02T00:50:50.249Z"
+    },
+    {
       "id": "8d57ce89-2d4e-4c0d-a2d6-72f36e630d96",
       "patientId": 1,
       "patientName": "Irma Yolanda Rodriguez Hernandez",
@@ -270,5 +282,5 @@
       "closedAt": "2026-06-16T00:54:24.706Z"
     }
   ],
-  "updatedAt": "2026-09-01T21:15:08.262Z"
+  "updatedAt": "2026-09-02T00:50:50.249Z"
 }

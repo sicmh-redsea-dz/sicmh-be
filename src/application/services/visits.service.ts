@@ -247,17 +247,16 @@ export class VisitsService {
                 let amount: number = 0.00
 
                 if ( stockItems && stockItems.length > 0 )
-                    amount = await this.stockService.readAmountByStockQty( stockItems )
+                    amount = Number(await this.stockService.readAmountByStockQty( stockItems )) || 0
 
                 if (originKey === 'visits') {
-                    try {
-                        consultaService = await this.billingService.getDefaultConsultaService()
-                    } catch (err) {
-                        console.warn('default consulta service lookup error:', (err as any)?.message || err)
+                    consultaService = await this.billingService.getDefaultConsultaService()
+                    if (!consultaService) {
+                        throw this.buildValidationError([
+                            'No hay un servicio de consulta configurado para generar la factura.'
+                        ])
                     }
-                    if (consultaService) {
-                        amount += consultaService.price
-                    }
+                    amount += consultaService.price
                 }
 
                 const createdInvoice: { id: number; invoiceNumber: string } = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
