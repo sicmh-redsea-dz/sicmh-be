@@ -1,6 +1,54 @@
 {
   "items": [
     {
+      "id": "14524dd6-858f-43e8-81f9-cc2788fcd882",
+      "patientId": 30,
+      "patientName": "José Luis  Moncada",
+      "encounterId": "690b9901-5e96-4bd5-ac7a-97cf21834d68",
+      "invoiceNumber": "617d03cb-d174-4df0",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-09-04",
+      "status": "Pendiente",
+      "source": "manual"
+    },
+    {
+      "id": "8bf4532c-fb55-4e56-8b2a-265ed118c988",
+      "patientId": 30,
+      "patientName": "José Luis  Moncada",
+      "encounterId": "ff8a815b-0359-400a-8ac0-23fcbaaec6eb",
+      "invoiceNumber": "8d26f6dd-2add-43d9",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-09-04",
+      "status": "Pendiente",
+      "source": "manual"
+    },
+    {
+      "id": "29ca7ca7-e098-4b63-9e21-d04e1c9df9dc",
+      "patientId": 30,
+      "patientName": "José Luis  Moncada",
+      "encounterId": "7c9e04bb-7a86-4a49-90df-bed55bd627d7",
+      "invoiceNumber": "92cdc062-095c-42fb",
+      "station": "consulta",
+      "category": "servicio",
+      "description": "Cita Medica Programada",
+      "quantity": 1,
+      "unitPrice": 1100,
+      "total": 1100,
+      "occurredAt": "2026-09-04",
+      "status": "Pendiente",
+      "source": "manual"
+    },
+    {
       "id": "7dfb611c-9161-40a4-8df2-4cf8a5c7d5d3",
       "patientId": 11,
       "patientName": "Tomas Martinez",
@@ -513,5 +561,5 @@
       }
     }
   ],
-  "updatedAt": "2026-09-02T00:50:50.262Z"
+  "updatedAt": "2026-09-04T20:26:15.907Z"
 }

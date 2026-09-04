@@ -103,6 +103,13 @@ export const CLINICAL_UPDATE_PERMISSIONS: Permission[] = [
   'visits.hospitalization.update'
 ]
 
+// Catalog searches are required while registering or editing a clinical visit,
+// even for roles that cannot browse the visit history.
+export const CLINICAL_SEARCH_PERMISSIONS: Permission[] = [
+  ...CLINICAL_READ_PERMISSIONS,
+  ...CLINICAL_UPDATE_PERMISSIONS
+]
+
 // Old overrides remain meaningful after introducing module-level permissions.
 export const LEGACY_PERMISSION_EXPANSIONS: Partial<Record<Permission, Permission[]>> = {
   'dashboard.view': ['settings.profile.read', 'settings.profile.update'],

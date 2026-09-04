@@ -1,6 +1,45 @@
 {
   "events": [
     {
+      "id": "955b3bc8-9b20-4ee9-92b2-f4fc9c2d5919",
+      "patientId": 30,
+      "patientName": "José Luis  Moncada",
+      "encounterId": "690b9901-5e96-4bd5-ac7a-97cf21834d68",
+      "invoiceNumber": "617d03cb-d174-4df0",
+      "toStation": "consulta",
+      "occurredAt": "2026-09-04",
+      "source": "visit",
+      "reference": {
+        "visitId": 48
+      }
+    },
+    {
+      "id": "e19fe170-14fc-46a0-8ffd-51b74f410254",
+      "patientId": 30,
+      "patientName": "José Luis  Moncada",
+      "encounterId": "ff8a815b-0359-400a-8ac0-23fcbaaec6eb",
+      "invoiceNumber": "8d26f6dd-2add-43d9",
+      "toStation": "consulta",
+      "occurredAt": "2026-09-04",
+      "source": "visit",
+      "reference": {
+        "visitId": 47
+      }
+    },
+    {
+      "id": "d823ea46-5d57-4206-b3d8-03a3c462b512",
+      "patientId": 30,
+      "patientName": "José Luis  Moncada",
+      "encounterId": "7c9e04bb-7a86-4a49-90df-bed55bd627d7",
+      "invoiceNumber": "92cdc062-095c-42fb",
+      "toStation": "consulta",
+      "occurredAt": "2026-09-04",
+      "source": "visit",
+      "reference": {
+        "visitId": 46
+      }
+    },
+    {
       "id": "83e7d768-4d93-4d6f-b3d7-5c2dcda01017",
       "patientId": 11,
       "patientName": "Tomas Martinez",
@@ -415,5 +454,5 @@
       }
     }
   ],
-  "updatedAt": "2026-09-02T00:50:50.255Z"
+  "updatedAt": "2026-09-04T20:26:15.900Z"
 }

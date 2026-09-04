@@ -2,7 +2,7 @@ import { Request, Router } from 'express';
 import { validateCreatePatient, validateEditPatient, validateDeletePatient } from '../validators/visits.validator'
 import { VisitsController } from '../controllers/visits.controller';
 import { requireAnyPermission, requirePermissions, requirePermissionsIf, requireVisitOriginPermission } from '../middlewares/permission.middleware'
-import { CLINICAL_READ_PERMISSIONS, CLINICAL_UPDATE_PERMISSIONS } from '../permissions/permissions'
+import { CLINICAL_READ_PERMISSIONS, CLINICAL_SEARCH_PERMISSIONS, CLINICAL_UPDATE_PERMISSIONS } from '../permissions/permissions'
 import { ConsentsController } from '../controllers/consents.controller'
 import { singleFileUpload } from '../middlewares/upload.middleware'
 
@@ -104,19 +104,19 @@ router.delete(
 )
 router.get(
     '/search/doctors',
-    requireAnyPermission(CLINICAL_READ_PERMISSIONS),
+    requireAnyPermission(CLINICAL_SEARCH_PERMISSIONS),
     visitsController.getDoctors.bind( visitsController )
 )
 
 router.get(
     '/search/patients',
-    requireAnyPermission(CLINICAL_READ_PERMISSIONS),
+    requireAnyPermission(CLINICAL_SEARCH_PERMISSIONS),
     visitsController.getPatients.bind( visitsController )
 )
 
 router.get(
     '/search/stock-items',
-    requireAnyPermission(CLINICAL_READ_PERMISSIONS),
+    requireAnyPermission(CLINICAL_SEARCH_PERMISSIONS),
     visitsController.getStockItems.bind( visitsController )
 )
 

@@ -1,6 +1,45 @@
 {
   "encounters": [
     {
+      "id": "690b9901-5e96-4bd5-ac7a-97cf21834d68",
+      "patientId": 30,
+      "patientName": "José Luis  Moncada",
+      "doctorId": 7,
+      "origin": "consulta",
+      "invoiceNumber": "617d03cb-d174-4df0",
+      "invoiceId": 48,
+      "status": "Pendiente",
+      "createdAt": "2026-09-04",
+      "updatedAt": "2026-09-04T20:26:15.895Z",
+      "previousEncounterId": "ff8a815b-0359-400a-8ac0-23fcbaaec6eb"
+    },
+    {
+      "id": "ff8a815b-0359-400a-8ac0-23fcbaaec6eb",
+      "patientId": 30,
+      "patientName": "José Luis  Moncada",
+      "doctorId": 7,
+      "origin": "consulta",
+      "invoiceNumber": "8d26f6dd-2add-43d9",
+      "invoiceId": 47,
+      "status": "Pendiente",
+      "createdAt": "2026-09-04",
+      "updatedAt": "2026-09-04T19:59:16.311Z",
+      "previousEncounterId": "7c9e04bb-7a86-4a49-90df-bed55bd627d7"
+    },
+    {
+      "id": "7c9e04bb-7a86-4a49-90df-bed55bd627d7",
+      "patientId": 30,
+      "patientName": "José Luis  Moncada",
+      "doctorId": 7,
+      "origin": "consulta",
+      "invoiceNumber": "92cdc062-095c-42fb",
+      "invoiceId": 46,
+      "status": "Pagado",
+      "createdAt": "2026-09-04",
+      "updatedAt": "2026-09-04T19:58:31.113Z",
+      "closedAt": "2026-09-04T19:58:31.113Z"
+    },
+    {
       "id": "c031e587-ff5e-4cc5-b8c4-ecf87ad80224",
       "patientId": 11,
       "patientName": "Tomas Martinez",
@@ -282,5 +321,5 @@
       "closedAt": "2026-06-16T00:54:24.706Z"
     }
   ],
-  "updatedAt": "2026-09-02T00:50:50.249Z"
+  "updatedAt": "2026-09-04T20:26:15.895Z"
 }

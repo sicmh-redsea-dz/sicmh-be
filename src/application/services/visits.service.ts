@@ -282,10 +282,13 @@ export class VisitsService {
             throw err
         }
 
-        // Encounter/movement/ledger failures are only warned, never surfaced
-        // to the client, so there is no reason to make the response wait for
-        // them (they rewrite growing JSON files on every save).
-        void this.recordBillingTrail({
+        // The invoice grid reads facturas.Monto, while the invoice drawer and
+        // delivery document read the billing ledger.  Wait for the ledger
+        // trail before returning so a newly-created consultation cannot show
+        // its service in the grid but be missing from its detail/PDF snapshot.
+        // recordBillingTrail keeps its best-effort error handling internally,
+        // so a non-essential trail failure still does not fail the visit.
+        await this.recordBillingTrail({
             patient,
             doctor,
             originKey,

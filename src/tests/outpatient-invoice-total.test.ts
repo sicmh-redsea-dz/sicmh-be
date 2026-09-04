@@ -21,7 +21,10 @@ const visitPayload = {
   ],
 }
 
-function buildService(defaultConsulta: { id: number; name: string; price: number } | null) {
+function buildService(
+  defaultConsulta: { id: number; name: string; price: number } | null,
+  addConsultaServiceLedgerItem: () => Promise<void> = async () => undefined,
+) {
   const createdAmounts: number[] = []
 
   const stockService = {
@@ -43,7 +46,7 @@ function buildService(defaultConsulta: { id: number; name: string; price: number
     getDefaultConsultaService: async () => defaultConsulta,
     registerEncounterForInvoice: async () => ({ id: 'encounter-test-91' }),
     createMovement: async () => undefined,
-    addConsultaServiceLedgerItem: async () => undefined,
+    addConsultaServiceLedgerItem,
   }
   const patientService = {
     findOnePatient: async () => ({ name: 'Tomas', lastName: 'Martinez' }),
@@ -92,5 +95,24 @@ describe('outpatient invoice total', () => {
       },
     )
     assert.deepEqual(createdAmounts, [])
+  })
+
+  test('waits for the consultation ledger item before returning the created visit', async () => {
+    Database.transaction = async (fn) => fn()
+    let releaseLedgerWrite!: () => void
+    const ledgerWrite = new Promise<void>((resolve) => { releaseLedgerWrite = resolve })
+    const { service } = buildService(
+      { id: 1, name: 'Cita Medica Programada', price: 1100 },
+      () => ledgerWrite,
+    )
+
+    let finished = false
+    const creatingVisit = service.createVisit(visitPayload as any).then(() => { finished = true })
+    await new Promise((resolve) => setImmediate(resolve))
+    assert.equal(finished, false)
+
+    releaseLedgerWrite()
+    await creatingVisit
+    assert.equal(finished, true)
   })
 })
