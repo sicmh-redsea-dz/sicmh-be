@@ -1,5 +1,5 @@
-import { NextFunction, Request, Response } from 'express'
-import { asyncHandler } from '../decorators/asyncHandler'
+import { Request } from 'express'
+import { asyncHandler, pdfResponse } from '../decorators/asyncHandler'
 import { ServiceContainer } from '../../infrastructure/container/service.container'
 import { BillingService } from '../../application/services/billing.service'
 
@@ -52,27 +52,22 @@ export class BillingController {
     return this.billingService.removeManualCharge(id)
   }
 
-  @asyncHandler()
-  async generatePdf(req: Request, res: Response, next: NextFunction): Promise<any> {
-    try {
-      const filters = {
-        from: this.readQueryString(req, 'from'),
-        to: this.readQueryString(req, 'to'),
-        station: this.readQueryString(req, 'station'),
-        status: this.readQueryString(req, 'status'),
-        patientIds: this.parseIds(req.query.patients ?? req.query.patientIds)
-      }
-      const pdfBuffer = await this.billingService.generateReportPdf(filters)
-      const filename = `reporte-facturacion-${filters.from || 'desde'}-${filters.to || 'hasta'}.pdf`
-      res.writeHead(200, {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': pdfBuffer.length
-      })
-      res.end(pdfBuffer)
-    } catch (err) {
-      next(err)
+  @pdfResponse({
+    filename: (req) => {
+      const from = String(req.query['from'] ?? 'desde')
+      const to = String(req.query['to'] ?? 'hasta')
+      return `reporte-facturacion-${from}-${to}.pdf`
+    },
+  })
+  async generatePdf(req: Request): Promise<any> {
+    const filters = {
+      from: this.readQueryString(req, 'from'),
+      to: this.readQueryString(req, 'to'),
+      station: this.readQueryString(req, 'station'),
+      status: this.readQueryString(req, 'status'),
+      patientIds: this.parseIds(req.query.patients ?? req.query.patientIds)
     }
+    return this.billingService.generateReportPdf(filters)
   }
 
   private parseIds(value: unknown): string[] {

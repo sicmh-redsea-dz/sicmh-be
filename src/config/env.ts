@@ -17,6 +17,7 @@ const required = (name: string): string => {
 export const config = {
     PORT: parsePort(process.env.PORT, 3000),
     PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL || '',
+    PASSWORD_RESET_TOKEN_EXPIRES_IN: process.env.PASSWORD_RESET_TOKEN_EXPIRES_IN || '1h',
     HOST: process.env.HOST || '0.0.0.0',
     DB_HOST: required('DB_HOST'),
     DB_PORT: parsePort(process.env.DB_PORT, 3306),

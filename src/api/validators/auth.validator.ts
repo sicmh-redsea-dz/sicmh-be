@@ -33,3 +33,27 @@ export const validateLogin: (ValidationChain | RequestHandler)[] = [
     .isLength({ min: 3, max: 10 }).withMessage('El código de empresa debe tener entre 3 y 10 caracteres.'),
   handleValidationErrors,
 ]
+
+export const validateForgotPassword: (ValidationChain | RequestHandler)[] = [
+  body('email')
+    .notEmpty().withMessage('El correo es obligatorio.')
+    .isEmail().withMessage('Ingresa un correo válido.'),
+  body('codigoEmpresa')
+    .notEmpty().withMessage('El código de empresa es obligatorio.')
+    .isAlphanumeric().withMessage('El código de empresa solo puede contener letras y números.')
+    .isLength({ min: 3, max: 10 }).withMessage('El código de empresa debe tener entre 3 y 10 caracteres.'),
+  handleValidationErrors,
+]
+
+export const validateResetPassword: (ValidationChain | RequestHandler)[] = [
+  body('token')
+    .notEmpty().withMessage('El token es obligatorio.'),
+  body('newPassword')
+    .notEmpty().withMessage('La contraseña es obligatoria.')
+    .isLength({ min: 8, max: 128 }).withMessage('La contraseña debe tener entre 8 y 128 caracteres.'),
+  body('codigoEmpresa')
+    .notEmpty().withMessage('El código de empresa es obligatorio.')
+    .isAlphanumeric().withMessage('El código de empresa solo puede contener letras y números.')
+    .isLength({ min: 3, max: 10 }).withMessage('El código de empresa debe tener entre 3 y 10 caracteres.'),
+  handleValidationErrors,
+]

@@ -14,9 +14,8 @@ export const validateCreateManualCharge: (ValidationChain | RequestHandler)[] = 
     body('patientId')
         .notEmpty()
         .withMessage('Patient ID is required')
-        .isInt({ min: 1 })
-        .withMessage('Patient ID must be a positive integer')
-        .toInt(),
+        .isUUID()
+        .withMessage('Patient ID must be a valid UUID'),
     body('description')
         .notEmpty()
         .withMessage('Description is required'),
@@ -54,9 +53,8 @@ export const validateCreateMovement: (ValidationChain | RequestHandler)[] = [
     body('patientId')
         .notEmpty()
         .withMessage('Patient ID is required')
-        .isInt({ min: 1 })
-        .withMessage('Patient ID must be a positive integer')
-        .toInt(),
+        .isUUID()
+        .withMessage('Patient ID must be a valid UUID'),
     body('toStation')
         .notEmpty()
         .withMessage('Destination station is required'),

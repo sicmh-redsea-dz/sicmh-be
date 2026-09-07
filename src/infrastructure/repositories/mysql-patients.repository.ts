@@ -75,6 +75,7 @@ export class MysqlPatientsRepository implements PatientsRepository {
         phone: params.phone,
         email: params.email,
         address: params.address,
+        identification: params.id,
         gender: params.gender,
       })
       .where(and(eq(patients.id, id), isNull(patients.deletedAt)))

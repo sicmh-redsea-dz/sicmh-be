@@ -29,3 +29,18 @@ export const singleFileUpload = (fieldName: string) => {
     })
   }
 }
+
+export const publicSingleFileUpload = (fieldName: string) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    upload.single(fieldName)(req, res, (err: any) => {
+      if (err instanceof MulterError) {
+        const msg = err.code === 'LIMIT_FILE_SIZE'
+          ? 'El archivo excede el tamaño máximo permitido (25MB).'
+          : 'No se pudo procesar el archivo enviado.'
+        next(Object.assign(new Error('Validation error'), { name: 'validation_errors', errors: [{ msg }] }))
+        return
+      }
+      next(err)
+    })
+  }
+}

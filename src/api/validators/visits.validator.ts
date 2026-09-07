@@ -15,6 +15,12 @@ const optionalString = ( field: string ) =>
     body( field )
         .optional()
         // .withMessage(`${ field } must be at least 5 characters long.`)
+
+const optionalUuid = (field: string, label: string) =>
+    body(field)
+        .optional()
+        .isUUID()
+        .withMessage(`${label} must be a valid UUID`)
     
 export const validateCreatePatient: (ValidationChain | RequestHandler)[] = [
     optionalNumeric('BMI', 'f'),
@@ -31,7 +37,8 @@ export const validateCreatePatient: (ValidationChain | RequestHandler)[] = [
     body('doctor')
         .notEmpty()
         .withMessage('Doctor ID is required')
-        .toInt(),
+        .isUUID()
+        .withMessage('Doctor ID must be a valid UUID'),
     optionalNumeric('fatPercentage', 'f'),
     optionalNumeric('glucometry', 'f'),
     optionalNumeric('height', 'f'),
@@ -40,7 +47,8 @@ export const validateCreatePatient: (ValidationChain | RequestHandler)[] = [
     body('patient')
         .notEmpty()
         .withMessage('Patient ID is required.')
-        .toInt(),
+        .isUUID()
+        .withMessage('Patient ID must be a valid UUID'),
     body('pressure')
         .notEmpty()
         .withMessage('Pressure is required'),
@@ -55,8 +63,8 @@ export const validateCreatePatient: (ValidationChain | RequestHandler)[] = [
 
 export const validateEditPatient: (ValidationChain | RequestHandler)[] = [
     param('id')
-        .isInt({ min: 1 })
-        .withMessage('Id must be a positive integer'),
+        .isUUID()
+        .withMessage('Id must be a valid UUID'),
     optionalNumeric('BMI', 'f'),
     optionalNumeric('ageAccordingToWeight', 'i'),
     body('date')
@@ -68,15 +76,13 @@ export const validateEditPatient: (ValidationChain | RequestHandler)[] = [
     body('diagnosis')
         .notEmpty()
         .withMessage('Diagnosis is required'),
-    body('doctor')
-        .toInt(),
+    optionalUuid('doctor', 'Doctor ID'),
     optionalNumeric('fatPercentage', 'f'),
     optionalNumeric('glucometry', 'f'),
     optionalNumeric('height', 'f'),
     optionalString('notes'),
     optionalNumeric('oxygenation', 'i'),
-    body('patient')
-        .toInt(),
+    optionalUuid('patient', 'Patient ID'),
     body('pressure')
         .notEmpty()
         .withMessage('Pressure is required'),
@@ -91,7 +97,7 @@ export const validateEditPatient: (ValidationChain | RequestHandler)[] = [
 
 export const validateDeletePatient: (ValidationChain | RequestHandler)[] = [
     param('id')
-        .isInt({ min: 1 })
-        .withMessage('Id must be a positive integer'),
+        .isUUID()
+        .withMessage('Id must be a valid UUID'),
     handleValidationErrors
 ]

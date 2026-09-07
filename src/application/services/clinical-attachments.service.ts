@@ -139,23 +139,24 @@ export class ClinicalAttachmentsService {
    * path — no metadata row, the frontend builds the URL directly.
    */
   uploadLogo = async (tenantCode: string, buffer: Buffer): Promise<{ objectPath: string }> => {
-    if (!buffer?.length) throw this.buildValidationError(['La imagen del logo es requerida.'])
-    if (buffer.length > MAX_LOGO_BYTES) {
-      throw this.buildValidationError(['El logo excede el tamaño máximo permitido (5MB).'])
-    }
-
-    const sniffed = await fromBuffer(buffer)
-    if (!sniffed || !IMAGE_MIME_TYPES.has(sniffed.mime)) {
-      throw this.buildValidationError(['El logo debe ser una imagen (JPEG, PNG o WebP).'])
-    }
-
-    const png = await sharp(buffer)
-      .rotate()
-      .resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true })
-      .png()
-      .toBuffer()
-
+    const png = await this.processPublicImage(buffer, 'El logo')
     const objectPath = `${tenantCode}/logo.png`
+    await this.publicStorage.save(objectPath, png, {
+      contentType: 'image/png',
+      cacheControl: 'public, max-age=300',
+    })
+    return { objectPath }
+  }
+
+  uploadPrescriptionAsset = async (
+    tenantCode: string,
+    userId: string,
+    type: 'signature' | 'stamp',
+    buffer: Buffer
+  ): Promise<{ objectPath: string }> => {
+    const label = type === 'signature' ? 'La firma' : 'El sello'
+    const png = await this.processPublicImage(buffer, label)
+    const objectPath = `${tenantCode}/users/${userId}/${type}.png`
     await this.publicStorage.save(objectPath, png, {
       contentType: 'image/png',
       cacheControl: 'public, max-age=300',
@@ -179,6 +180,24 @@ export class ClinicalAttachmentsService {
       return 'application/msword'
     }
     return sniffed.mime
+  }
+
+  private async processPublicImage(buffer: Buffer, label: string): Promise<Buffer> {
+    if (!buffer?.length) throw this.buildValidationError([`${label} es requerido.`])
+    if (buffer.length > MAX_LOGO_BYTES) {
+      throw this.buildValidationError([`${label} excede el tamaño máximo permitido (5MB).`])
+    }
+
+    const sniffed = await fromBuffer(buffer)
+    if (!sniffed || !IMAGE_MIME_TYPES.has(sniffed.mime)) {
+      throw this.buildValidationError([`${label} debe ser una imagen (JPEG, PNG o WebP).`])
+    }
+
+    return sharp(buffer)
+      .rotate()
+      .resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true })
+      .png()
+      .toBuffer()
   }
 
   private sanitizeFileName(name: string): string {

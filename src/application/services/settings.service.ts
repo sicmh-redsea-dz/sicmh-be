@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { and, eq, isNull } from 'drizzle-orm'
 import { AuthRepository } from '../ports/auth.repository'
 import { UserProfilesRepository } from '../ports/user-profiles.repository'
 import { UserProfile } from '../../domain/entities/UserProfile'
@@ -8,6 +9,8 @@ import { auditPermissionChange } from '../../utils/permissionAudit'
 import { UserMapper } from '../../domain/mappers/UserMapper'
 import { AuthResponse } from '../../domain/responses/AuthResponse'
 import { hashPassword } from '../../utils/passwordUtils'
+import { PoolManager } from '../../infrastructure/database/PoolManager'
+import { companies } from '../../infrastructure/database/schema/global'
 
 type InvitePayload = {
   name: string
@@ -93,6 +96,16 @@ export class SettingsService {
     return { user: { ...authUser, profile } }
   }
 
+  getCompany = async (codigoEmpresa: string): Promise<{ name: string }> => {
+    const [company] = await PoolManager.globalDb()
+      .select({ name: companies.name })
+      .from(companies)
+      .where(and(eq(companies.code, codigoEmpresa.toUpperCase()), isNull(companies.deletedAt)))
+      .limit(1)
+    if (!company) throw buildError('not_found_error', 'Empresa no encontrada.')
+    return { name: company.name }
+  }
+
   updateProfile = async (userId: string, _uid: string, payload: ProfilePayload) => {
     const user = await this.authRepo.findById(userId)
     if (!user) throw buildError('not_found_error', 'User not found.')
@@ -146,6 +159,22 @@ export class SettingsService {
         profile: updatedProfile
       }
     }
+  }
+
+  updateCompany = async (codigoEmpresa: string, name: string): Promise<{ name: string }> => {
+    const trimmed = name.trim()
+    if (!trimmed) throw buildValidationError('El nombre de la empresa es requerido.')
+
+    const result = await PoolManager.globalDb()
+      .update(companies)
+      .set({ name: trimmed })
+      .where(and(eq(companies.code, codigoEmpresa.toUpperCase()), isNull(companies.deletedAt)))
+
+    if ((result as any)[0]?.affectedRows === 0) {
+      throw buildError('not_found_error', 'Empresa no encontrada.')
+    }
+
+    return { name: trimmed }
   }
 
   updateUserRole = async (userId: string, roleId: string) => {

@@ -16,6 +16,10 @@ class FakeStorage implements FileStorage {
     this.saved.push({ path: objectPath, data, options })
   }
 
+  async exists(objectPath: string): Promise<boolean> {
+    return this.saved.some((item) => item.path === objectPath)
+  }
+
   createReadStream(): NodeJS.ReadableStream {
     return Readable.from(this.saved[this.saved.length - 1]?.data ?? Buffer.alloc(0))
   }

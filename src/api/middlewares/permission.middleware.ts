@@ -2,6 +2,10 @@ import { NextFunction, Request, Response } from 'express'
 import { ServiceContainer } from '../../infrastructure/container/service.container'
 import { Permission } from '../permissions/permissions'
 
+type RequiredPermissions = Permission | Permission[] | null | undefined
+type PermissionMatchMode = 'all' | 'any'
+type PermissionResolver = (req: Request) => RequiredPermissions
+
 const resolveUser = async (req: Request) => {
   const currentUser = (req as any).currentUser
   if (currentUser) return currentUser
@@ -22,32 +26,69 @@ const resolveUserPermissions = async (user: any): Promise<Set<Permission>> => {
   return accessControl.resolvePermissions(user.roles ?? [], String(user._id))
 }
 
-export const requirePermissions = (required: Permission | Permission[]) => {
-  const requiredList = Array.isArray(required) ? required : [required]
+const toPermissionList = (required: RequiredPermissions): Permission[] => {
+  if (!required) return []
+  return Array.isArray(required) ? required : [required]
+}
+
+const validatePermissions = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+  requiredList: Permission[],
+  mode: PermissionMatchMode
+) => {
+  try {
+    const user = await resolveUser(req)
+    if (!user) {
+      res.status(403).json({ message: 'Access denied. User not found.' })
+      return
+    }
+
+    ;(req as any).currentUser = user
+
+    const permissions = await resolveUserPermissions(user)
+    const allowed = mode === 'all'
+      ? requiredList.every((permission) => permissions.has(permission))
+      : requiredList.some((permission) => permissions.has(permission))
+
+    if (!allowed) {
+      res.status(403).json({ message: 'Access denied. Insufficient permissions.' })
+      return
+    }
+
+    next()
+  } catch (error) {
+    const label = mode === 'all' ? 'requirePermissions' : 'requireAnyPermission'
+    console.error(`[${label}] error:`, error)
+    res.status(500).json({ message: 'Unable to validate permissions. Please try again.' })
+  }
+}
+
+const buildResolvedPermissionGuard = (
+  resolver: PermissionResolver,
+  mode: PermissionMatchMode,
+  fallback?: RequiredPermissions
+) => {
+  const fallbackList = toPermissionList(fallback)
 
   return async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const user = await resolveUser(req)
-      if (!user) {
-        res.status(403).json({ message: 'Access denied. User not found.' })
-        return
-      }
+    const resolved = toPermissionList(resolver(req))
+    const requiredList = resolved.length > 0 ? resolved : fallbackList
 
-      ;(req as any).currentUser = user
-
-      const permissions = await resolveUserPermissions(user)
-      const allowed = requiredList.every((permission) => permissions.has(permission))
-
-      if (!allowed) {
-        res.status(403).json({ message: 'Access denied. Insufficient permissions.' })
-        return
-      }
-
+    if (requiredList.length === 0) {
       next()
-    } catch (error) {
-      console.error('[requirePermissions] error:', error)
-      res.status(500).json({ message: 'Unable to validate permissions. Please try again.' })
+      return
     }
+
+    await validatePermissions(req, res, next, requiredList, mode)
+  }
+}
+
+export const requirePermissions = (required: Permission | Permission[]) => {
+  const requiredList = Array.isArray(required) ? required : [required]
+  return async (req: Request, res: Response, next: NextFunction) => {
+    await validatePermissions(req, res, next, requiredList, 'all')
   }
 }
 
@@ -68,29 +109,17 @@ export const requirePermissionsIf = (
 
 export const requireAnyPermission = (required: Permission | Permission[]) => {
   const requiredList = Array.isArray(required) ? required : [required]
-
   return async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const user = await resolveUser(req)
-      if (!user) {
-        res.status(403).json({ message: 'Access denied. User not found.' })
-        return
-      }
-
-      ;(req as any).currentUser = user
-
-      const permissions = await resolveUserPermissions(user)
-      const allowed = requiredList.some((permission) => permissions.has(permission))
-
-      if (!allowed) {
-        res.status(403).json({ message: 'Access denied. Insufficient permissions.' })
-        return
-      }
-
-      next()
-    } catch (error) {
-      console.error('[requireAnyPermission] error:', error)
-      res.status(500).json({ message: 'Unable to validate permissions. Please try again.' })
-    }
+    await validatePermissions(req, res, next, requiredList, 'any')
   }
 }
+
+export const requireResolvedPermissions = (
+  resolver: PermissionResolver,
+  fallback?: RequiredPermissions
+) => buildResolvedPermissionGuard(resolver, 'all', fallback)
+
+export const requireResolvedAnyPermission = (
+  resolver: PermissionResolver,
+  fallback?: RequiredPermissions
+) => buildResolvedPermissionGuard(resolver, 'any', fallback)

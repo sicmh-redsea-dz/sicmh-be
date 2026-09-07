@@ -25,6 +25,12 @@ export class GcsFileStorage implements FileStorage {
     })
   }
 
+  async exists(objectPath: string): Promise<boolean> {
+    const file = getClient().bucket(this.bucketName).file(objectPath)
+    const [exists] = await file.exists()
+    return exists
+  }
+
   createReadStream(objectPath: string, range?: FileReadRange): NodeJS.ReadableStream {
     const file = getClient().bucket(this.bucketName).file(objectPath)
     return file.createReadStream({

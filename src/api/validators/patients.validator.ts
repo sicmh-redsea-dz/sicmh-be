@@ -16,8 +16,8 @@ export const validateGetPatients: (ValidationChain | RequestHandler)[] = [
 
 export const validateGetPatient: (ValidationChain | RequestHandler)[] = [
     param('id')
-        .isInt({min: 1})
-        .withMessage('Id must be a positive integer'),
+        .isUUID()
+        .withMessage('Id must be a valid UUID'),
     handleValidationErrors
 ]
 
@@ -63,8 +63,8 @@ export const validatePostPatient: (ValidationChain | RequestHandler)[] = [
 
 export const validatePatchPatient: (ValidationChain | RequestHandler)[] = [
     param('id')
-        .isInt({ min: 1 })
-        .withMessage('Id must be a positive integer'),
+        .isUUID()
+        .withMessage('Id must be a valid UUID'),
     body('birthdate')
         .optional()
         .notEmpty()
@@ -103,13 +103,18 @@ export const validatePatchPatient: (ValidationChain | RequestHandler)[] = [
         .withMessage('email is required')
         .isEmail()
         .withMessage('Invalid email address'),
+    body('id')
+        .optional()
+        .notEmpty()
+        .withMessage('id is required')
+        .isLength({ min: 13, max: 13 })
+        .withMessage('id must be 13 characters long'),
     handleValidationErrors
 ]
 
 export const validateDeletePatient: (ValidationChain | RequestHandler)[] = [
     param('id')
-        .isInt({ min: 1 })
-        .withMessage('Id must be a positive integer'),
+        .isUUID()
+        .withMessage('Id must be a valid UUID'),
     handleValidationErrors
 ]
-

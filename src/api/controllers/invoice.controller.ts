@@ -1,7 +1,7 @@
-import { NextFunction, Request, Response } from "express"
+import { Request } from "express"
 import { ServiceContainer } from "../../infrastructure/container/service.container"
 import { InvoiceService } from "../../application/services/invoice.service"
-import { asyncHandler } from "../decorators/asyncHandler"
+import { asyncHandler, pdfResponse } from "../decorators/asyncHandler"
 
 export class InvoiceController {
 
@@ -56,20 +56,14 @@ export class InvoiceController {
         return this.invoiceService.removeInvoiceById( id )
     }
 
-    @asyncHandler()
-    async generatePDF( req: Request, res: Response, next: NextFunction): Promise<any> {
-        try {
-            const { term } = req.params
-            const pdfBuffer = await this.invoiceService.generateCloseReportPdf(term)
-            const filename = `reporte-facturas${term ? `-${term}` : '' }.pdf`
-            res.writeHead( 200, {
-                "Content-Type": "application/pdf",
-                "Content-Disposition": `attachment; filename="${filename}"`,
-                "Content-Length": pdfBuffer.length,
-            })
-            res.end(pdfBuffer);
-        } catch ( err ) {
-            next( err )
+    @pdfResponse({
+        filename: (req) => {
+            const term = String(req.params.term ?? '')
+            return `reporte-facturas${term ? `-${term}` : ''}.pdf`
         }
+    })
+    async generatePDF( req: Request ): Promise<any> {
+        const { term } = req.params
+        return this.invoiceService.generateCloseReportPdf(term)
     }
 }

@@ -24,13 +24,13 @@ export class CitasService {
     return this.repo.listUpcoming()
   }
 
-  findById = async (id: number) => {
+  findById = async (id: string) => {
     const cita = await this.repo.findById(id)
     if (!cita) throw buildError('not_found_error', 'Cita no encontrada.')
     return cita
   }
 
-  private resolveIdentificacion = async (identificacion?: string | null): Promise<number | null> => {
+  private resolveIdentificacion = async (identificacion?: string | null): Promise<string | null> => {
     if (!identificacion?.trim()) return null
     return this.repo.findPacienteByIdentificacion(identificacion.trim())
   }
@@ -71,7 +71,7 @@ export class CitasService {
     return this.repo.findById(params.citaId)
   }
 
-  delete = async (id: number) => {
+  delete = async (id: string) => {
     const existing = await this.repo.findById(id)
     if (!existing) throw buildError('not_found_error', 'Cita no encontrada.')
     await this.repo.delete(id)

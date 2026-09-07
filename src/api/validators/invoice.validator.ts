@@ -19,9 +19,8 @@ export const validateCreateInvoice: (ValidationChain | RequestHandler)[] = [
     body('patient')
         .notEmpty()
         .withMessage('Patient ID is required')
-        .isInt({ min: 1 })
-        .withMessage('Patient ID must be a positive integer')
-        .toInt(),
+        .isUUID()
+        .withMessage('Patient ID must be a valid UUID'),
     body('date')
         .notEmpty()
         .withMessage('Date is required'),

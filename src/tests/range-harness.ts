@@ -19,6 +19,7 @@ for (let i = 0; i < FILE_SIZE; i++) if (payload[i] === 0) payload[i] = 65 + (i %
 
 const memoryStorage: FileStorage = {
   async save(_path: string, _data: Buffer, _options: SaveFileOptions) {},
+  async exists(_path: string) { return true },
   createReadStream(_path: string, range?: FileReadRange) {
     const start = range?.start ?? 0
     const end = range?.end ?? FILE_SIZE - 1

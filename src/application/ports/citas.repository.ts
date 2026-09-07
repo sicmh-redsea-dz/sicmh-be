@@ -5,8 +5,8 @@ export interface CreateCitaParams {
   descripcion?:             string | null
   inicio:                   string
   fin:                      string
-  personalId?:              number | null
-  pacienteId?:              number | null
+  personalId?:              string | null
+  pacienteId?:              string | null
   pacienteIdentificacion?:  string | null
   nombrePaciente?:          string | null
   recursoTipo?:             RecursoTipo | null
@@ -16,17 +16,17 @@ export interface CreateCitaParams {
   source?:                  string
   chatbotSesionId?:         string | null
   notas?:                   string | null
-  creadoPor?:               number | null
+  creadoPor?:               string | null
 }
 
 export interface UpdateCitaParams {
-  citaId:                   number
+  citaId:                   string
   titulo:                   string
   descripcion?:             string | null
   inicio:                   string
   fin:                      string
-  personalId?:              number | null
-  pacienteId?:              number | null
+  personalId?:              string | null
+  pacienteId?:              string | null
   pacienteIdentificacion?:  string | null
   nombrePaciente?:          string | null
   recursoTipo?:             RecursoTipo | null
@@ -40,12 +40,12 @@ export interface UpdateCitaParams {
 export interface CitasRepository {
   list(start: string, end: string): Promise<Cita[]>
   listUpcoming(): Promise<Cita[]>
-  findById(id: number): Promise<Cita | null>
-  create(params: CreateCitaParams): Promise<number>
+  findById(id: string): Promise<Cita | null>
+  create(params: CreateCitaParams): Promise<string>
   update(params: UpdateCitaParams): Promise<void>
-  delete(id: number): Promise<void>
-  listDoctors(): Promise<{ id: number; nombre: string; especialidad: string }[]>
+  delete(id: string): Promise<void>
+  listDoctors(): Promise<{ id: string; nombre: string; especialidad: string }[]>
   listSources(): Promise<string[]>
-  checkDoctorConflict(personalId: number, inicio: string, fin: string, excludeCitaId?: number): Promise<boolean>
-  findPacienteByIdentificacion(identificacion: string): Promise<number | null>
+  checkDoctorConflict(personalId: string, inicio: string, fin: string, excludeCitaId?: string): Promise<boolean>
+  findPacienteByIdentificacion(identificacion: string): Promise<string | null>
 }

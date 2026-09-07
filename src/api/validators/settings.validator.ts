@@ -4,8 +4,8 @@ import { handleValidationErrors } from './validationErrorHandler';
 
 export const validateChangeUserPassword: (ValidationChain | RequestHandler)[] = [
     param('id')
-        .isInt({ min: 1 })
-        .withMessage('Id must be a positive integer'),
+        .isUUID()
+        .withMessage('Id must be a valid UUID'),
     body('newPassword')
         .notEmpty()
         .withMessage('La contraseña es obligatoria.')

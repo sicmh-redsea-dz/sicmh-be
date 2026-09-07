@@ -1,37 +1,48 @@
 import { Router } from 'express'
-import { requirePermissions } from '../middlewares/permission.middleware'
+import { requireResolvedAnyPermission } from '../middlewares/permission.middleware'
 import { BedsController } from '../controllers/beds.controller'
+import { getClinicalPermissionForOrigin, Permission } from '../permissions/permissions'
 
 const router = Router()
 const controller = new BedsController()
 
+const resolveBedReadPermission = (module?: string): Permission[] => {
+  const derived = getClinicalPermissionForOrigin(module, 'read')
+  return derived ? ['visits.read', derived] : ['visits.read']
+}
+
+const resolveBedUpdatePermission = (module?: string): Permission[] => {
+  const derived = getClinicalPermissionForOrigin(module, 'update')
+  return derived ? ['visits.update', derived] : ['visits.update']
+}
+
 router.get(
   '/:module',
-  requirePermissions('visits.read'),
+  requireResolvedAnyPermission((req) => resolveBedReadPermission(req.params.module), 'visits.read'),
   controller.getBeds.bind(controller)
 )
 
 router.post(
   '/:module',
-  requirePermissions('visits.update'),
+  requireResolvedAnyPermission((req) => resolveBedUpdatePermission(req.params.module), 'visits.update'),
   controller.createBed.bind(controller)
 )
 
 router.patch(
   '/:module/:bedId',
-  requirePermissions('visits.update'),
+  requireResolvedAnyPermission((req) => resolveBedUpdatePermission(req.params.module), 'visits.update'),
   controller.updateBed.bind(controller)
 )
 
 router.post(
   '/:module/:bedId/assign',
-  requirePermissions('visits.update'),
+  requireResolvedAnyPermission((req) => resolveBedUpdatePermission(req.params.module), 'visits.update'),
   controller.assignBed.bind(controller)
 )
 
 router.post(
   '/:module/:bedId/release',
-  requirePermissions('visits.update'),
+  requireResolvedAnyPermission((req) => resolveBedUpdatePermission(req.params.module), 'visits.update'),
   controller.releaseBed.bind(controller)
 )
 

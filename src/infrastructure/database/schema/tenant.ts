@@ -654,6 +654,61 @@ export const clinicalAttachmentAccessLogs = mysqlTable(
   (table) => [index('attachment_access_attachment_idx').on(table.attachmentId, table.accessedAt)],
 )
 
+export const consentTemplates = mysqlTable(
+  'consent_templates',
+  {
+    ...baseColumns(),
+    name: varchar('name', { length: 200 }).notNull(),
+    currentVersion: int('current_version').notNull().default(1),
+    isActive: boolean('is_active').notNull().default(true),
+  },
+  (table) => [
+    uniqueIndex('consent_templates_name_unique').on(table.name),
+    index('consent_templates_active_idx').on(table.isActive, table.deletedAt),
+  ],
+)
+
+export const consentTemplateVersions = mysqlTable(
+  'consent_template_versions',
+  {
+    ...baseColumns(),
+    templateId: uuid('template_id').notNull().references(() => consentTemplates.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+    version: int('version').notNull(),
+    content: text('content').notNull(),
+  },
+  (table) => [
+    uniqueIndex('consent_template_versions_unique').on(table.templateId, table.version),
+    index('consent_template_versions_template_idx').on(table.templateId, table.deletedAt),
+  ],
+)
+
+export const consentInstances = mysqlTable(
+  'consent_instances',
+  {
+    ...baseColumns(),
+    templateId: uuid('template_id').notNull().references(() => consentTemplates.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
+    clinicalEncounterId: uuid('clinical_encounter_id').notNull().references(() => clinicalEncounters.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+    patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
+    staffMemberId: uuid('staff_member_id').notNull().references(() => staffMembers.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
+    templateVersion: int('template_version').notNull(),
+    status: mysqlEnum('status', ['printed', 'accepted']).notNull(),
+    acceptanceMethod: mysqlEnum('acceptance_method', ['checkbox', 'drawn_signature', 'physical']),
+    signerType: varchar('signer_type', { length: 30 }),
+    signerName: varchar('signer_name', { length: 200 }),
+    signerIdentification: varchar('signer_identification', { length: 50 }),
+    signerRelationship: varchar('signer_relationship', { length: 100 }),
+    signerPhone: varchar('signer_phone', { length: 30 }),
+    attachmentId: uuid('attachment_id').references(() => clinicalAttachments.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+    acceptedAt: timestamp('accepted_at', { mode: 'date', fsp: 3 }),
+    printedAt: timestamp('printed_at', { mode: 'date', fsp: 3 }),
+  },
+  (table) => [
+    uniqueIndex('consent_instances_visit_template_unique').on(table.clinicalEncounterId, table.templateId),
+    index('consent_instances_patient_idx').on(table.patientId, table.createdAt, table.deletedAt),
+    index('consent_instances_attachment_idx').on(table.attachmentId, table.deletedAt),
+  ],
+)
+
 export const appointmentTypes = mysqlTable(
   'appointment_types',
   {

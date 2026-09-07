@@ -32,6 +32,8 @@ import { DrizzleUserProfilesRepository } from '../repositories/drizzle-user-prof
 import { DrizzleRolePermissionsRepository } from '../repositories/drizzle-role-permissions.repository'
 import { DrizzleUserPermissionsRepository } from '../repositories/drizzle-user-permissions.repository'
 import { ClinicalAttachmentsService } from '../../application/services/clinical-attachments.service'
+import { ClinicalDocumentsService } from '../../application/services/clinical-documents.service'
+import { AttachmentCaptureService } from '../../application/services/attachment-capture.service'
 import { MysqlClinicalAttachmentsRepository } from '../repositories/mysql-clinical-attachments.repository'
 import { GcsFileStorage } from '../storage/gcs-file-storage'
 import { config } from '../../config/env'
@@ -71,7 +73,9 @@ export class ServiceContainer {
     private static rolePermissionsRepo: DrizzleRolePermissionsRepository
     private static userPermissionsRepo: DrizzleUserPermissionsRepository
     private static clinicalAttachmentsService: ClinicalAttachmentsService
+    private static clinicalDocumentsService: ClinicalDocumentsService
     private static clinicalAttachmentsRepo: MysqlClinicalAttachmentsRepository
+    private static attachmentCaptureService: AttachmentCaptureService
 
     static getAuthService(): AuthService {
         if (!this.authService)
@@ -204,6 +208,23 @@ export class ServiceContainer {
             )
         }
         return this.clinicalAttachmentsService
+    }
+
+    static getClinicalDocumentsService(): ClinicalDocumentsService {
+        if (!this.clinicalDocumentsService) {
+            this.clinicalDocumentsService = new ClinicalDocumentsService(
+                this.getClinicalAttachmentsService(),
+                new GcsFileStorage(config.GCS_PUBLIC_BUCKET)
+            )
+        }
+        return this.clinicalDocumentsService
+    }
+
+    static getAttachmentCaptureService(): AttachmentCaptureService {
+        if (!this.attachmentCaptureService) {
+            this.attachmentCaptureService = new AttachmentCaptureService()
+        }
+        return this.attachmentCaptureService
     }
 
     private static getClinicalAttachmentsRepository(): MysqlClinicalAttachmentsRepository {
