@@ -117,6 +117,7 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
             query = `
                 select 
                     hm.*,
+                    DATE_FORMAT(pa.FechaNacimiento, '%Y-%m-%d') as patientBirthDate,
                     concat(pa.Nombre, ' ', pa.Apellido) as NombrePaciente,
                     concat(pe.Nombre, ' ', pe.Apellido) as NombreDoctor,
                     json_arrayagg(
@@ -252,6 +253,7 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                 select 
                     p.PersonalID,
                     concat(p.Nombre, ' ', p.Apellido) as NombrePersonal,
+                    DATE_FORMAT(p.FechaNacimiento, '%Y-%m-%d') as birthDate,
                     p.Especialidad
                 from
                     personal as p
@@ -282,7 +284,8 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
             query = `
                 select 
                     p.PacienteID,
-                    concat(p.Nombre, ' ', p.Apellido) as NombrePersonal
+                    concat(p.Nombre, ' ', p.Apellido) as NombrePersonal,
+                    DATE_FORMAT(p.FechaNacimiento, '%Y-%m-%d') as birthDate
                 from pacientes as p
                 where
                     p.isActive = 1

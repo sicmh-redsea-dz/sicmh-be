@@ -57,7 +57,8 @@ export class HistoryMapper {
             Ant_Quirurgico: surgicalHst, 
             NombrePaciente: patientName,
             NombreDoctor: docName,
-            InventarioUsado
+            InventarioUsado,
+            patientBirthDate
         } = history
         
 
@@ -92,7 +93,8 @@ export class HistoryMapper {
             surgicalHst,
             patientName,
             docName,
-            usedInventory
+            usedInventory,
+            patientBirthDate
         }
     }
     

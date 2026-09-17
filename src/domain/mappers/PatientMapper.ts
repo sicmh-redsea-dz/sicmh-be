@@ -48,11 +48,13 @@ export class PatientMapper {
         const {
             PacienteID: id,
             NombrePersonal: name,
+            birthDate,
         } = patient
 
         return {
             id,
             name,
+            birthDate,
         }
     }
 }

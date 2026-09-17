@@ -22,4 +22,5 @@ export interface Patient {
 export interface ShortPatient {
     PacienteID: number
     NombrePersonal: string
+    birthDate?: string | null
 }

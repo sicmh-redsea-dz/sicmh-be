@@ -56,6 +56,7 @@ export interface HistoryResponse {
     pathologicalHst : string | null
     surgicalHst     : string | null
     patientName: string
+    patientBirthDate?: string | null
     docName: string
     usedInventory : { stockId: number, stockQty: number}[]
     expediente?: ExpedientePayload | null

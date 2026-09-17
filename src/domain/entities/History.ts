@@ -72,6 +72,7 @@ export interface History {
     PlanEgreso               : string | null
     FechaEgreso              : string | null
 
+    patientBirthDate?: string | null
     NombrePaciente  : string
     NombreDoctor    : string
 

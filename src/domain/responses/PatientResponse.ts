@@ -22,6 +22,7 @@ export interface EmergencyContactResponse {
 }
 
 export interface ShortPatientResponse {
+    birthDate?: string | null
     id:       number
     name:     string
 }
