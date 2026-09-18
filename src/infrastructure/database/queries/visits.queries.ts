@@ -253,7 +253,6 @@ export const visitsQueries = (key: string, delimiters?: DelimitersArgs): string 
                 select 
                     p.PersonalID,
                     concat(p.Nombre, ' ', p.Apellido) as NombrePersonal,
-                    DATE_FORMAT(p.FechaNacimiento, '%Y-%m-%d') as birthDate,
                     p.Especialidad
                 from
                     personal as p
