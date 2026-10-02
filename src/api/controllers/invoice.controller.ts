@@ -57,6 +57,7 @@ export class InvoiceController {
     }
 
     @pdfResponse({
+        delivery: () => ({ documentType: 'invoice_report' }),
         filename: (req) => {
             const term = String(req.params.term ?? '')
             return `reporte-facturas${term ? `-${term}` : ''}.pdf`

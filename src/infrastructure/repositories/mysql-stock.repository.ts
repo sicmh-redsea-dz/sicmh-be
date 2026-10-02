@@ -1,10 +1,10 @@
-import { and, eq, gte, inArray, isNull, sql, sum } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, sql, sum } from 'drizzle-orm'
 import { StockRepository } from '../../application/ports/stock.repository'
 import { Stock } from '../../domain/entities/Stock'
+import { changeInventory, inventoryLocationId, requireQuantity, returnEncounterInventory } from './inventory-balances'
 import { TenantContext } from '../database/TenantContext'
 import {
   encounterProducts,
-  inventoryLocations,
   inventoryStock,
   invoiceItems,
   products,
@@ -35,85 +35,80 @@ export class MysqlStockRepository implements StockRepository {
 
   async readAmountByStockQty(items: { id: string; qty: number }[]): Promise<number> {
     if (!items.length) return 0
+    items.forEach(item => requireQuantity(item.qty))
     const rows = await TenantContext.getDb()
       .select({ id: products.id, price: products.unitPrice })
       .from(products)
       .where(and(inArray(products.id, items.map((item) => item.id)), isNull(products.deletedAt)))
+    if (new Set(items.map(item => item.id)).size !== rows.length) throw Object.assign(new Error('Uno o más productos no existen.'), { name: 'validation_errors' })
     const priceById = new Map(rows.map((row) => [row.id, Number(row.price)]))
     return items.reduce((total, item) => total + (priceById.get(item.id) ?? 0) * item.qty, 0)
   }
 
-  async reduceStockQuantities(items: { id: string; qty: number; subinventoryId?: string }[]): Promise<void> {
-    const db = TenantContext.getDb()
-    await db.transaction(async (transaction) => {
-      const defaultLocationId = await this.defaultLocationId()
-      for (const item of items) {
-        const locationId = item.subinventoryId ?? defaultLocationId
-        const result = await transaction
-          .update(inventoryStock)
-          .set({ quantity: sql`${inventoryStock.quantity} - ${item.qty}` })
-          .where(and(
-            eq(inventoryStock.productId, item.id),
-            eq(inventoryStock.locationId, locationId),
-            gte(inventoryStock.quantity, item.qty),
-            isNull(inventoryStock.deletedAt),
-          ))
-        if (result[0].affectedRows !== 1) {
-          throw Object.assign(new Error(`Insufficient stock for product ${item.id}`), { name: 'validation_errors' })
-        }
+  async reduceStockQuantities(items: { id: string; qty: number; subinventoryId?: string }[], clinicalEncounterId?: string): Promise<void> {
+    await TenantContext.transaction(async () => {
+      for (const item of [...items].sort((a, b) => a.id.localeCompare(b.id))) {
+        requireQuantity(item.qty)
+        await changeInventory({ productId: item.id, locationId: await inventoryLocationId(item.subinventoryId), quantity: -item.qty, type: 'consumption', clinicalEncounterId })
       }
     })
   }
 
-  async restoreStockQuantities(items: { id: string; qty: number; subinventoryId?: string }[]): Promise<void> {
-    const db = TenantContext.getDb()
-    await db.transaction(async (transaction) => {
-      const defaultLocationId = await this.defaultLocationId()
-      for (const item of items) {
-        const locationId = item.subinventoryId ?? defaultLocationId
-        await transaction
-          .insert(inventoryStock)
-          .values({ productId: item.id, locationId, quantity: item.qty })
-          .onDuplicateKeyUpdate({
-            set: {
-              quantity: sql`${inventoryStock.quantity} + ${item.qty}`,
-              deletedAt: null,
-            },
-          })
+  async restoreStockQuantities(items: { id: string; qty: number; subinventoryId?: string }[], clinicalEncounterId?: string): Promise<void> {
+    await TenantContext.transaction(async () => {
+      for (const item of [...items].sort((a, b) => a.id.localeCompare(b.id))) {
+        requireQuantity(item.qty)
+        if (clinicalEncounterId) await returnEncounterInventory(item.id, item.qty, clinicalEncounterId)
+        else await changeInventory({ productId: item.id, locationId: await inventoryLocationId(item.subinventoryId), quantity: item.qty, type: 'return' })
       }
     })
   }
 
   async insertStockInvoice(invoiceId: string, items: { id: string; qty: number }[]): Promise<void> {
-    if (!items.length) return
-    const db = TenantContext.getDb()
-    const productRows = await db.select().from(products).where(inArray(products.id, items.map((item) => item.id)))
-    const productById = new Map(productRows.map((product) => [product.id, product]))
-    await db.insert(invoiceItems).values(items.map((item) => {
-      const product = productById.get(item.id)
-      if (!product) throw new Error(`Product not found: ${item.id}`)
-      const total = Number(product.unitPrice) * item.qty
-      return {
-        invoiceId,
-        productId: item.id,
-        category: 'insumo',
-        description: product.name,
-        quantity: item.qty,
-        unitPrice: product.unitPrice,
-        totalAmount: total.toFixed(2),
+    await TenantContext.transaction(async () => {
+      const db = TenantContext.getDb()
+      for (const item of items) {
+        requireQuantity(Math.abs(item.qty))
+        if (item.qty < 0) {
+          const rows = await db.select().from(invoiceItems).where(and(eq(invoiceItems.invoiceId, invoiceId),
+            eq(invoiceItems.productId, item.id), isNull(invoiceItems.deletedAt))).orderBy(desc(invoiceItems.createdAt), invoiceItems.id).for('update')
+          let remaining = -item.qty
+          for (const row of rows) {
+            if (!remaining) break
+            const reduction = Math.min(remaining, row.quantity)
+            const quantity = row.quantity - reduction
+            if (!quantity) await db.update(invoiceItems).set({ deletedAt: new Date() }).where(eq(invoiceItems.id, row.id))
+            else await db.update(invoiceItems).set({ quantity, totalAmount: (quantity * Number(row.unitPrice) - Number(row.discountAmount)).toFixed(2) }).where(eq(invoiceItems.id, row.id))
+            remaining -= reduction
+          }
+          if (remaining) throw new Error('La corrección supera la cantidad facturada.')
+        } else {
+          const [product] = await db.select().from(products).where(and(eq(products.id, item.id), isNull(products.deletedAt)))
+          if (!product) throw new Error(`Product not found: ${item.id}`)
+          await db.insert(invoiceItems).values({ invoiceId, productId: item.id, category: 'insumo', description: product.name,
+            quantity: item.qty, unitPrice: product.unitPrice, totalAmount: (Number(product.unitPrice) * item.qty).toFixed(2) })
+        }
       }
-    }))
+    })
   }
 
   async insertStockHistory(historyId: string, items: { id: string; qty: number }[]): Promise<void> {
-    for (const item of items) {
-      await TenantContext.getDb()
-        .insert(encounterProducts)
-        .values({ clinicalEncounterId: historyId, productId: item.id, quantity: item.qty })
-        .onDuplicateKeyUpdate({
-          set: { quantity: sql`${encounterProducts.quantity} + ${item.qty}`, deletedAt: null },
-        })
-    }
+    await TenantContext.transaction(async () => {
+      const db = TenantContext.getDb()
+      for (const item of items) {
+        requireQuantity(Math.abs(item.qty))
+        const [existing] = await db.select().from(encounterProducts)
+          .where(and(eq(encounterProducts.clinicalEncounterId, historyId), eq(encounterProducts.productId, item.id))).for('update')
+        const quantity = (existing && !existing.deletedAt ? existing.quantity : 0) + item.qty
+        if (quantity < 0) throw new Error('La corrección supera la cantidad usada.')
+        if (existing) {
+          await db.update(encounterProducts).set(quantity ? { quantity, deletedAt: null } : { deletedAt: new Date() })
+            .where(eq(encounterProducts.id, existing.id))
+        } else if (quantity) {
+          await db.insert(encounterProducts).values({ clinicalEncounterId: historyId, productId: item.id, quantity })
+        }
+      }
+    })
   }
 
   async findByInvoiceId(invoiceId: string): Promise<{ id: string; qty: number; name: string; unitPrice: number }[]> {
@@ -130,13 +125,4 @@ export class MysqlStockRepository implements StockRepository {
     return rows.map((row) => ({ ...row, unitPrice: Number(row.unitPrice) }))
   }
 
-  private async defaultLocationId(): Promise<string> {
-    const [location] = await TenantContext.getDb()
-      .select({ id: inventoryLocations.id })
-      .from(inventoryLocations)
-      .where(and(eq(inventoryLocations.code, 'main'), isNull(inventoryLocations.deletedAt)))
-      .limit(1)
-    if (!location) throw new Error('Default inventory location is not configured.')
-    return location.id
-  }
 }

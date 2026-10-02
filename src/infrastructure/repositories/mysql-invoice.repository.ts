@@ -13,9 +13,11 @@ import {
 } from 'drizzle-orm'
 import { InvoiceRepository } from '../../application/ports/invoice.repository'
 import { TenantContext } from '../database/TenantContext'
+import { nextInvoiceSequenceNumber } from '../../application/services/invoice-number-sequences.service'
 import {
   clinicalEncounters,
   invoices,
+  invoiceNumberSequences,
   patients,
   paymentMethods,
   services,
@@ -44,6 +46,7 @@ const legacyInvoice = (row: {
   Monto: Number(row.invoice.amount),
   Estado: row.invoice.status,
   InvoiceNumber: row.invoice.invoiceNumber,
+  SarNumber: row.invoice.sarNumber,
   TipoPagoID: row.invoice.paymentMethodId,
   AseguradoraID: row.invoice.insurerId,
   DescuentoElderly: Number(row.invoice.elderlyDiscountPercent),
@@ -97,31 +100,47 @@ export class MysqlInvoiceRepository implements InvoiceRepository {
     return row ? legacyInvoice(row) : null
   }
 
+  private requiredPatient(value: unknown): string {
+    const id = this.optionalString(value)
+    if (!id) throw Object.assign(new Error('El paciente de la factura es obligatorio.'), { name: 'validation_errors' })
+    return id
+  }
+
   async create(data: Record<string, unknown>): Promise<string> {
-    const [created] = await TenantContext.getDb()
-      .insert(invoices)
-      .values({
-        patientId: this.optionalString(data.PacienteID),
-        staffMemberId: this.optionalString(data.PersonalID),
-        paymentMethodId: this.optionalString(data.TipoPagoID),
-        insurerId: this.optionalString(data.AseguradoraID),
-        invoiceNumber: String(data.InvoiceNumber),
-        issuedAt: data.FechaFactura ? new Date(String(data.FechaFactura)) : new Date(),
-        amount: this.money(data.Monto),
-        status: this.status(data.Estado),
-        elderlyDiscountPercent: this.money(data.DescuentoElderly),
-        promotionCode: this.optionalString(data.CodigoPromocional),
-        promotionalDiscountPercent: this.money(data.DescuentoPromocional),
-        taxRegistrationNumber: this.optionalString(data.RTN),
-        cai: this.optionalString(data.CAI),
-      })
-      .$returningId()
-    return created.id
+    return TenantContext.getDb().transaction(async (tx) => {
+      const [sequence] = await tx.select().from(invoiceNumberSequences)
+        .where(and(eq(invoiceNumberSequences.activeKey, 'sar'), isNull(invoiceNumberSequences.deletedAt))).for('update')
+      const nextNumber = sequence ? nextInvoiceSequenceNumber(sequence) : null
+      if (sequence && nextNumber) {
+        await tx.update(invoiceNumberSequences).set({ currentNumber: nextNumber.number }).where(eq(invoiceNumberSequences.id, sequence.id))
+      }
+      const [created] = await tx
+        .insert(invoices)
+        .values({
+          patientId: this.requiredPatient(data.PacienteID),
+          staffMemberId: this.optionalString(data.PersonalID),
+          paymentMethodId: this.optionalString(data.TipoPagoID),
+          insurerId: this.optionalString(data.AseguradoraID),
+          invoiceNumber: String(data.InvoiceNumber),
+          numberSequenceId: sequence?.id ?? null,
+          sarNumber: nextNumber?.formatted ?? null,
+          issuedAt: data.FechaFactura ? new Date(String(data.FechaFactura)) : new Date(),
+          amount: this.money(data.Monto),
+          status: this.status(data.Estado),
+          elderlyDiscountPercent: this.money(data.DescuentoElderly),
+          promotionCode: this.optionalString(data.CodigoPromocional),
+          promotionalDiscountPercent: this.money(data.DescuentoPromocional),
+          taxRegistrationNumber: this.optionalString(data.RTN),
+          cai: sequence?.cai ?? this.optionalString(data.CAI),
+        })
+        .$returningId()
+      return created.id
+    })
   }
 
   async updateByInvoiceNumber(invoiceNumber: string, data: Record<string, unknown>): Promise<void> {
     const set: Partial<typeof invoices.$inferInsert> = {}
-    if ('PacienteID' in data) set.patientId = this.optionalString(data.PacienteID)
+    if ('PacienteID' in data) set.patientId = this.requiredPatient(data.PacienteID)
     if ('PersonalID' in data) set.staffMemberId = this.optionalString(data.PersonalID)
     if ('TipoPagoID' in data) set.paymentMethodId = this.optionalString(data.TipoPagoID)
     if ('AseguradoraID' in data) set.insurerId = this.optionalString(data.AseguradoraID)
@@ -132,7 +151,7 @@ export class MysqlInvoiceRepository implements InvoiceRepository {
     if ('CodigoPromocional' in data) set.promotionCode = this.optionalString(data.CodigoPromocional)
     if ('DescuentoPromocional' in data) set.promotionalDiscountPercent = this.money(data.DescuentoPromocional)
     if ('RTN' in data) set.taxRegistrationNumber = this.optionalString(data.RTN)
-    if ('CAI' in data) set.cai = this.optionalString(data.CAI)
+    // CAI is captured when the fiscal number is allocated and cannot be edited.
     await TenantContext.getDb()
       .update(invoices)
       .set(set)
@@ -140,10 +159,11 @@ export class MysqlInvoiceRepository implements InvoiceRepository {
   }
 
   async incrementAmountById(invoiceId: string, delta: number): Promise<void> {
-    await TenantContext.getDb()
+    const result = await TenantContext.getDb()
       .update(invoices)
-      .set({ amount: sql`greatest(0, ${invoices.amount} + ${delta})` })
+      .set({ amount: sql`${invoices.amount} + ${delta}` })
       .where(and(eq(invoices.id, invoiceId), eq(invoices.status, 'Pendiente'), isNull(invoices.deletedAt)))
+    if (result[0].affectedRows !== 1) throw Object.assign(new Error('La factura no está pendiente.'), { name: 'validation_errors' })
   }
 
   async softDeleteByInvoiceNumber(invoiceNumber: string): Promise<void> {

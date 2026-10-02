@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middlewares/auth.middleware';
+import { auditMiddleware } from '../middlewares/audit.middleware';
 import { patientRoutes } from './patients.route';
 import { visitsRoutes } from './visits.route';
 import { dashbRoutes } from './dashboard.route';
@@ -15,6 +16,7 @@ import { attachmentsRoutes } from './attachments.route';
 const router = Router();
 
 router.use(authMiddleware);
+router.use(auditMiddleware);
 
 router.use('/', dashbRoutes);
 router.use('/patients', patientRoutes);

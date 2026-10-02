@@ -5,6 +5,8 @@ import { TenantContext } from '../database/TenantContext'
 import {
   appointmentSources,
   appointments,
+  beds,
+  operatingRooms,
   appointmentStatuses,
   appointmentTypes,
   patients,
@@ -55,6 +57,7 @@ export class MysqlCitasRepository implements CitasRepository {
   }
 
   async create(params: CreateCitaParams): Promise<string> {
+    await this.validateResource(params.recursoTipo, params.recursoId)
     const [typeId, statusId, sourceId] = await Promise.all([
       this.findTypeId(params.tipo),
       this.findStatusId(params.estado),
@@ -85,6 +88,7 @@ export class MysqlCitasRepository implements CitasRepository {
   }
 
   async update(params: UpdateCitaParams): Promise<void> {
+    await this.validateResource(params.recursoTipo, params.recursoId)
     const [typeId, statusId, sourceId] = await Promise.all([
       this.findTypeId(params.tipo),
       this.findStatusId(params.estado),
@@ -118,6 +122,18 @@ export class MysqlCitasRepository implements CitasRepository {
       .where(and(eq(patients.identification, identificacion), isNull(patients.deletedAt)))
       .limit(1)
     return row?.id ?? null
+  }
+
+  private async validateResource(type?: string | null, id?: string | null): Promise<void> {
+    if (!type && !id) return
+    const invalid = () => Object.assign(new Error('El recurso debe ser una cama o quirófano vigente con su identificador.'), {
+      name: 'validation_errors', errors: [{ msg: 'El recurso debe ser una cama o quirófano vigente con su identificador.' }],
+    })
+    if (!id || (type !== 'cama' && type !== 'quirofano')) throw invalid()
+    const table = type === 'cama' ? beds : operatingRooms
+    const [row] = await TenantContext.getDb().select({ id: table.id }).from(table)
+      .where(and(eq(table.id, id), isNull(table.deletedAt))).limit(1)
+    if (!row) throw invalid()
   }
 
   async delete(id: string): Promise<void> {

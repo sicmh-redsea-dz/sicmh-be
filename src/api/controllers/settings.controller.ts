@@ -3,8 +3,19 @@ import { ServiceContainer } from '../../infrastructure/container/service.contain
 import { SettingsService } from '../../application/services/settings.service'
 import { asyncHandler } from '../decorators/asyncHandler'
 import { TokenPayload } from '../../utils/jwtUtils'
+import { InvoiceNumberSequencesService } from '../../application/services/invoice-number-sequences.service'
 
 export class SettingsController {
+  @asyncHandler()
+  async listInvoiceNumberSequences(): Promise<any> {
+    return new InvoiceNumberSequencesService().list()
+  }
+
+  @asyncHandler({ statusCode: 201 })
+  async createInvoiceNumberSequence(req: Request): Promise<any> {
+    return new InvoiceNumberSequencesService().create(req.body ?? {})
+  }
+
   private settingsService: SettingsService
 
   constructor() {

@@ -8,6 +8,8 @@
     "build": "tsc",
     "type-check": "tsc --noEmit",
     "test": "tsc && node --test \"dist/tests/*.test.js\"",
+    "test:mysql": "tsc && RUN_MYSQL_INTEGRATION=1 node --test --test-concurrency=1 \"dist/tests/*.integration.js\"",
+    "db:generate:tenant": "drizzle-kit generate --config=drizzle.config.ts",
     "db:provision": "ts-node src/scripts/provision-databases.ts",
     "db:push:global": "drizzle-kit push --config=drizzle.global.config.ts",
     "db:push:tenant": "drizzle-kit push --config=drizzle.config.ts",
@@ -16,7 +18,8 @@
     "db:migrate:tenant": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:migrate": "npm run db:migrate:global && npm run db:migrate:tenant",
     "db:seed": "ts-node src/scripts/seed.ts",
-    "db:setup": "npm run db:provision && npm run db:migrate && npm run db:seed"
+    "db:setup": "npm run db:provision && npm run db:migrate && npm run db:seed",
+    "db:reset:local": "ts-node src/scripts/reset-local-databases.ts"
   },
   "keywords": [],
   "author": "",

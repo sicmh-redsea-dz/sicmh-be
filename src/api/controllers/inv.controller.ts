@@ -14,8 +14,8 @@ export class InvController {
     getInventory( req: Request): Promise< any > {
         const limit = Number(req.query.limit) || 25
         const offset = Number(req.query.offset) || 0
-        const term = String(req.query.term) || ''
-        const subinvId = Number(req.query.subinvId) || 1
+        const term = String(req.query.term ?? '')
+        const subinvId = String(req.query.subinvId ?? 'main')
 
         const paginationTerms = { limit, offset, term }
         return this.invService.getInventory( paginationTerms, subinvId )
@@ -37,7 +37,7 @@ export class InvController {
             prodId: itemId,
             prodQty: Number( qty ),
             fromLocId: origin,
-            toLocId: Number( subinv )
+            toLocId: subinv
         })
     }
 
@@ -53,6 +53,6 @@ export class InvController {
         const { id } = req.params
         const body = req.body
 
-        return this.invService.patchArticle( body, Number( id ) )
+        return this.invService.patchArticle( body, id )
     }
 }

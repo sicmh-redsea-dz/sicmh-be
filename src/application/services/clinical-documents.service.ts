@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { ClinicalAttachmentsService } from './clinical-attachments.service'
 import { renderPdfFromHtml } from '../../utils/pdfRenderer'
@@ -14,6 +15,8 @@ import {
   patients,
   staffMembers,
 } from '../../infrastructure/database/schema/tenant'
+
+export type RenderedConsent = { buffer: Buffer; consentInstanceId?: string; templateVersionId?: string }
 
 type ConsentTemplateDto = {
   id: string
@@ -174,46 +177,51 @@ export class ClinicalDocumentsService {
       throw this.validationError('El nombre y contenido del consentimiento son requeridos.')
     }
 
-    const db = TenantContext.getDb()
-    const [created] = await db
-      .insert(consentTemplates)
-      .values({ name: normalizedName, currentVersion: 1, isActive: true })
-      .$returningId()
+    return TenantContext.getDb().transaction(async (db) => {
+      const [created] = await db
+        .insert(consentTemplates)
+        .values({ name: normalizedName, currentVersion: 1, isActive: true })
+        .$returningId()
 
-    await db.insert(consentTemplateVersions).values({
-      templateId: created.id,
-      version: 1,
-      content: normalizedContent,
+      await db.insert(consentTemplateVersions).values({
+        templateId: created.id,
+        version: 1,
+        content: normalizedContent,
+      })
+
+      const [template] = await db.select().from(consentTemplates).where(eq(consentTemplates.id, created.id)).limit(1)
+      if (!template) throw new Error('No se pudo crear la plantilla de consentimiento.')
+      return this.toTemplateDto(template, normalizedContent)
     })
-
-    const [template] = await db.select().from(consentTemplates).where(eq(consentTemplates.id, created.id)).limit(1)
-    if (!template) throw new Error('No se pudo crear la plantilla de consentimiento.')
-    return this.toTemplateDto(template, normalizedContent)
   }
 
   async updateTemplate(templateId: string, name: string, content: string): Promise<ConsentTemplateDto> {
-    const template = await this.findTemplate(templateId, true)
     const normalizedName = name.trim()
     const normalizedContent = content.trim()
     if (!normalizedName || !normalizedContent) {
       throw this.validationError('El nombre y contenido del consentimiento son requeridos.')
     }
 
-    const nextVersion = template.current_version + 1
-    await TenantContext.getDb().insert(consentTemplateVersions).values({
-      templateId,
-      version: nextVersion,
-      content: normalizedContent,
+    return TenantContext.getDb().transaction(async (db) => {
+      const [template] = await db.select().from(consentTemplates)
+        .where(and(eq(consentTemplates.id, templateId), isNull(consentTemplates.deletedAt))).for('update')
+      if (!template) throw this.notFoundError('Plantilla de consentimiento no encontrada.')
+      const nextVersion = template.currentVersion + 1
+      await db.insert(consentTemplateVersions).values({
+        templateId,
+        version: nextVersion,
+        content: normalizedContent,
+      })
+
+      await db
+        .update(consentTemplates)
+        .set({ name: normalizedName, currentVersion: nextVersion })
+        .where(and(eq(consentTemplates.id, templateId), isNull(consentTemplates.deletedAt)))
+
+      const [updated] = await db.select().from(consentTemplates).where(eq(consentTemplates.id, templateId)).limit(1)
+      if (!updated) throw this.notFoundError('Plantilla de consentimiento no encontrada.')
+      return this.toTemplateDto(updated, normalizedContent)
     })
-
-    await TenantContext.getDb()
-      .update(consentTemplates)
-      .set({ name: normalizedName, currentVersion: nextVersion })
-      .where(and(eq(consentTemplates.id, templateId), isNull(consentTemplates.deletedAt)))
-
-    const [updated] = await TenantContext.getDb().select().from(consentTemplates).where(eq(consentTemplates.id, templateId)).limit(1)
-    if (!updated) throw this.notFoundError('Plantilla de consentimiento no encontrada.')
-    return this.toTemplateDto(updated, normalizedContent)
   }
 
   async setTemplateActive(templateId: string, active: boolean): Promise<{ updated: boolean }> {
@@ -305,9 +313,12 @@ export class ClinicalDocumentsService {
     })
   }
 
-  async printDraft(patientId: string, doctorId: string, date: string | null, templateId: string, tenantCode: string): Promise<Buffer> {
+  async printDraft(patientId: string, doctorId: string, date: string | null, templateId: string, tenantCode: string): Promise<RenderedConsent> {
     const context = await this.getDraftContext(patientId, doctorId, date, templateId, tenantCode)
-    return renderPdfFromHtml(this.renderConsentHtml(context, { kind: 'printed' }))
+    const buffer = await renderPdfFromHtml(this.renderConsentHtml(context, { kind: 'printed' }))
+    const [version] = await TenantContext.getDb().select({ id: consentTemplateVersions.id }).from(consentTemplateVersions)
+      .where(and(eq(consentTemplateVersions.templateId, templateId), eq(consentTemplateVersions.version, context.template.current_version)))
+    return { buffer, templateVersionId: version.id }
   }
 
   async printVisit(
@@ -315,42 +326,16 @@ export class ClinicalDocumentsService {
     templateId: string,
     expectedTemplateVersion: number | undefined,
     tenantCode: string,
-  ): Promise<Buffer> {
+  ): Promise<RenderedConsent> {
     const context = await this.getVisitContext(visitId, templateId, tenantCode)
     this.assertExpectedTemplateVersion(context.template.current_version, expectedTemplateVersion)
     const buffer = await renderPdfFromHtml(this.renderConsentHtml(context, { kind: 'printed' }))
-
-    await TenantContext.getDb()
-      .insert(consentInstances)
-      .values({
-        templateId,
-        clinicalEncounterId: visitId,
-        patientId: context.patientId,
-        staffMemberId: context.doctorId,
-        templateVersion: context.template.current_version,
-        status: 'printed',
-        printedAt: new Date(),
-      })
-      .onDuplicateKeyUpdate({
-        set: {
-          patientId: context.patientId,
-          staffMemberId: context.doctorId,
-          templateVersion: context.template.current_version,
-          status: 'printed',
-          acceptanceMethod: null,
-          signerType: null,
-          signerName: null,
-          signerIdentification: null,
-          signerRelationship: null,
-          signerPhone: null,
-          attachmentId: null,
-          acceptedAt: null,
-          printedAt: new Date(),
-          deletedAt: null,
-        },
-      })
-
-    return buffer
+    // Every issued document has its own identity; reprinting cannot erase a signature.
+    const [instance] = await TenantContext.getDb().insert(consentInstances).values({
+      templateId, clinicalEncounterId: visitId, staffMemberId: context.doctorId,
+      templateVersion: context.template.current_version, status: 'printed', printedAt: new Date(),
+    }).$returningId()
+    return { buffer, consentInstanceId: instance.id }
   }
 
   async acceptVisit(
@@ -397,12 +382,13 @@ export class ClinicalDocumentsService {
       uploadedBy: actorId,
     })
 
+    const instanceId = randomUUID()
     await TenantContext.getDb()
       .insert(consentInstances)
       .values({
+        id: instanceId,
         templateId,
         clinicalEncounterId: visitId,
-        patientId: context.patientId,
         staffMemberId: context.doctorId,
         templateVersion: context.template.current_version,
         status: 'accepted',
@@ -416,26 +402,7 @@ export class ClinicalDocumentsService {
         acceptedAt: new Date(),
         printedAt: new Date(),
       })
-      .onDuplicateKeyUpdate({
-        set: {
-          patientId: context.patientId,
-          staffMemberId: context.doctorId,
-          templateVersion: context.template.current_version,
-          status: 'accepted',
-          acceptanceMethod: mode,
-          signerType: payload.signerType?.trim() || null,
-          signerName: payload.signerName?.trim() || null,
-          signerIdentification: payload.signerIdentification?.trim() || null,
-          signerRelationship: payload.signerRelationship?.trim() || null,
-          signerPhone: payload.signerPhone?.trim() || null,
-          attachmentId: attachment.id,
-          acceptedAt: new Date(),
-          deletedAt: null,
-        },
-      })
 
-    const instanceId = (await this.findConsentInstance(visitId, templateId))?.id
-    if (!instanceId) throw new Error('No se pudo registrar el consentimiento aceptado.')
     return { id: instanceId, attachmentId: attachment.id }
   }
 
@@ -459,10 +426,11 @@ export class ClinicalDocumentsService {
       .limit(1)
 
     if (!row) throw this.notFoundError('Consentimiento no encontrado.')
+    if (row.instance.status === 'accepted') throw this.validationError('El consentimiento ya fue aceptado y no puede sobrescribirse.')
 
     const attachment = await this.attachmentsService.upload({
       tenantCode,
-      patientId: row.instance.patientId,
+      patientId: (await this.loadVisitRecord(visitId)).patient.id,
       recordId: visitId,
       label: `Consentimiento firmado ${row.template.name}`,
       source: 'file_upload',
@@ -472,7 +440,7 @@ export class ClinicalDocumentsService {
       uploadedBy: actorId,
     })
 
-    await TenantContext.getDb()
+    const result = await TenantContext.getDb()
       .update(consentInstances)
       .set({
         status: 'accepted',
@@ -480,7 +448,8 @@ export class ClinicalDocumentsService {
         attachmentId: attachment.id,
         acceptedAt: new Date(),
       })
-      .where(eq(consentInstances.id, instanceId))
+      .where(and(eq(consentInstances.id, instanceId), eq(consentInstances.status, 'printed')))
+    if (result[0].affectedRows !== 1) throw this.validationError('El consentimiento ya fue aceptado por otra solicitud.')
 
     return { id: instanceId, attachmentId: attachment.id }
   }
@@ -582,19 +551,6 @@ export class ClinicalDocumentsService {
 
     if (!version) throw new Error('La versión actual del consentimiento no está disponible.')
     return this.toTemplateDto(template, version.content)
-  }
-
-  private async findConsentInstance(visitId: string, templateId: string) {
-    const [instance] = await TenantContext.getDb()
-      .select({ id: consentInstances.id })
-      .from(consentInstances)
-      .where(and(
-        eq(consentInstances.clinicalEncounterId, visitId),
-        eq(consentInstances.templateId, templateId),
-        isNull(consentInstances.deletedAt),
-      ))
-      .limit(1)
-    return instance ?? null
   }
 
   private async getClinicName(tenantCode: string): Promise<string> {

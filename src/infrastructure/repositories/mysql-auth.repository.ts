@@ -2,7 +2,7 @@ import { and, count, eq, isNull, SQL, sql } from 'drizzle-orm'
 import { AuthCreateUserParams, AuthRepository, PersonalCreateParams } from '../../application/ports/auth.repository'
 import { User } from '../../domain/entities/User'
 import { TenantContext } from '../database/TenantContext'
-import { roles, staffMembers, users } from '../database/schema/tenant'
+import { passwordResetTokens, roles, staffMembers, users } from '../database/schema/tenant'
 
 const toUser = (row: {
   user: typeof users.$inferSelect
@@ -108,6 +108,34 @@ export class MysqlAuthRepository implements AuthRepository {
       .update(users)
       .set({ passwordHash })
       .where(and(eq(users.id, userId), isNull(users.deletedAt)))
+  }
+
+  async storePasswordResetToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
+    await TenantContext.getDb().transaction(async (tx) => {
+      // Lock the user first in both issuance and consumption to serialize requests.
+      const [user] = await tx.select({ id: users.id }).from(users)
+        .where(and(eq(users.id, userId), eq(users.isActive, true), isNull(users.deletedAt))).for('update')
+      if (!user) throw new Error('No se encontró una cuenta activa.')
+      await tx.update(passwordResetTokens).set({ revokedAt: new Date() })
+        .where(and(eq(passwordResetTokens.userId, userId), isNull(passwordResetTokens.usedAt), isNull(passwordResetTokens.revokedAt)))
+      await tx.insert(passwordResetTokens).values({ userId, tokenHash, expiresAt })
+    })
+  }
+
+  async resetPasswordWithToken(userId: string, sessionVersion: number, tokenHash: string, passwordHash: string): Promise<boolean> {
+    return TenantContext.getDb().transaction(async (tx) => {
+      const [user] = await tx.select().from(users).where(eq(users.id, userId)).for('update')
+      if (!user || !user.isActive || user.deletedAt || user.sessionVersion !== sessionVersion) return false
+      const [token] = await tx.select().from(passwordResetTokens)
+        .where(and(eq(passwordResetTokens.userId, userId), eq(passwordResetTokens.tokenHash, tokenHash))).for('update')
+      const now = new Date()
+      if (!token || token.usedAt || token.revokedAt || token.deletedAt || token.expiresAt <= now) return false
+      await tx.update(users).set({ passwordHash, sessionVersion: user.sessionVersion + 1 }).where(eq(users.id, userId))
+      await tx.update(passwordResetTokens).set({ usedAt: now }).where(eq(passwordResetTokens.id, token.id))
+      await tx.update(passwordResetTokens).set({ revokedAt: now })
+        .where(and(eq(passwordResetTokens.userId, userId), isNull(passwordResetTokens.usedAt), isNull(passwordResetTokens.revokedAt)))
+      return true
+    })
   }
 
   async createPersonalRecord(params: PersonalCreateParams): Promise<string> {

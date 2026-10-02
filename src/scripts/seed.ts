@@ -30,7 +30,7 @@ const roleSeeds: Array<{ key: RoleKey; name: string }> = [
   { key: 'asistente', name: 'Asistente' },
 ]
 
-const main = async () => {
+export const seedDatabases = async () => {
   const tenantSchema = required('DB_TENANT_SCHEMA')
   const companyCode = required('DEFAULT_COMPANY_CODE').toUpperCase()
   const companyName = required('DEFAULT_COMPANY_NAME')
@@ -172,7 +172,7 @@ const main = async () => {
   }
 }
 
-void main().catch((error: unknown) => {
+if (require.main === module) void seedDatabases().catch((error: unknown) => {
   console.error(error)
   process.exitCode = 1
 })

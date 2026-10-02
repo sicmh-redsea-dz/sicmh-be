@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNull, notInArray } from 'drizzle-orm'
 import { PatientMovementsRepository } from '../../application/ports/patient-movements.repository'
 import { PatientMovementsStore } from '../../domain/entities/Billing'
 import { TenantContext } from '../database/TenantContext'
@@ -49,7 +49,7 @@ export class DrizzlePatientMovementsRepository implements PatientMovementsReposi
     const db = TenantContext.getDb()
     await db.transaction(async (tx) => {
       await tx.update(patientMovements).set({ deletedAt: new Date(), updatedAt: new Date() })
-        .where(isNull(patientMovements.deletedAt))
+        .where(and(isNull(patientMovements.deletedAt), store.events.length ? notInArray(patientMovements.id, store.events.map(item => item.id)) : undefined))
       for (const event of store.events) {
         const values = {
           id: event.id,
@@ -74,9 +74,11 @@ export class DrizzlePatientMovementsRepository implements PatientMovementsReposi
   }
 
   async update<T>(mutator: (store: PatientMovementsStore) => T | Promise<T>): Promise<T> {
-    const store = await this.load()
-    const result = await mutator(store)
-    await this.save(store)
-    return result
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const store = await this.load()
+      const result = await mutator(store)
+      await this.save(store)
+      return result
+    })
   }
 }

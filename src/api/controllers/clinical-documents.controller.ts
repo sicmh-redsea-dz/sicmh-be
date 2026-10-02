@@ -1,3 +1,4 @@
+import { RenderedConsent } from '../../application/services/clinical-documents.service'
 import { Request } from 'express'
 import { ServiceContainer } from '../../infrastructure/container/service.container'
 import { asyncHandler, pdfResponse } from '../decorators/asyncHandler'
@@ -77,8 +78,10 @@ export class ClinicalDocumentsController {
     )
   }
 
-  @pdfResponse({
+  @pdfResponse<RenderedConsent>({
     filename: (req) => `consentimiento-${String(req.params['templateId'])}.pdf`,
+    getBody: result => result.buffer,
+    delivery: (_req, result) => ({ documentType: 'consent', consentInstanceId: result.consentInstanceId }),
   })
   async printVisit(req: Request): Promise<any> {
     const user = (req as any).user as TokenPayload
@@ -90,8 +93,10 @@ export class ClinicalDocumentsController {
     )
   }
 
-  @pdfResponse({
+  @pdfResponse<RenderedConsent>({
     filename: (req) => `consentimiento-borrador-${String(req.params['templateId'])}.pdf`,
+    getBody: result => result.buffer,
+    delivery: (_req, result) => ({ documentType: 'consent_draft', templateVersionId: result.templateVersionId }),
   })
   async printDraft(req: Request): Promise<any> {
     const user = (req as any).user as TokenPayload

@@ -1,38 +1,48 @@
 import { AsyncLocalStorage } from 'async_hooks'
-import { Pool, PoolConnection } from 'mysql2/promise'
+import { Pool } from 'mysql2/promise'
+import { eq } from 'drizzle-orm'
 import { TenantDatabase } from './drizzle'
+import { aggregateLocks } from './schema/tenant'
 
+type TenantTransaction = Parameters<Parameters<TenantDatabase['transaction']>[0]>[0]
+export type TenantExecutor = TenantDatabase | TenantTransaction
 interface TenantStore {
   pool: Pool
-  db: TenantDatabase
-  // Present only while Database.transaction() is running; every Database
-  // call made during that window must reuse this connection instead of the
-  // pool, or the statements wouldn't share a transaction.
-  connection?: PoolConnection
+  db: TenantExecutor
+  inTransaction?: boolean
+  locks: Set<string>
+}
+const storage = new AsyncLocalStorage<TenantStore>()
+const currentStore = (): TenantStore => {
+  const store = storage.getStore()
+  if (!store) throw new Error('No tenant context active. Ensure all requests go through auth middleware.')
+  return store
 }
 
-const storage = new AsyncLocalStorage<TenantStore>()
-
 export const TenantContext = {
-  run<T>(pool: Pool, db: TenantDatabase, fn: () => T | Promise<T>): Promise<T> {
-    return storage.run({ pool, db }, () => Promise.resolve(fn()))
+  run<T>(pool: Pool, db: TenantExecutor, fn: () => T | Promise<T>): Promise<T> {
+    return storage.run({ pool, db, locks: new Set() }, () => Promise.resolve(fn()))
   },
-  runWithConnection<T>(connection: PoolConnection, fn: () => T | Promise<T>): Promise<T> {
-    const current = storage.getStore()
-    if (!current) throw new Error('No tenant context active. Ensure all requests go through auth middleware.')
-    return storage.run({ pool: current.pool, db: current.db, connection }, () => Promise.resolve(fn()))
+  getPool(): Pool { return currentStore().pool },
+  getDb(): TenantExecutor { return currentStore().db },
+  // Repositories reached through services share this transaction, including Drizzle queries.
+  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+    const store = currentStore()
+    if (store.inTransaction) return fn()
+    return store.db.transaction(tx => storage.run(
+      { ...store, db: tx, inTransaction: true, locks: new Set() }, fn,
+    ), { isolationLevel: 'read committed' })
   },
-  getPool(): Pool {
-    const store = storage.getStore()
-    if (!store) throw new Error('No tenant context active. Ensure all requests go through auth middleware.')
-    return store.pool
-  },
-  getConnection(): PoolConnection | undefined {
-    return storage.getStore()?.connection
-  },
-  getDb(): TenantDatabase {
-    const store = storage.getStore()
-    if (!store) throw new Error('No tenant context active. Ensure all requests go through auth middleware.')
-    return store.db
+  // The store-shaped adapters need serialization before load, not only during save.
+  async withLock<T>(scope: string, fn: () => Promise<T>): Promise<T> {
+    return TenantContext.transaction(async () => {
+      const store = currentStore()
+      if (store.locks.has(scope)) return fn()
+      await store.db.insert(aggregateLocks).values({ scope }).onDuplicateKeyUpdate({ set: { scope } })
+      await store.db.select({ id: aggregateLocks.id }).from(aggregateLocks)
+        .where(eq(aggregateLocks.scope, scope)).for('update')
+      store.locks.add(scope)
+      return fn()
+    })
   },
 }

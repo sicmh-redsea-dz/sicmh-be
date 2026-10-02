@@ -1,3 +1,4 @@
+import { TenantContext } from '../../infrastructure/database/TenantContext'
 import { generateShortenedUuid } from '../../helper/uuidGen'
 import { InvoiceRepository } from '../ports/invoice.repository'
 import { InvoiceMapper } from '../../domain/mappers/InvoiceMapper'
@@ -6,9 +7,9 @@ import { BillingService } from './billing.service'
 import { renderPdfFromHtml } from '../../utils/pdfRenderer'
 
 interface Delimiters {
-  limit: number,
-  offset: number,
-  term: string,
+    limit: number,
+    offset: number,
+    term: string,
 }
 
 export class InvoiceService {
@@ -16,168 +17,172 @@ export class InvoiceService {
     private patientService: PatientsService
     private billingService?: BillingService
 
-    constructor( patientService: PatientsService, private readonly invoiceRepo: InvoiceRepository, billingService?: BillingService ) {
+    constructor(patientService: PatientsService, private readonly invoiceRepo: InvoiceRepository, billingService?: BillingService) {
         this.patientService = patientService
         this.billingService = billingService
     }
 
-    getInvoices = async( args: Delimiters ): Promise<any> => {
+    getInvoices = async (args: Delimiters): Promise<any> => {
         try {
-            const invoiceResp = await this.invoiceRepo.findAll( args )
+            const invoiceResp = await this.invoiceRepo.findAll(args)
             const totalRegistries = invoiceResp.length > 0 ? invoiceResp[0].total_registries : 0
             return {
                 invoiceResp,
                 totalRegistries
             }
-        } catch( err: any ) {
+        } catch (err: any) {
             console.log('error reading invoices ::: ', err.message)
             throw err
         }
     }
 
-    createInvoice = async( createInvoicePayload:any ): Promise<any> => {
+    createInvoice = async (createInvoicePayload: any): Promise<any> => {
         const invoiceNum = generateShortenedUuid()
 
-        if ( createInvoicePayload.origin )
+        if (createInvoicePayload.origin)
             delete createInvoicePayload.service
 
-        const mappedFields = InvoiceMapper.toDbForm({ 
-            ...createInvoicePayload, 
-            invoiceNum, 
-            IsActive: true, 
-            state: createInvoicePayload.origin ? 'Pagado' : 'Pendiente', 
+        const mappedFields = InvoiceMapper.toDbForm({
+            ...createInvoicePayload,
+            invoiceNum,
+            IsActive: true,
+            state: createInvoicePayload.origin ? 'Pagado' : 'Pendiente',
         })
-        
-        const translatedFields = this.removeUndefined( mappedFields )
-        
+
+        const translatedFields = this.removeUndefined(mappedFields)
+
         try {
-            const id = await this.invoiceRepo.create( translatedFields )
+            const id = await this.invoiceRepo.create(translatedFields)
             return { id, invoiceNumber: invoiceNum }
-        } catch ( err: any ) {
+        } catch (err: any) {
             console.log('error creating invoice ::: ', err.message)
             throw err
         }
     }
 
-    getInvByFacturaId = async ( facturaId: string ): Promise<Record<string, any> | null> => {
+    getInvByFacturaId = async (facturaId: string): Promise<Record<string, any> | null> => {
         try {
-            return await this.invoiceRepo.findById( facturaId )
-        } catch ( err: any ) {
+            return await this.invoiceRepo.findById(facturaId)
+        } catch (err: any) {
             console.log('error reading invoice by FacturaID ::: ', err.message)
             throw err
         }
     }
 
-    getInvById = async ( invNumber: string ): Promise<any> => {
+    getInvById = async (invNumber: string): Promise<any> => {
         try {
-            const invoice = await this.invoiceRepo.findByInvoiceNumber( invNumber )
-            if ( !invoice ) {
+            const invoice = await this.invoiceRepo.findByInvoiceNumber(invNumber)
+            if (!invoice) {
                 const error = new Error(`Invoice with Id ${invNumber} not found`)
                 error.name = 'not_found_error'
                 throw error
             }
-            
-            return InvoiceMapper.toResp( invoice )
-        } catch ( err: any ) {
-            throw new Error ( err.message )
+
+            return InvoiceMapper.toResp(invoice)
+        } catch (err: any) {
+            throw new Error(err.message)
         }
     }
 
     updateInvById = async (id: string, updInvoicePayload: Record<string, any>): Promise<any> => {
-        const currentInvoice = await this.invoiceRepo.findByInvoiceNumber(id)
-        if (!currentInvoice) {
-            const error = new Error(`Invoice with Id ${id} not found`)
-            error.name = 'not_found_error'
-            throw error
-        }
-        const normalizedStatus = String(currentInvoice.Estado || '').toLowerCase()
-        if (normalizedStatus.includes('pag')) {
-            const error = new Error('Invoice already paid')
-            error.name = 'validation_errors'
-            ;(error as any).errors = [{ msg: 'No se puede editar una factura pagada.' }]
-            throw error
-        }
-        if (normalizedStatus.includes('anul')) {
-            const error = new Error('Invoice already annulled')
-            error.name = 'validation_errors'
-            ;(error as any).errors = [{ msg: 'No se puede editar una factura anulada.' }]
-            throw error
-        }
+        return TenantContext.withLock('clinical_workflows', async () => {
+            const currentInvoice = await this.invoiceRepo.findByInvoiceNumber(id)
+            if (!currentInvoice) {
+                const error = new Error(`Invoice with Id ${id} not found`)
+                error.name = 'not_found_error'
+                throw error
+            }
+            const normalizedStatus = String(currentInvoice.Estado || '').toLowerCase()
+            if (normalizedStatus.includes('pag')) {
+                const error = new Error('Invoice already paid')
+                error.name = 'validation_errors'
+                    ; (error as any).errors = [{ msg: 'No se puede editar una factura pagada.' }]
+                throw error
+            }
+            if (normalizedStatus.includes('anul')) {
+                const error = new Error('Invoice already annulled')
+                error.name = 'validation_errors'
+                    ; (error as any).errors = [{ msg: 'No se puede editar una factura anulada.' }]
+                throw error
+            }
 
-        const mappedFields = InvoiceMapper.toDbForm({
-            ...updInvoicePayload,
-            invoiceNum: id,
-            state: 'Pagado'
-        })
+            const mappedFields = InvoiceMapper.toDbForm({
+                ...updInvoicePayload,
+                invoiceNum: id,
+                state: 'Pagado'
+            })
 
-        const translatedFields = this.removeUndefined(mappedFields)
+            const translatedFields = this.removeUndefined(mappedFields)
 
-        delete translatedFields.invoiceNum
-        delete translatedFields['InvoiceNumber']
+            delete translatedFields.invoiceNum
+            delete translatedFields['InvoiceNumber']
 
-        try {
-            await this.invoiceRepo.updateByInvoiceNumber( id, translatedFields )
-            if (this.billingService) {
-                try {
-                    await this.billingService.updateEncounterStatusByInvoice(id, 'Pagado')
-                } catch (err) {
-                    console.warn('encounter status update warning:', (err as any)?.message || err)
+            try {
+                await this.invoiceRepo.updateByInvoiceNumber(id, translatedFields)
+                if (this.billingService) {
+                    try {
+                        await this.billingService.updateEncounterStatusByInvoice(id, 'Pagado')
+                    } catch (err) {
+                        throw err
+                    }
                 }
+                return {
+                    id
+                }
+            } catch (err) {
+                console.error('Error en updateInvById:', err)
+                throw new Error((err as any)?.message || 'Error desconocido')
             }
-            return {
-                id
-            }
-        } catch (err) {
-            console.error('Error en updateInvById:', err)
-            throw new Error((err as any)?.message || 'Error desconocido')
-        }
+        })
     }
 
-    incrementAmountById = async ( invoiceId: string, delta: number ): Promise<void> => {
+    incrementAmountById = async (invoiceId: string, delta: number): Promise<void> => {
         if (!delta) return
         try {
-            await this.invoiceRepo.incrementAmountById( invoiceId, delta )
-        } catch ( err: any ) {
+            await this.invoiceRepo.incrementAmountById(invoiceId, delta)
+        } catch (err: any) {
             console.error('Error updating invoice amount ::::: ', err)
             throw err
         }
     }
 
-    annulInvoiceById = async ( invoiceId: string ): Promise<any> => {
-        const invoice = await this.invoiceRepo.findByInvoiceNumber(invoiceId)
-        if (!invoice) {
-            const error = new Error(`Invoice with Id ${invoiceId} not found`)
-            error.name = 'not_found_error'
-            throw error
-        }
+    annulInvoiceById = async (invoiceId: string): Promise<any> => {
+        return TenantContext.withLock('clinical_workflows', async () => {
+            const invoice = await this.invoiceRepo.findByInvoiceNumber(invoiceId)
+            if (!invoice) {
+                const error = new Error(`Invoice with Id ${invoiceId} not found`)
+                error.name = 'not_found_error'
+                throw error
+            }
 
-        if (String(invoice.Estado || '').toLowerCase().includes('anul')) {
+            if (String(invoice.Estado || '').toLowerCase().includes('anul')) {
+                return { invoiceId, newInvoiceId: null }
+            }
+
+            await this.invoiceRepo.updateByInvoiceNumber(invoiceId, { Estado: 'Anulado' })
+
+            if (this.billingService) {
+                try {
+                    await this.billingService.updateEncounterStatusByInvoice(invoiceId, 'Anulado')
+                } catch (err) {
+                    throw err
+                }
+                try {
+                    await this.billingService.voidLedgerItemsByInvoice(invoiceId)
+                } catch (err) {
+                    throw err
+                }
+            }
+
             return { invoiceId, newInvoiceId: null }
-        }
-
-        await this.invoiceRepo.updateByInvoiceNumber(invoiceId, { Estado: 'Anulado' })
-
-        if (this.billingService) {
-            try {
-                await this.billingService.updateEncounterStatusByInvoice(invoiceId, 'Anulado')
-            } catch (err) {
-                console.warn('billing encounter annul warning:', (err as any)?.message || err)
-            }
-            try {
-                await this.billingService.voidLedgerItemsByInvoice(invoiceId)
-            } catch (err) {
-                console.warn('billing ledger annul warning:', (err as any)?.message || err)
-            }
-        }
-
-        return { invoiceId, newInvoiceId: null }
+        })
     }
 
-    removeInvoiceById = async ( invoiceId: string ): Promise<any> => {
+    removeInvoiceById = async (invoiceId: string): Promise<any> => {
         try {
-            await this.invoiceRepo.softDeleteByInvoiceNumber( invoiceId )
+            await this.invoiceRepo.softDeleteByInvoiceNumber(invoiceId)
             return true
-        } catch ( err: any ) {
+        } catch (err: any) {
             console.error('Error deleting Invoice by Id ::::: ', err)
             throw err
         }
@@ -188,13 +193,13 @@ export class InvoiceService {
         try {
 
             const resp = await Promise.all([
-                this.patientService.findAllPatients({limit: 25, offset: 0}),
+                this.patientService.findAllPatients({ limit: 25, offset: 0 }),
                 this.invoiceRepo.fetchServices(),
                 this.invoiceRepo.fetchPaymentMethods(),
                 this.invoiceRepo.fetchDoctors()
             ])
 
-            const [patientsResp, servicesResp, paymentMethodsResp, doctorsResp] = resp 
+            const [patientsResp, servicesResp, paymentMethodsResp, doctorsResp] = resp
 
             const services = (servicesResp as object[]).map((s: any) => {
                 const price = parseFloat(s.Precio)
@@ -222,18 +227,18 @@ export class InvoiceService {
                 paymentMethods,
                 doctors
             }
-        } catch ( err: any ) {
-            throw new Error( err.message )
+        } catch (err: any) {
+            throw new Error(err.message)
         }
     }
 
-    generateCloseReportPdf = async ( term?: string ): Promise<any> => {
+    generateCloseReportPdf = async (term?: string): Promise<any> => {
         try {
             const [headerData, summaryData, paymentsData, cashbox] = await Promise.all([
-                this.invoiceRepo.fetchReportHeader( term ),
-                this.invoiceRepo.fetchReportSummary( term ),
-                this.invoiceRepo.fetchReportPayments( term ),
-                this.invoiceRepo.fetchReportCashbox( term ),
+                this.invoiceRepo.fetchReportHeader(term),
+                this.invoiceRepo.fetchReportSummary(term),
+                this.invoiceRepo.fetchReportPayments(term),
+                this.invoiceRepo.fetchReportCashbox(term),
             ])
 
             if (!headerData || !Array.isArray(summaryData) || !Array.isArray(paymentsData) || !Array.isArray(cashbox)) {
@@ -252,7 +257,7 @@ export class InvoiceService {
             }
 
             return renderPdfFromHtml(html)
-        } catch ( err: any ) {
+        } catch (err: any) {
             console.error('Error generando PDF: ', {
                 message: err?.message,
                 code: err?.code,
@@ -268,7 +273,7 @@ export class InvoiceService {
         );
     }
 
-    private renderCloseReportTemplate = ( args: {
+    private renderCloseReportTemplate = (args: {
         header: any,
         summary: any,
         payments: any,

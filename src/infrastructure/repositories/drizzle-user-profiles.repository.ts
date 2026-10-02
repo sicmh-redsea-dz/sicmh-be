@@ -63,9 +63,11 @@ export class DrizzleUserProfilesRepository implements UserProfilesRepository {
   }
 
   async update<T>(mutator: (store: UserProfileStore) => T | Promise<T>): Promise<T> {
-    const store = await this.load()
-    const result = await mutator(store)
-    await this.save(store)
-    return result
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const store = await this.load()
+      const result = await mutator(store)
+      await this.save(store)
+      return result
+    })
   }
 }

@@ -10,32 +10,33 @@ import { PatientMapper } from '../../domain/mappers/PatientMapper'
 import { StockMapper } from '../../domain/mappers/StockMapper'
 import { ExpedientePayload, ExpedienteExtra, VisitOrigin } from '../../domain/entities/Expediente'
 import { ExpedienteRepository } from '../ports/expediente.repository'
-import { Database } from '../../infrastructure/database/Database'
+import { TenantContext } from '../../infrastructure/database/TenantContext'
+import { requireQuantity } from '../../infrastructure/repositories/inventory-balances'
 
 interface CreateVisitPayload {
-    BMI:                    number
-    ageAccordingToWeight:   number
-    date:                   string
-    diagnosis:              string
-    doctor:                 string
-    fatPercentage:          number
-    glucometry:             number
-    height:                 number
-    notes:                  string
-    oxygenation:            number
-    patient:                string
-    pressure:               string
-    temperature:            number
-    treatment:              string
-    visceralFat:            number
-    weight:                 number
-    familyHst:              string
-    backgroundHst:          string
-    pathologicalHst:        string
-    surgicalHst:            string
-    stockItems?:            { id: string; qty: number; subinventoryId?: string }[]
-    origin:                 string
-    expediente?:            ExpedientePayload
+    BMI: number
+    ageAccordingToWeight: number
+    date: string
+    diagnosis: string
+    doctor: string
+    fatPercentage: number
+    glucometry: number
+    height: number
+    notes: string
+    oxygenation: number
+    patient: string
+    pressure: string
+    temperature: number
+    treatment: string
+    visceralFat: number
+    weight: number
+    familyHst: string
+    backgroundHst: string
+    pathologicalHst: string
+    surgicalHst: string
+    stockItems?: { id: string; qty: number; subinventoryId?: string }[]
+    origin: string
+    expediente?: ExpedientePayload
 }
 
 interface EditVisitPayload {
@@ -76,9 +77,9 @@ export class VisitsService {
     private visitsRepo: VisitsRepository
     private expedienteRepo: ExpedienteRepository
 
-    constructor ( 
-        staffService: StaffService, 
-        patientService: PatientsService, 
+    constructor(
+        staffService: StaffService,
+        patientService: PatientsService,
         stockService: StockService,
         invoiceService: InvoiceService,
         billingService: BillingService,
@@ -94,7 +95,7 @@ export class VisitsService {
         this.expedienteRepo = expedienteRepo
     }
 
-    findAllVisits = async (args: DelimitersArgs):Promise<any> => {
+    findAllVisits = async (args: DelimitersArgs): Promise<any> => {
         try {
             const originKey = this.parseOriginForList(args.ext)
             const targetStation = originKey ? this.mapOriginToStation(originKey) : null
@@ -104,9 +105,9 @@ export class VisitsService {
             const [movementMap, visitHistory, staff, patients] = await Promise.all([
                 this.billingService.getMovementTrailsByInvoice(),
                 // Station filtering (emergency/hospitalization/oroom) happens below against
-                // movement-trail data from the JSON movements store, which can't be pushed
-                // into this SQL query — so this fetches all active visits (capped at 5000
-                // as a safety net, see visits.queries.ts) rather than a true DB-level page.
+                // movement-trail data, which is currently filtered after fetching
+                // active visits (capped at 5000
+                // as a safety limit) before applying the requested page.
                 originKey && originKey !== 'visits'
                     ? this.visitsRepo.findAllUnbounded({ term: args.term, ext: '' })
                     : this.visitsRepo.findAll(args),
@@ -166,190 +167,83 @@ export class VisitsService {
                 patients: patients.patients,
                 totalRecords
             }
-        } catch ( err: any) {
+        } catch (err: any) {
             console.log('the err :::: ', err.message)
             throw err
         }
-        
+
     }
 
-    findVisitById = async ( id: string ):Promise<any> => {
+    findVisitById = async (id: string): Promise<any> => {
         try {
-            const medicalHistory = await this.visitsRepo.findById( id )
-            if ( !medicalHistory )
+            const medicalHistory = await this.visitsRepo.findById(id)
+            if (!medicalHistory)
                 throw this.errorHandler('not_found_error', `No visit found with Id: ${id}`)
             const stock = await this.stockService.findAll()
             const expediente = await this.expedienteRepo.findByHistoryId(id)
             const expedientePayload = expediente ? { standard: expediente.standard, module: expediente.module } : null
             return {
                 visit: {
-                    ...HistoryMapper.toHistoryFormResponse( medicalHistory ),
+                    ...HistoryMapper.toHistoryFormResponse(medicalHistory),
                     expediente: expedientePayload
                 },
                 stock
             }
-        } catch ( err ) {
+        } catch (err) {
             throw err
         }
     }
 
-    createVisit = async (createVisitPayload: CreateVisitPayload): Promise<any> => {
-        const { stockItems, date, doctor, patient, origin, expediente } = createVisitPayload
+    createVisit = async (payload: CreateVisitPayload): Promise<any> => {
+        const { stockItems = [], date, doctor, patient, origin, expediente } = payload
         const originKey = this.assertOrigin(origin)
         this.validateExpediente(expediente, originKey)
-
-        const fieldsForVisit = HistoryMapper.toDbForm(createVisitPayload)
-        const translatedFields = this.removeUndefined(fieldsForVisit)
-
-        translatedFields['isActive'] = true
-        translatedFields['TipoVisita'] = ORIGIN_TO_VISIT_TYPE[originKey]
-
-        // Resolve the default consulta service BEFORE creating the invoice so its
-        // price is part of the initial Monto instead of a follow-up UPDATE that
-        // could silently fail and leave the invoice at 0.00
-        let consultaService: { id: string; name: string; price: number } | null = null
-
-        let invoice: { id: string; invoiceNumber: string }
-        let insertId: string
-
-        try {
-            // Invoice + visit + stock reduction + stock inserts all run on one
-            // connection: if any step fails (e.g. insufficient stock), the whole
-            // set rolls back atomically instead of leaving partial writes behind.
-            const result = await Database.transaction(async () => {
-                let amount: number = 0.00
-
-                if ( stockItems && stockItems.length > 0 )
-                    amount = await this.stockService.readAmountByStockQty( stockItems )
-
-                if (originKey === 'visits') {
-                    try {
-                        consultaService = await this.billingService.getDefaultConsultaService()
-                    } catch (err) {
-                        console.warn('default consulta service lookup error:', (err as any)?.message || err)
-                    }
-                    if (consultaService) {
-                        amount += consultaService.price
-                    }
-                }
-
-                const createdInvoice: { id: string; invoiceNumber: string } = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
-                translatedFields['FacturaID'] = createdInvoice.id
-
-                const visitId = await this.visitsRepo.create( translatedFields )
-
-                if ( stockItems && stockItems.length > 0 ) {
-                    await this.stockService.reduceStockQuantities( stockItems )
-                    await Promise.all([
-                        this.stockService.insertStockInvoice(translatedFields['FacturaID'], stockItems),
-                        this.stockService.insertStockHistory( visitId, stockItems )
-                    ])
-                }
-
-                return { invoice: createdInvoice, insertId: visitId }
-            })
-
-            invoice = result.invoice
-            insertId = result.insertId
-        } catch (err) {
-            console.error('error creating visit, transaction rolled back: ', err)
-            throw err
-        }
-
-        try {
-            if ( expediente ) {
-                const now = new Date().toISOString()
-                const expedienteRecord: ExpedienteExtra = {
-                    historyId: insertId,
-                    patientId: patient,
-                    origin: originKey,
-                    standard: expediente.standard,
-                    module: expediente.module,
-                    createdAt: now,
-                    updatedAt: now
-                }
-                await this.expedienteRepo.upsert(insertId, expedienteRecord)
+        this.validateStockItems(stockItems)
+        return TenantContext.withLock('clinical_workflows', async () => {
+            const fields = this.removeUndefined(HistoryMapper.toDbForm(payload))
+            fields.isActive = true
+            fields.TipoVisita = ORIGIN_TO_VISIT_TYPE[originKey]
+            const consultaService = originKey === 'visits' ? await this.billingService.getDefaultConsultaService() : null
+            const amount = await this.stockService.readAmountByStockQty(stockItems) + (consultaService?.price ?? 0)
+            const invoice = await this.invoiceService.createInvoice({ date, doctor, patient, amount })
+            fields.FacturaID = invoice.id
+            const visitId = await this.visitsRepo.create(fields)
+            if (stockItems.length) {
+                await this.stockService.reduceStockQuantities(stockItems, visitId)
+                await this.stockService.insertStockInvoice(invoice.id, stockItems)
+                await this.stockService.insertStockHistory(visitId, stockItems)
             }
-        } catch (err) {
-            // The expediente lives in a file store outside the SQL transaction, so
-            // it needs its own compensating cleanup if it fails after commit.
-            console.error('error saving expediente after visit was committed, rolling back visit/invoice: ', err)
-            await this.visitsRepo.softDelete(insertId).catch(cleanupErr =>
-                console.error(`rollback failed to soft-delete visit ${insertId}:`, cleanupErr))
-            await this.invoiceService.removeInvoiceById(invoice.invoiceNumber).catch(cleanupErr =>
-                console.error(`rollback failed to soft-delete invoice ${invoice.invoiceNumber}:`, cleanupErr))
-            throw err
-        }
-
-        // Encounter/movement/ledger failures are only warned, never surfaced
-        // to the client, so there is no reason to make the response wait for
-        // them (they rewrite growing JSON files on every save).
-        void this.recordBillingTrail({
-            patient,
-            doctor,
-            originKey,
-            invoice,
-            visitId: insertId,
-            date,
-            consultaService
+            if (expediente) {
+                const now = new Date().toISOString()
+                await this.expedienteRepo.upsert(visitId, {
+                    historyId: visitId, patientId: patient, origin: originKey,
+                    standard: expediente.standard, module: expediente.module, createdAt: now, updatedAt: now,
+                })
+            }
+            const patientInfo = await this.patientService.findOnePatient(patient)
+            const patientName = `${patientInfo.name} ${patientInfo.lastName}`.trim()
+            const encounter = await this.billingService.registerEncounterForInvoice({
+                patientId: patient, patientName, doctorId: doctor, origin: this.mapOriginToStation(originKey),
+                invoiceNumber: invoice.invoiceNumber, invoiceId: invoice.id, createdAt: date,
+            })
+            await this.billingService.createMovement({
+                patientId: patient, patientName, encounterId: encounter.id, toStation: this.mapOriginToStation(originKey),
+                occurredAt: date, source: 'visit', reference: { visitId },
+            })
+            if (consultaService) await this.billingService.addConsultaServiceLedgerItem({
+                invoiceNumber: invoice.invoiceNumber, patientId: patient, patientName, encounterId: encounter.id,
+                occurredAt: date, service: consultaService,
+            })
+            return { visit: visitId }
         })
-
-        return { visit: insertId }
     }
 
-    private recordBillingTrail = async (args: {
-        patient: string
-        doctor: string
-        originKey: VisitOrigin
-        invoice: { id: string; invoiceNumber: string }
-        visitId: string
-        date: string
-        consultaService: { id: string; name: string; price: number } | null
-    }): Promise<void> => {
-        const { patient, doctor, originKey, invoice, visitId, date, consultaService } = args
-
-        let billingPatientName = ''
-        let billingEncounterId: string | undefined
-
-        try {
-            const patientInfo = await this.patientService.findOnePatient(String(patient))
-            billingPatientName = `${patientInfo.name} ${patientInfo.lastName}`.trim()
-            const encounter = await this.billingService.registerEncounterForInvoice({
-                patientId: patient,
-                patientName: billingPatientName,
-                doctorId: doctor || undefined,
-                origin: this.mapOriginToStation(originKey),
-                invoiceNumber: invoice.invoiceNumber,
-                invoiceId: invoice.id,
-                createdAt: date
-            })
-            billingEncounterId = encounter.id
-            await this.billingService.createMovement({
-                patientId: patient,
-                patientName: billingPatientName,
-                encounterId: billingEncounterId,
-                toStation: this.mapOriginToStation(originKey),
-                occurredAt: date,
-                source: 'visit',
-                reference: { visitId }
-            })
-        } catch (err) {
-            console.warn('billing movement error:', (err as any)?.message || err)
-        }
-
-        if (consultaService) {
-            try {
-                await this.billingService.addConsultaServiceLedgerItem({
-                    invoiceNumber: invoice.invoiceNumber,
-                    patientId: patient,
-                    patientName: billingPatientName,
-                    encounterId: billingEncounterId,
-                    occurredAt: date,
-                    service: consultaService
-                })
-            } catch (err) {
-                console.warn('consulta service ledger error:', (err as any)?.message || err)
-            }
+    private validateStockItems(items: { id: string; qty: number }[]) {
+        const ids = new Set<string>()
+        for (const item of items) {
+            requireQuantity(item.qty)
+            if (ids.has(item.id)) throw this.errorHandler('validation_errors', 'No repita un producto en la misma solicitud.')
+            ids.add(item.id)
         }
     }
 
@@ -457,148 +351,153 @@ export class VisitsService {
     }
 
 
-   editVisit = async (editVisitPayload: EditVisitPayload): Promise<any> => {
-        const { id, body } = editVisitPayload;
-        const originKey = await this.resolveOrigin(body, id)
-        this.validateExpediente(body.expediente, originKey)
+    editVisit = async (editVisitPayload: EditVisitPayload): Promise<any> => {
+        return TenantContext.withLock('clinical_workflows', async () => {
+            const { id, body } = editVisitPayload;
+            const originKey = await this.resolveOrigin(body, id)
+            this.validateExpediente(body.expediente, originKey)
 
-        const existingVisit = await this.visitsRepo.findById(id)
-        if (!existingVisit) {
-            throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`);
-        }
-
-        const existingInventory = HistoryMapper.toHistoryFormResponse(existingVisit).usedInventory ?? []
-        const incomingInventory = Array.isArray(body.stockItems) ? body.stockItems : []
-        const stockDelta = this.computeStockDelta(existingInventory, incomingInventory)
-
-        const fieldsForVisit = HistoryMapper.toDbForm(body)
-        const translatedFields = this.removeUndefined(fieldsForVisit)
-
-        try {
-            const affectedRows = await this.visitsRepo.update(id, translatedFields)
-            if (affectedRows === 0) {
+            const existingVisit = await this.visitsRepo.findById(id)
+            if (!existingVisit) {
                 throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`);
             }
 
-            if ( body.expediente ) {
-                const existingExpediente = await this.expedienteRepo.findByHistoryId(id)
-                const now = new Date().toISOString()
-                const expedienteRecord: ExpedienteExtra = {
-                    historyId: id,
-                    patientId: body.patient ?? existingExpediente?.patientId,
-                    origin: originKey,
-                    standard: body.expediente.standard,
-                    module: body.expediente.module,
-                    createdAt: existingExpediente?.createdAt ?? now,
-                    updatedAt: now
+            const existingInventory = HistoryMapper.toHistoryFormResponse(existingVisit).usedInventory ?? []
+            const incomingInventory = Array.isArray(body.stockItems) ? body.stockItems : existingInventory.map(item => ({ id: item.stockId, qty: Number(item.stockQty) }))
+            this.validateStockItems(incomingInventory)
+            const stockDelta = this.computeStockDelta(existingInventory, incomingInventory)
+
+            const fieldsForVisit = HistoryMapper.toDbForm(body)
+            const translatedFields = this.removeUndefined(fieldsForVisit)
+
+            try {
+                const affectedRows = await this.visitsRepo.update(id, translatedFields)
+                if (affectedRows === 0) {
+                    throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`);
                 }
-                await this.expedienteRepo.upsert(id, expedienteRecord)
+
+                if (body.expediente) {
+                    const existingExpediente = await this.expedienteRepo.findByHistoryId(id)
+                    const now = new Date().toISOString()
+                    const expedienteRecord: ExpedienteExtra = {
+                        historyId: id,
+                        patientId: body.patient ?? existingExpediente?.patientId,
+                        origin: originKey,
+                        standard: body.expediente.standard,
+                        module: body.expediente.module,
+                        createdAt: existingExpediente?.createdAt ?? now,
+                        updatedAt: now
+                    }
+                    await this.expedienteRepo.upsert(id, expedienteRecord)
+                }
+
+                if (stockDelta.length > 0) {
+                    const invoice = await this.invoiceService.getInvByFacturaId(existingVisit.FacturaID)
+                    if (invoice?.Estado !== 'Pendiente') throw this.errorHandler('validation_errors', 'Solo se pueden modificar insumos de una factura pendiente.')
+                    const before = await this.stockService.findInvoiceItems(existingVisit.FacturaID)
+                    const increases = stockDelta.filter((item) => item.qty > 0)
+                    const decreases = stockDelta.filter((item) => item.qty < 0)
+
+                    if (increases.length > 0) {
+                        await this.stockService.reduceStockQuantities(increases, id)
+                        await Promise.all([
+                            this.stockService.insertStockInvoice(existingVisit.FacturaID, increases),
+                            this.stockService.insertStockHistory(id, increases)
+                        ])
+                    }
+
+                    if (decreases.length > 0) {
+                        const restorations = decreases.map((item) => ({ ...item, qty: -item.qty }))
+                        await this.stockService.restoreStockQuantities(restorations, id)
+                        await Promise.all([
+                            this.stockService.insertStockInvoice(existingVisit.FacturaID, decreases),
+                            this.stockService.insertStockHistory(id, decreases)
+                        ])
+                    }
+
+                    const after = await this.stockService.findInvoiceItems(existingVisit.FacturaID)
+                    const subtotal = (items: typeof after) => items.reduce((sum, item) => sum + item.qty * item.unitPrice, 0)
+                    const amountDelta = subtotal(after) - subtotal(before)
+
+                    if (amountDelta !== 0) {
+                        await this.invoiceService.incrementAmountById(existingVisit.FacturaID, amountDelta)
+                    }
+                }
+
+                return this.findVisitById(id);
+            } catch (err: any) {
+                console.log('Error editing visit:', err);
+                throw err;
             }
-
-            if (stockDelta.length > 0) {
-                const increases = stockDelta.filter((item) => item.qty > 0)
-                const decreases = stockDelta.filter((item) => item.qty < 0)
-
-                if (increases.length > 0) {
-                    await this.stockService.reduceStockQuantities(increases)
-                    await Promise.all([
-                        this.stockService.insertStockInvoice(existingVisit.FacturaID, increases),
-                        this.stockService.insertStockHistory(id, increases)
-                    ])
-                }
-
-                if (decreases.length > 0) {
-                    const restorations = decreases.map((item) => ({ ...item, qty: -item.qty }))
-                    await this.stockService.restoreStockQuantities(restorations)
-                    // Negative-quantity correction rows: the aggregate SUM() reads
-                    // in the stock/invoice history queries net these against the
-                    // original charge instead of needing an UPDATE/DELETE.
-                    await Promise.all([
-                        this.stockService.insertStockInvoice(existingVisit.FacturaID, decreases),
-                        this.stockService.insertStockHistory(id, decreases)
-                    ])
-                }
-
-                const amountDelta = await this.stockService.readAmountByStockQty(
-                    stockDelta.map((item) => ({ id: item.id, qty: item.qty }))
-                )
-
-                if (amountDelta !== 0) {
-                    await this.invoiceService.incrementAmountById(existingVisit.FacturaID, amountDelta)
-                }
-            }
-
-            return this.findVisitById(id);
-        } catch (err: any) {
-            console.log('Error editing visit:', err);
-            throw err;
-        }
+        })
     };
 
-    deleteVisit = async ( id: string ): Promise<any> => {
-        try {
-            const existingVisit = await this.visitsRepo.findById( id )
+    deleteVisit = async (id: string): Promise<any> => {
+        return TenantContext.withLock('clinical_workflows', async () => {
+            try {
+                const existingVisit = await this.visitsRepo.findById(id)
 
-            const affectedRows = await this.visitsRepo.softDelete( id )
-            if ( affectedRows == 0 )
-                throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`)
+                const affectedRows = await this.visitsRepo.softDelete(id)
+                if (affectedRows == 0)
+                    throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`)
 
-            if ( existingVisit?.FacturaID ) {
-                try {
-                    await this.annulInvoiceForVisit( existingVisit.FacturaID )
-                } catch (err) {
-                    console.warn('invoice annul on visit delete warning:', (err as any)?.message || err)
+                if (existingVisit?.FacturaID) {
+                    try {
+                        await this.annulInvoiceForVisit(existingVisit.FacturaID)
+                    } catch (err) {
+                        throw err
+                    }
                 }
-            }
 
-            return `Visit Id: ${id} deleted`
-        } catch ( err ) {
-            throw err
-        }
+                return `Visit Id: ${id} deleted`
+            } catch (err) {
+                throw err
+            }
+        })
     }
 
-    private annulInvoiceForVisit = async ( facturaId: string ): Promise<void> => {
-        const invoice = await this.invoiceService.getInvByFacturaId( facturaId )
-        if ( !invoice ) return
+    private annulInvoiceForVisit = async (facturaId: string): Promise<void> => {
+        const invoice = await this.invoiceService.getInvByFacturaId(facturaId)
+        if (!invoice) return
 
         const status = String(invoice.Estado || '').toLowerCase()
         // Paid invoices are money already collected; never void those silently
-        if ( status.includes('anul') || status.includes('pag') ) return
+        if (status.includes('anul') || status.includes('pag')) return
 
-        await this.invoiceService.annulInvoiceById( invoice.InvoiceNumber )
+        await this.invoiceService.annulInvoiceById(invoice.InvoiceNumber)
     }
 
-    getDoctors = async ( term: string ): Promise<any> => {
+    getDoctors = async (term: string): Promise<any> => {
         try {
-            const resp = await this.visitsRepo.findDoctors( term )
+            const resp = await this.visitsRepo.findDoctors(term)
             return {
-                doctors: resp.map( x => StaffMapper.toStaffResponse( x ))
+                doctors: resp.map(x => StaffMapper.toStaffResponse(x))
             }
-        } catch ( err: any ) {
+        } catch (err: any) {
             console.log('error getting doctors :::: ', err.message)
             throw err
         }
     }
 
-    getPatients = async ( term: string ): Promise<any> => {
+    getPatients = async (term: string): Promise<any> => {
         try {
-            const resp = await this.visitsRepo.findPatients( term )
+            const resp = await this.visitsRepo.findPatients(term)
             return {
-                patients: resp.map( x => PatientMapper.toShortPatientsResponse( x ))
+                patients: resp.map(x => PatientMapper.toShortPatientsResponse(x))
             }
-        } catch ( err: any ) {
+        } catch (err: any) {
             console.log('error getting doctors :::: ', err.message)
             throw err
         }
     }
 
-    getStockItems = async ( term: string ): Promise<any> => {
+    getStockItems = async (term: string): Promise<any> => {
         try {
-            const resp = await this.visitsRepo.findStockItems( term )
+            const resp = await this.visitsRepo.findStockItems(term)
             return {
-                stock: resp.map( x => StockMapper.toStockResponse( x ))
+                stock: resp.map(x => StockMapper.toStockResponse(x))
             }
-        } catch ( err: any ) {
+        } catch (err: any) {
             console.log('error getting stock items :::: ', err.message)
             throw err
         }
@@ -693,7 +592,7 @@ export class VisitsService {
         }
     }
 
-    private errorHandler = (name:string, msg:string) => {
+    private errorHandler = (name: string, msg: string) => {
         const err = new Error()
         err.name = name
         err.message = msg

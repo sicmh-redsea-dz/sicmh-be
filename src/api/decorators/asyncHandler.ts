@@ -1,4 +1,7 @@
+import { createHash } from 'crypto'
 import { NextFunction, Request, Response } from 'express'
+import { trackDocumentDelivery } from '../middlewares/document-delivery'
+import { DocumentDeliveryInput } from '../../application/services/document-deliveries.service'
 
 type ResponseMode = 'standard' | 'payload' | 'manual'
 
@@ -27,6 +30,7 @@ interface PdfDecoratorOptions<T = Buffer> {
   disposition?: 'inline' | 'attachment'
   filename: string | ((req: Request, result: T) => string)
   getBody?: (result: T) => Buffer
+  delivery?: (req: Request, result: T) => Omit<DocumentDeliveryInput, 'channel'>
 }
 
 const DEFAULT_MESSAGE = 'Service executed successfully'
@@ -59,6 +63,9 @@ export const asyncHandler = <T = unknown>(options: AsyncHandlerOptions<T> = {}) 
 
       try {
         const result = await originalMethod.apply(this, args)
+
+        const resultId = result?.id ?? result?.data?.id
+        if (typeof resultId === 'string' && resultId.length <= 100) res.locals.auditRecordId = resultId
 
         if (result === undefined) return
 
@@ -105,12 +112,15 @@ export const pdfResponse = <T = Buffer>(options: PdfDecoratorOptions<T>) =>
   asyncHandler<T>({
     mode: 'manual',
     statusCode: options.statusCode ?? 200,
-    responder: ({ req, res, result, statusCode }) => {
+    responder: async ({ req, res, result, statusCode }) => {
       const body = options.getBody ? options.getBody(result) : (result as unknown as Buffer)
       const filename = typeof options.filename === 'function'
         ? options.filename(req, result)
         : options.filename
       const disposition = options.disposition ?? 'attachment'
+      if (options.delivery) {
+        await trackDocumentDelivery(req, res, { ...options.delivery(req, result), contentSha256: createHash('sha256').update(body).digest('hex'), channel: disposition === 'inline' ? 'view' : 'download' })
+      }
 
       res.writeHead(statusCode, {
         'Content-Type': 'application/pdf',

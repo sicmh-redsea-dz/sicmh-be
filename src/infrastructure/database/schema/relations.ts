@@ -1,5 +1,12 @@
 import { relations } from 'drizzle-orm'
 import {
+  auditLogs,
+  passwordResetTokens,
+  invoiceNumberSequences,
+  documentDeliveries,
+  consentTemplates,
+  consentTemplateVersions,
+  consentInstances,
   appointmentSources,
   appointments,
   appointmentStatuses,
@@ -69,6 +76,9 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   staffMember: one(staffMembers),
   permissions: many(userPermissions),
   permissionAuditLogs: many(permissionAuditLogs),
+  auditLogs: many(auditLogs),
+  passwordResetTokens: many(passwordResetTokens),
+  documentDeliveries: many(documentDeliveries),
   movements: many(patientMovements),
   clinicalAttachments: many(clinicalAttachments),
 }))
@@ -94,9 +104,11 @@ export const staffMembersRelations = relations(staffMembers, ({ many, one }) => 
   invoices: many(invoices),
   bedAssignments: many(bedAssignments),
   operatingRoomAssignments: many(operatingRoomAssignments),
+  consentInstances: many(consentInstances),
 }))
 
 export const patientsRelations = relations(patients, ({ many }) => ({
+  consentInstances: many(consentInstances),
   emergencyContacts: many(emergencyContacts),
   images: many(patientImages),
   appointments: many(appointments),
@@ -141,19 +153,19 @@ export const productsRelations = relations(products, ({ many, one }) => ({
 
 export const inventoryLocationsRelations = relations(inventoryLocations, ({ many }) => ({
   stock: many(inventoryStock),
-  batches: many(inventoryBatches),
   outgoingMovements: many(stockMovements, { relationName: 'stockMovementFromLocation' }),
   incomingMovements: many(stockMovements, { relationName: 'stockMovementToLocation' }),
 }))
 
 export const inventoryStockRelations = relations(inventoryStock, ({ one }) => ({
+  batch: one(inventoryBatches, { fields: [inventoryStock.batchId], references: [inventoryBatches.id] }),
   product: one(products, { fields: [inventoryStock.productId], references: [products.id] }),
   location: one(inventoryLocations, { fields: [inventoryStock.locationId], references: [inventoryLocations.id] }),
 }))
 
 export const inventoryBatchesRelations = relations(inventoryBatches, ({ many, one }) => ({
   product: one(products, { fields: [inventoryBatches.productId], references: [products.id] }),
-  location: one(inventoryLocations, { fields: [inventoryBatches.locationId], references: [inventoryLocations.id] }),
+  balances: many(inventoryStock),
   purchaseItems: many(purchaseItems),
 }))
 
@@ -193,12 +205,12 @@ export const careEpisodesRelations = relations(careEpisodes, ({ many, one }) => 
   patient: one(patients, { fields: [careEpisodes.patientId], references: [patients.id] }),
   staffMember: one(staffMembers, { fields: [careEpisodes.staffMemberId], references: [staffMembers.id] }),
   invoice: one(invoices),
-  encounters: many(clinicalEncounters),
   movements: many(patientMovements),
   ledgerEntries: many(billingLedgerEntries),
 }))
 
 export const invoicesRelations = relations(invoices, ({ many, one }) => ({
+  numberSequence: one(invoiceNumberSequences, { fields: [invoices.numberSequenceId], references: [invoiceNumberSequences.id] }),
   patient: one(patients, { fields: [invoices.patientId], references: [patients.id] }),
   staffMember: one(staffMembers, { fields: [invoices.staffMemberId], references: [staffMembers.id] }),
   careEpisode: one(careEpisodes, { fields: [invoices.careEpisodeId], references: [careEpisodes.id] }),
@@ -231,9 +243,9 @@ export const billingLedgerEntriesRelations = relations(billingLedgerEntries, ({ 
 }))
 
 export const clinicalEncountersRelations = relations(clinicalEncounters, ({ many, one }) => ({
+  consents: many(consentInstances),
   patient: one(patients, { fields: [clinicalEncounters.patientId], references: [patients.id] }),
   staffMember: one(staffMembers, { fields: [clinicalEncounters.staffMemberId], references: [staffMembers.id] }),
-  careEpisode: one(careEpisodes, { fields: [clinicalEncounters.careEpisodeId], references: [careEpisodes.id] }),
   invoice: one(invoices, { fields: [clinicalEncounters.invoiceId], references: [invoices.id] }),
   vitals: one(encounterVitals),
   medicalRecord: one(medicalRecords),
@@ -279,6 +291,7 @@ export const stockMovementsRelations = relations(stockMovements, ({ one }) => ({
 }))
 
 export const clinicalAttachmentsRelations = relations(clinicalAttachments, ({ many, one }) => ({
+  consents: many(consentInstances),
   patient: one(patients, { fields: [clinicalAttachments.patientId], references: [patients.id] }),
   encounter: one(clinicalEncounters, { fields: [clinicalAttachments.clinicalEncounterId], references: [clinicalEncounters.id] }),
   uploader: one(users, { fields: [clinicalAttachments.uploadedBy], references: [users.id] }),
@@ -369,4 +382,44 @@ export const operatingRoomEventsRelations = relations(operatingRoomEvents, ({ on
     references: [operatingRoomAssignments.id],
   }),
   actor: one(users, { fields: [operatingRoomEvents.actorId], references: [users.id] }),
+}))
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  actor: one(users, { fields: [auditLogs.actorId], references: [users.id] }),
+}))
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, { fields: [passwordResetTokens.userId], references: [users.id] }),
+}))
+
+export const invoiceNumberSequencesRelations = relations(invoiceNumberSequences, ({ many }) => ({
+  invoices: many(invoices),
+}))
+
+export const consentTemplatesRelations = relations(consentTemplates, ({ many }) => ({
+  versions: many(consentTemplateVersions),
+  instances: many(consentInstances),
+}))
+
+export const consentTemplateVersionsRelations = relations(consentTemplateVersions, ({ one, many }) => ({
+  template: one(consentTemplates, { fields: [consentTemplateVersions.templateId], references: [consentTemplates.id] }),
+  instances: many(consentInstances),
+}))
+
+export const consentInstancesRelations = relations(consentInstances, ({ one }) => ({
+  template: one(consentTemplates, { fields: [consentInstances.templateId], references: [consentTemplates.id] }),
+  version: one(consentTemplateVersions, {
+    fields: [consentInstances.templateId, consentInstances.templateVersion],
+    references: [consentTemplateVersions.templateId, consentTemplateVersions.version],
+  }),
+  encounter: one(clinicalEncounters, { fields: [consentInstances.clinicalEncounterId], references: [clinicalEncounters.id] }),
+  staffMember: one(staffMembers, { fields: [consentInstances.staffMemberId], references: [staffMembers.id] }),
+  attachment: one(clinicalAttachments, { fields: [consentInstances.attachmentId], references: [clinicalAttachments.id] }),
+}))
+
+export const documentDeliveriesRelations = relations(documentDeliveries, ({ one }) => ({
+  actor: one(users, { fields: [documentDeliveries.actorId], references: [users.id] }),
+  attachment: one(clinicalAttachments, { fields: [documentDeliveries.attachmentId], references: [clinicalAttachments.id] }),
+  consent: one(consentInstances, { fields: [documentDeliveries.consentInstanceId], references: [consentInstances.id] }),
+  version: one(consentTemplateVersions, { fields: [documentDeliveries.templateVersionId], references: [consentTemplateVersions.id] }),
 }))

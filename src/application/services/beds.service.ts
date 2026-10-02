@@ -1,3 +1,4 @@
+import { TenantContext } from '../../infrastructure/database/TenantContext'
 import { randomUUID } from 'crypto'
 
 import { BedsRepository } from '../ports/beds.repository'
@@ -32,7 +33,7 @@ export class BedsService {
   constructor(
     private readonly bedsRepo: BedsRepository,
     private readonly billingService?: BillingService
-  ) {}
+  ) { }
 
   getBeds = async (module: string) => {
     const moduleKey = this.assertModule(module)
@@ -41,138 +42,154 @@ export class BedsService {
   }
 
   createBed = async (module: string, payload: BedPayload, actor?: AuditActor) => {
-    const moduleKey = this.assertModule(module)
-    const errors: string[] = []
-    if (!payload.code || !payload.code.trim()) errors.push('El codigo de cama es requerido.')
-    if (errors.length > 0) throw this.buildValidationError(errors)
+    return TenantContext.withLock('clinical_workflows', async () => {
+      if (payload.status === 'occupied') throw this.buildValidationError(['La ocupación requiere una asignación.'])
+      const moduleKey = this.assertModule(module)
+      const errors: string[] = []
+      if (!payload.code || !payload.code.trim()) errors.push('El codigo de cama es requerido.')
+      if (errors.length > 0) throw this.buildValidationError(errors)
 
-    const beds = await this.bedsRepo.update((store) => {
-      const moduleBeds = store[moduleKey].beds
-      const id = randomUUID()
-      const now = new Date().toISOString()
+      const beds = await this.bedsRepo.update((store) => {
+        const moduleBeds = store[moduleKey].beds
+        const id = randomUUID()
+        const now = new Date().toISOString()
 
-      const bed: BedRecord = {
-        id,
-        code: payload.code.trim(),
-        area: payload.area?.trim() || '',
-        status: payload.status ?? 'available',
-        currentAssignment: null,
-        history: [this.buildHistory('create', actor, { code: payload.code, area: payload.area, status: payload.status })]
-      }
+        const bed: BedRecord = {
+          id,
+          code: payload.code.trim(),
+          area: payload.area?.trim() || '',
+          status: payload.status ?? 'available',
+          currentAssignment: null,
+          history: [this.buildHistory('create', actor, { code: payload.code, area: payload.area, status: payload.status })]
+        }
 
-      moduleBeds.push(bed)
-      store[moduleKey].updatedAt = now
-      return moduleBeds
+        moduleBeds.push(bed)
+        store[moduleKey].updatedAt = now
+        return moduleBeds
+      })
+
+      return { beds }
     })
-
-    return { beds }
   }
 
   updateBed = async (module: string, bedId: string, payload: BedPayload, actor?: AuditActor) => {
-    const moduleKey = this.assertModule(module)
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const moduleKey = this.assertModule(module)
 
-    const beds = await this.bedsRepo.update((store) => {
-      const moduleBeds = store[moduleKey].beds
-      const bed = moduleBeds.find((b) => b.id === bedId)
-      if (!bed) throw this.buildNotFoundError(`No bed found with id ${bedId}`)
+      const beds = await this.bedsRepo.update((store) => {
+        const moduleBeds = store[moduleKey].beds
+        const bed = moduleBeds.find((b) => b.id === bedId)
+        if (!bed) throw this.buildNotFoundError(`No bed found with id ${bedId}`)
 
-      const prevStatus = bed.status
-      bed.code = payload.code?.trim() || bed.code
-      bed.area = payload.area?.trim() ?? bed.area
-      if (payload.status) bed.status = payload.status
+        const prevStatus = bed.status
+        bed.code = payload.code?.trim() || bed.code
+        bed.area = payload.area?.trim() ?? bed.area
+        if (payload.status === 'occupied' && !bed.currentAssignment) throw this.buildValidationError(['La ocupación requiere una asignación.'])
+        if (payload.status && bed.currentAssignment && payload.status !== 'occupied') throw this.buildValidationError(['Primero libere la asignación vigente.'])
+        if (payload.status) bed.status = payload.status
 
-      bed.history.push(this.buildHistory('update', actor, { code: bed.code, area: bed.area, status: bed.status }))
+        bed.history.push(this.buildHistory('update', actor, { code: bed.code, area: bed.area, status: bed.status }))
 
-      if (payload.status && payload.status !== prevStatus) {
-        bed.history.push(this.buildHistory('status_change', actor, { from: prevStatus, to: payload.status }))
-      }
+        if (payload.status && payload.status !== prevStatus) {
+          bed.history.push(this.buildHistory('status_change', actor, { from: prevStatus, to: payload.status }))
+        }
 
-      store[moduleKey].updatedAt = new Date().toISOString()
-      return moduleBeds
+        store[moduleKey].updatedAt = new Date().toISOString()
+        return moduleBeds
+      })
+
+      return { beds }
     })
-
-    return { beds }
   }
 
   assignBed = async (module: string, bedId: string, payload: AssignPayload, actor?: AuditActor) => {
-    const moduleKey = this.assertModule(module)
-    const errors: string[] = []
-    if (!payload.patientId) errors.push('Paciente requerido para asignar cama.')
-    if (!payload.patientName || !payload.patientName.trim()) errors.push('Nombre del paciente requerido.')
-    if (errors.length > 0) throw this.buildValidationError(errors)
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const moduleKey = this.assertModule(module)
+      const errors: string[] = []
+      if (!payload.patientId) errors.push('Paciente requerido para asignar cama.')
+      if (!payload.patientName || !payload.patientName.trim()) errors.push('Nombre del paciente requerido.')
+      if (errors.length > 0) throw this.buildValidationError(errors)
 
-    const now = new Date().toISOString()
+      const now = new Date().toISOString()
 
-    const beds = await this.bedsRepo.update((store) => {
-      const moduleBeds = store[moduleKey].beds
-      const bed = moduleBeds.find((b) => b.id === bedId)
-      if (!bed) throw this.buildNotFoundError(`No bed found with id ${bedId}`)
+      const beds = await this.bedsRepo.update((store) => {
+        const moduleBeds = store[moduleKey].beds
+        const bed = moduleBeds.find((b) => b.id === bedId)
+        if (!bed) throw this.buildNotFoundError(`No bed found with id ${bedId}`)
 
-      const payloadData: BedAssignment = {
-        assignmentId: payload.assignmentId || bed.currentAssignment?.assignmentId || randomUUID(),
-        patientId: payload.patientId,
-        patientName: payload.patientName.trim(),
-        doctorId: payload.doctorId,
-        doctorName: payload.doctorName?.trim() || undefined,
-        reason: payload.reason?.trim() || undefined,
-        notes: payload.notes?.trim() || undefined,
-        expectedDischarge: payload.expectedDischarge || undefined,
-        assignedAt: bed.currentAssignment?.assignedAt ?? now,
-        updatedAt: bed.currentAssignment ? now : undefined
-      }
+        if (bed.status === 'maintenance' || bed.status === 'blocked') throw this.buildValidationError(['La cama no está disponible.'])
+        if (bed.currentAssignment && bed.currentAssignment.patientId !== payload.patientId) throw this.buildValidationError(['Primero libere la asignación vigente.'])
+        if (payload.assignmentId && payload.assignmentId !== bed.currentAssignment?.assignmentId) throw this.buildValidationError(['La asignación indicada no es la vigente.'])
+        if ([...store.hospitalization.beds, ...store.emergency.beds].some(item => item.id !== bed.id && item.currentAssignment?.patientId === payload.patientId)) throw this.buildValidationError(['El paciente ya tiene una asignación vigente.'])
 
-      if (bed.currentAssignment) {
-        const previous = bed.currentAssignment
-        bed.currentAssignment = payloadData
-        bed.history.push(this.buildHistory('update_assignment', actor, { previous, next: payloadData }))
-      } else {
-        bed.currentAssignment = payloadData
-        bed.status = 'occupied'
-        bed.history.push(this.buildHistory('assign', actor, { assignment: payloadData }))
-      }
-
-      store[moduleKey].updatedAt = now
-      return moduleBeds
-    })
-
-    if (this.billingService) {
-      try {
-        await this.billingService.createMovement({
+        const payloadData: BedAssignment = {
+          assignmentId: payload.assignmentId || bed.currentAssignment?.assignmentId || randomUUID(),
           patientId: payload.patientId,
-          patientName: payload.patientName,
-          toStation: moduleKey === 'hospitalization' ? 'hospitalizacion' : 'emergencia',
-          occurredAt: now,
-          source: 'bed',
-          reference: { bedId }
-        }, actor)
-      } catch (err) {
-        console.warn('billing movement error:', (err as any)?.message || err)
-      }
-    }
+          patientName: payload.patientName.trim(),
+          doctorId: payload.doctorId,
+          doctorName: payload.doctorName?.trim() || undefined,
+          reason: payload.reason?.trim() || undefined,
+          notes: payload.notes?.trim() || undefined,
+          expectedDischarge: payload.expectedDischarge || undefined,
+          assignedAt: bed.currentAssignment?.assignedAt ?? now,
+          updatedAt: bed.currentAssignment ? now : undefined
+        }
 
-    return { beds }
+        if (bed.currentAssignment) {
+          const previous = bed.currentAssignment
+          bed.currentAssignment = payloadData
+          bed.history.push(this.buildHistory('update_assignment', actor, { previous, next: payloadData }))
+        } else {
+          bed.currentAssignment = payloadData
+          bed.status = 'occupied'
+          bed.history.push(this.buildHistory('assign', actor, { assignment: payloadData }))
+        }
+
+        store[moduleKey].updatedAt = now
+        return moduleBeds
+      })
+
+      if (this.billingService) {
+        try {
+          await this.billingService.createMovement({
+            patientId: payload.patientId,
+            patientName: payload.patientName,
+            toStation: moduleKey === 'hospitalization' ? 'hospitalizacion' : 'emergencia',
+            occurredAt: now,
+            source: 'bed',
+            reference: { bedId }
+          }, actor)
+        } catch (err) {
+          throw err
+        }
+      }
+
+      return { beds }
+    })
   }
 
   releaseBed = async (module: string, bedId: string, payload?: ReleasePayload, actor?: AuditActor) => {
-    const moduleKey = this.assertModule(module)
-    const beds = await this.bedsRepo.update((store) => {
-      const moduleBeds = store[moduleKey].beds
-      const bed = moduleBeds.find((b) => b.id === bedId)
-      if (!bed) throw this.buildNotFoundError(`No bed found with id ${bedId}`)
-      if (!bed.currentAssignment) throw this.buildValidationError(['La cama no tiene asignacion activa.'])
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const moduleKey = this.assertModule(module)
+      const beds = await this.bedsRepo.update((store) => {
+        const moduleBeds = store[moduleKey].beds
+        const bed = moduleBeds.find((b) => b.id === bedId)
+        if (!bed) throw this.buildNotFoundError(`No bed found with id ${bedId}`)
+        if (!bed.currentAssignment) throw this.buildValidationError(['La cama no tiene asignacion activa.'])
 
-      const now = new Date().toISOString()
-      const releasedAssignment = { ...bed.currentAssignment, releasedAt: now }
+        const now = new Date().toISOString()
+        const releasedAssignment = { ...bed.currentAssignment, releasedAt: now }
 
-      bed.currentAssignment = null
-      bed.status = payload?.status ?? 'available'
-      bed.history.push(this.buildHistory('release', actor, { assignment: releasedAssignment, reason: payload?.reason }))
+        bed.currentAssignment = null
+        bed.status = payload?.status ?? 'available'
+        bed.history.push(this.buildHistory('release', actor, { assignment: releasedAssignment, reason: payload?.reason }))
 
-      store[moduleKey].updatedAt = now
-      return moduleBeds
+        store[moduleKey].updatedAt = now
+        return moduleBeds
+      })
+
+      return { beds }
     })
-
-    return { beds }
   }
 
   private assertModule(module: string): BedModule {

@@ -1,3 +1,4 @@
+import { TenantContext } from '../../infrastructure/database/TenantContext'
 import { randomUUID } from 'crypto'
 
 import { BillingRepository, BillingFilters } from '../ports/billing.repository'
@@ -78,7 +79,7 @@ export class BillingService {
     private readonly movementsRepo: PatientMovementsRepository,
     private readonly encountersRepo: PatientEncountersRepository,
     private readonly invoiceRepo: InvoiceRepository
-  ) {}
+  ) { }
 
   getReport = async (filters: ReportFilters) => {
     const { from, to } = this.normalizeRange(filters.from, filters.to)
@@ -184,207 +185,215 @@ export class BillingService {
   }
 
   createManualCharge = async (payload: ManualChargePayload) => {
-    const errors: string[] = []
-    if (!payload.patientId) errors.push('Paciente requerido.')
-    if (!payload.description || !payload.description.trim()) errors.push('Descripción requerida.')
-    if (errors.length > 0) throw this.buildValidationError(errors)
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const errors: string[] = []
+      if (!payload.patientId) errors.push('Paciente requerido.')
+      if (!payload.description || !payload.description.trim()) errors.push('Descripción requerida.')
+      if (errors.length > 0) throw this.buildValidationError(errors)
 
-    const patientName = await this.resolvePatientName(payload.patientId, payload.patientName)
-    const encounter = await this.resolveChargeEncounter({
-      patientId: payload.patientId,
-      patientName,
-      encounterId: payload.encounterId,
-      invoiceNumber: payload.invoiceNumber,
-      occurredAt: payload.occurredAt
-    })
-    if (!encounter) {
-      throw this.buildValidationError(['No hay factura pendiente activa para este paciente.'])
-    }
-    if (this.normalizeFilter(encounter.status) !== this.normalizeFilter('Pendiente')) {
-      throw this.buildValidationError(['La factura asociada no está pendiente.'])
-    }
-    await this.touchEncounter(encounter.id)
-    const quantity = Number(payload.quantity ?? 1)
-    const unitPrice = Number(payload.unitPrice ?? 0)
-    const total = quantity * unitPrice
-    const item: BillingLedgerItem = {
-      id: randomUUID(),
-      patientId: payload.patientId,
-      patientName,
-      encounterId: encounter.id,
-      invoiceNumber: encounter.invoiceNumber,
-      station: payload.station ?? 'otros',
-      category: payload.category ?? 'otros',
-      description: payload.description.trim(),
-      quantity,
-      unitPrice,
-      total,
-      occurredAt: payload.occurredAt ?? new Date().toISOString(),
-      status: payload.status ?? DEFAULT_STATUS,
-      source: 'manual'
-    }
-
-    const invoice = await this.resolveInvoiceByEncounter(encounter)
-    if (invoice?.InvoiceNumber) {
-      item.reference = { ...item.reference, invoiceNumber: invoice.InvoiceNumber }
-    }
-
-    await this.ledgerRepo.update((store) => {
-      store.items.unshift(item)
-      store.updatedAt = new Date().toISOString()
-    })
-
-    await this.applyInvoiceDeltaSafely(invoice, total, 'manual-charge')
-
-    return item
-  }
-
-  updateManualCharge = async (id: string, payload: Partial<ManualChargePayload>) => {
-    let previousTotal = 0
-    let invoice: Record<string, any> | null = null
-
-    const item = await this.ledgerRepo.update(async (store) => {
-      const target = store.items.find((entry) => entry.id === id)
-      if (!target) throw this.buildNotFoundError(`No charge found with id ${id}`)
-      if (!['manual', 'movement'].includes(target.source)) {
-        throw this.buildValidationError(['Solo se pueden editar cargos manuales.'])
+      const patientName = await this.resolvePatientName(payload.patientId, payload.patientName)
+      const encounter = await this.resolveChargeEncounter({
+        patientId: payload.patientId,
+        patientName,
+        encounterId: payload.encounterId,
+        invoiceNumber: payload.invoiceNumber,
+        occurredAt: payload.occurredAt
+      })
+      if (!encounter) {
+        throw this.buildValidationError(['No hay factura pendiente activa para este paciente.'])
       }
-
-      previousTotal = target.total
-      const previousInvoiceNumber = target.reference?.invoiceNumber ?? target.invoiceNumber
-
-      if (payload.description !== undefined) target.description = payload.description.trim()
-      if (payload.station !== undefined) target.station = payload.station
-      if (payload.category !== undefined) target.category = payload.category
-      if (payload.quantity !== undefined) target.quantity = Number(payload.quantity)
-      if (payload.unitPrice !== undefined) target.unitPrice = Number(payload.unitPrice)
-      if (payload.status !== undefined) target.status = payload.status
-      if (payload.occurredAt !== undefined) target.occurredAt = payload.occurredAt
-
-      target.total = (target.quantity ?? 0) * (target.unitPrice ?? 0)
-
-      invoice = await this.resolveInvoiceByNumber(previousInvoiceNumber)
-      if (invoice?.InvoiceNumber) {
-        target.reference = { ...target.reference, invoiceNumber: invoice.InvoiceNumber }
-      }
-
-      store.updatedAt = new Date().toISOString()
-      return target
-    })
-
-    const delta = item.total - previousTotal
-    await this.applyInvoiceDeltaSafely(invoice, delta, 'manual-update')
-
-    return item
-  }
-
-  removeManualCharge = async (id: string) => {
-    let removedTotal = 0
-    let invoice: Record<string, any> | null = null
-
-    await this.ledgerRepo.update(async (store) => {
-      const index = store.items.findIndex((entry) => entry.id === id)
-      if (index === -1) throw this.buildNotFoundError(`No charge found with id ${id}`)
-
-      const item = store.items[index]
-      if (!['manual', 'movement'].includes(item.source)) {
-        throw this.buildValidationError(['Solo se pueden eliminar cargos manuales.'])
-      }
-
-      const invoiceNumber = item.reference?.invoiceNumber ?? item.invoiceNumber
-      invoice = await this.resolveInvoiceByNumber(invoiceNumber)
-
-      removedTotal = item.total
-      store.items.splice(index, 1)
-      store.updatedAt = new Date().toISOString()
-    })
-
-    await this.applyInvoiceDeltaSafely(invoice, -removedTotal, 'manual-remove')
-
-    return true
-  }
-
-  createMovement = async (payload: MovementPayload, actor?: AuditActor) => {
-    const errors: string[] = []
-    if (!payload.patientId) errors.push('Paciente requerido.')
-    if (!payload.toStation || !payload.toStation.toString().trim()) errors.push('Estación destino requerida.')
-    if (errors.length > 0) throw this.buildValidationError(errors)
-
-    const patientName = await this.resolvePatientName(payload.patientId, payload.patientName)
-    const occurredAt = payload.occurredAt ?? new Date().toISOString()
-    const toStation = payload.toStation
-
-    const encounter = await this.resolveEncounter(payload.patientId, payload.encounterId)
-    if (!encounter) {
-      throw this.buildValidationError(['No hay factura pendiente activa para este paciente.'])
-    }
-    if (this.normalizeFilter(encounter.status) !== this.normalizeFilter('Pendiente')) {
-      throw this.buildValidationError(['La factura asociada no está pendiente.'])
-    }
-
-    let deduped = false
-    const event = await this.movementsRepo.update(async (store) => {
-      const lastEvent = this.getLastMovement(store.events, payload.patientId, encounter.id)
-
-      if (
-        lastEvent &&
-        this.normalizeFilter(lastEvent.toStation) === this.normalizeFilter(toStation) &&
-        this.dateOnly(lastEvent.occurredAt) === this.dateOnly(occurredAt) &&
-        payload.source !== 'manual'
-      ) {
-        deduped = true
-        return lastEvent
-      }
-
-      if (payload.doctorId || payload.doctorName) {
-        await this.updateEncounterDoctor(encounter.id, payload.doctorId, payload.doctorName)
+      if (this.normalizeFilter(encounter.status) !== this.normalizeFilter('Pendiente')) {
+        throw this.buildValidationError(['La factura asociada no está pendiente.'])
       }
       await this.touchEncounter(encounter.id)
-
-      const newEvent: PatientMovementEvent = {
+      const quantity = Number(payload.quantity ?? 1)
+      const unitPrice = Number(payload.unitPrice ?? 0)
+      const total = quantity * unitPrice
+      const item: BillingLedgerItem = {
         id: randomUUID(),
         patientId: payload.patientId,
         patientName,
         encounterId: encounter.id,
         invoiceNumber: encounter.invoiceNumber,
-        fromStation: payload.fromStation ?? lastEvent?.toStation,
-        toStation,
-        occurredAt,
-        reason: payload.reason?.trim(),
-        notes: payload.notes?.trim(),
-        actor,
-        source: payload.source ?? 'manual',
-        reference: payload.reference
+        station: payload.station ?? 'otros',
+        category: payload.category ?? 'otros',
+        description: payload.description.trim(),
+        quantity,
+        unitPrice,
+        total,
+        occurredAt: payload.occurredAt ?? new Date().toISOString(),
+        status: payload.status ?? DEFAULT_STATUS,
+        source: 'manual'
       }
 
-      store.events.unshift(newEvent)
-      store.updatedAt = new Date().toISOString()
-      return newEvent
+      const invoice = await this.resolveInvoiceByEncounter(encounter)
+      if (invoice?.InvoiceNumber) {
+        item.reference = { ...item.reference, invoiceNumber: invoice.InvoiceNumber }
+      }
+
+      await this.ledgerRepo.update((store) => {
+        store.items.unshift(item)
+        store.updatedAt = new Date().toISOString()
+      })
+
+      await this.applyInvoiceDeltaSafely(invoice, total, 'manual-charge')
+
+      return item
     })
+  }
 
-    if (deduped) {
-      return { movement: event }
-    }
+  updateManualCharge = async (id: string, payload: Partial<ManualChargePayload>) => {
+    return TenantContext.withLock('clinical_workflows', async () => {
+      let previousTotal = 0
+      let invoice: Record<string, any> | null = null
 
-    if (payload.charge) {
-      const chargePayload: ManualChargePayload = {
-        patientId: payload.patientId,
-        patientName,
-        encounterId: encounter.id,
-        station: payload.charge.station ?? toStation,
-        category: payload.charge.category ?? 'otros',
-        description: payload.charge.description ?? `Cargo por movimiento a ${toStation}`,
-        quantity: payload.charge.quantity ?? 1,
-        unitPrice: payload.charge.unitPrice ?? 0,
-        occurredAt: payload.charge.occurredAt ?? occurredAt,
-        status: payload.charge.status ?? DEFAULT_STATUS
+      const item = await this.ledgerRepo.update(async (store) => {
+        const target = store.items.find((entry) => entry.id === id)
+        if (!target) throw this.buildNotFoundError(`No charge found with id ${id}`)
+        if (!['manual', 'movement'].includes(target.source)) {
+          throw this.buildValidationError(['Solo se pueden editar cargos manuales.'])
+        }
+
+        previousTotal = target.total
+        const previousInvoiceNumber = target.reference?.invoiceNumber ?? target.invoiceNumber
+
+        if (payload.description !== undefined) target.description = payload.description.trim()
+        if (payload.station !== undefined) target.station = payload.station
+        if (payload.category !== undefined) target.category = payload.category
+        if (payload.quantity !== undefined) target.quantity = Number(payload.quantity)
+        if (payload.unitPrice !== undefined) target.unitPrice = Number(payload.unitPrice)
+        if (payload.status !== undefined) target.status = payload.status
+        if (payload.occurredAt !== undefined) target.occurredAt = payload.occurredAt
+
+        target.total = (target.quantity ?? 0) * (target.unitPrice ?? 0)
+
+        invoice = await this.resolveInvoiceByNumber(previousInvoiceNumber)
+        if (invoice?.InvoiceNumber) {
+          target.reference = { ...target.reference, invoiceNumber: invoice.InvoiceNumber }
+        }
+
+        store.updatedAt = new Date().toISOString()
+        return target
+      })
+
+      const delta = item.total - previousTotal
+      await this.applyInvoiceDeltaSafely(invoice, delta, 'manual-update')
+
+      return item
+    })
+  }
+
+  removeManualCharge = async (id: string) => {
+    return TenantContext.withLock('clinical_workflows', async () => {
+      let removedTotal = 0
+      let invoice: Record<string, any> | null = null
+
+      await this.ledgerRepo.update(async (store) => {
+        const index = store.items.findIndex((entry) => entry.id === id)
+        if (index === -1) throw this.buildNotFoundError(`No charge found with id ${id}`)
+
+        const item = store.items[index]
+        if (!['manual', 'movement'].includes(item.source)) {
+          throw this.buildValidationError(['Solo se pueden eliminar cargos manuales.'])
+        }
+
+        const invoiceNumber = item.reference?.invoiceNumber ?? item.invoiceNumber
+        invoice = await this.resolveInvoiceByNumber(invoiceNumber)
+
+        removedTotal = item.total
+        store.items.splice(index, 1)
+        store.updatedAt = new Date().toISOString()
+      })
+
+      await this.applyInvoiceDeltaSafely(invoice, -removedTotal, 'manual-remove')
+
+      return true
+    })
+  }
+
+  createMovement = async (payload: MovementPayload, actor?: AuditActor) => {
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const errors: string[] = []
+      if (!payload.patientId) errors.push('Paciente requerido.')
+      if (!payload.toStation || !payload.toStation.toString().trim()) errors.push('Estación destino requerida.')
+      if (errors.length > 0) throw this.buildValidationError(errors)
+
+      const patientName = await this.resolvePatientName(payload.patientId, payload.patientName)
+      const occurredAt = payload.occurredAt ?? new Date().toISOString()
+      const toStation = payload.toStation
+
+      const encounter = await this.resolveEncounter(payload.patientId, payload.encounterId)
+      if (!encounter) {
+        throw this.buildValidationError(['No hay factura pendiente activa para este paciente.'])
+      }
+      if (this.normalizeFilter(encounter.status) !== this.normalizeFilter('Pendiente')) {
+        throw this.buildValidationError(['La factura asociada no está pendiente.'])
       }
 
-      const charge = await this.createMovementCharge(event.id, chargePayload, encounter)
-      return { movement: event, charge }
-    }
+      let deduped = false
+      const event = await this.movementsRepo.update(async (store) => {
+        const lastEvent = this.getLastMovement(store.events, payload.patientId, encounter.id)
 
-    return { movement: event }
+        if (
+          lastEvent &&
+          this.normalizeFilter(lastEvent.toStation) === this.normalizeFilter(toStation) &&
+          this.dateOnly(lastEvent.occurredAt) === this.dateOnly(occurredAt) &&
+          payload.source !== 'manual'
+        ) {
+          deduped = true
+          return lastEvent
+        }
+
+        if (payload.doctorId || payload.doctorName) {
+          await this.updateEncounterDoctor(encounter.id, payload.doctorId, payload.doctorName)
+        }
+        await this.touchEncounter(encounter.id)
+
+        const newEvent: PatientMovementEvent = {
+          id: randomUUID(),
+          patientId: payload.patientId,
+          patientName,
+          encounterId: encounter.id,
+          invoiceNumber: encounter.invoiceNumber,
+          fromStation: payload.fromStation ?? lastEvent?.toStation,
+          toStation,
+          occurredAt,
+          reason: payload.reason?.trim(),
+          notes: payload.notes?.trim(),
+          actor,
+          source: payload.source ?? 'manual',
+          reference: payload.reference
+        }
+
+        store.events.unshift(newEvent)
+        store.updatedAt = new Date().toISOString()
+        return newEvent
+      })
+
+      if (deduped) {
+        return { movement: event }
+      }
+
+      if (payload.charge) {
+        const chargePayload: ManualChargePayload = {
+          patientId: payload.patientId,
+          patientName,
+          encounterId: encounter.id,
+          station: payload.charge.station ?? toStation,
+          category: payload.charge.category ?? 'otros',
+          description: payload.charge.description ?? `Cargo por movimiento a ${toStation}`,
+          quantity: payload.charge.quantity ?? 1,
+          unitPrice: payload.charge.unitPrice ?? 0,
+          occurredAt: payload.charge.occurredAt ?? occurredAt,
+          status: payload.charge.status ?? DEFAULT_STATUS
+        }
+
+        const charge = await this.createMovementCharge(event.id, chargePayload, encounter)
+        return { movement: event, charge }
+      }
+
+      return { movement: event }
+    })
   }
 
   getMovementTrailsByInvoice = async () => {
@@ -537,7 +546,7 @@ export class BillingService {
       // silently drop each other's delta.
       await this.invoiceRepo.incrementAmountById(invoice.FacturaID, delta)
     } catch (err) {
-      console.warn(`invoice sync skipped (${reason})`, (err as any)?.message || err)
+      throw err
     }
   }
 

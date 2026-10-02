@@ -13,7 +13,8 @@ export class InvoiceMapper {
             DescuentoPromocional: promoDiscount,
             AseguradoraID: ensurance,
             RTN: rtn,
-            CAI: cai
+            CAI: cai,
+            SarNumber: sarNumber,
         } = invoice
 
         return {
@@ -29,7 +30,8 @@ export class InvoiceMapper {
             promoDiscount,
             ensurance,
             rtn,
-            cai
+            cai,
+            sarNumber: sarNumber ?? null,
         }
     }
 

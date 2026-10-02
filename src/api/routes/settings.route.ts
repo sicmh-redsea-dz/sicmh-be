@@ -11,6 +11,11 @@ const settingsController = new SettingsController()
 const attachmentsController = new AttachmentsController()
 const clinicalDocumentsController = new ClinicalDocumentsController()
 
+router.get('/invoice-number-sequences', requirePermissions('settings.company.read'),
+  settingsController.listInvoiceNumberSequences.bind(settingsController))
+router.post('/invoice-number-sequences', requirePermissions('settings.company.update'),
+  settingsController.createInvoiceNumberSequence.bind(settingsController))
+
 router.get(
   '/profile',
   requireAnyPermission(['settings.profile.read', 'dashboard.view']),

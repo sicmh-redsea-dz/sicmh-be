@@ -1,3 +1,4 @@
+import { TenantContext } from '../../infrastructure/database/TenantContext'
 import { randomUUID } from 'crypto'
 
 import { OrRoomsRepository } from '../ports/or-rooms.repository'
@@ -33,7 +34,7 @@ export class OrRoomsService {
   constructor(
     private readonly roomsRepo: OrRoomsRepository,
     private readonly billingService?: BillingService
-  ) {}
+  ) { }
 
   getRooms = async () => {
     const store = await this.roomsRepo.load()
@@ -41,131 +42,147 @@ export class OrRoomsService {
   }
 
   createRoom = async (payload: RoomPayload, actor?: AuditActor) => {
-    const errors: string[] = []
-    if (!payload.code || !payload.code.trim()) errors.push('El codigo de quirófano es requerido.')
-    if (errors.length > 0) throw this.buildValidationError(errors)
+    return TenantContext.withLock('clinical_workflows', async () => {
+      if (payload.status === 'occupied') throw this.buildValidationError(['La ocupación requiere una asignación.'])
+      const errors: string[] = []
+      if (!payload.code || !payload.code.trim()) errors.push('El codigo de quirófano es requerido.')
+      if (errors.length > 0) throw this.buildValidationError(errors)
 
-    const rooms = await this.roomsRepo.update((store) => {
-      const now = new Date().toISOString()
-      const id = randomUUID()
+      const rooms = await this.roomsRepo.update((store) => {
+        const now = new Date().toISOString()
+        const id = randomUUID()
 
-      const room: OrRoomRecord = {
-        id,
-        code: payload.code.trim(),
-        specialty: payload.specialty?.trim() || '',
-        status: payload.status ?? 'available',
-        currentAssignment: null,
-        history: [this.buildHistory('create', actor, { code: payload.code, specialty: payload.specialty, status: payload.status })]
-      }
+        const room: OrRoomRecord = {
+          id,
+          code: payload.code.trim(),
+          specialty: payload.specialty?.trim() || '',
+          status: payload.status ?? 'available',
+          currentAssignment: null,
+          history: [this.buildHistory('create', actor, { code: payload.code, specialty: payload.specialty, status: payload.status })]
+        }
 
-      store.rooms.push(room)
-      store.updatedAt = now
-      return store.rooms
+        store.rooms.push(room)
+        store.updatedAt = now
+        return store.rooms
+      })
+
+      return { rooms }
     })
-
-    return { rooms }
   }
 
   updateRoom = async (roomId: string, payload: RoomPayload, actor?: AuditActor) => {
-    const rooms = await this.roomsRepo.update((store) => {
-      const room = store.rooms.find((r) => r.id === roomId)
-      if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const rooms = await this.roomsRepo.update((store) => {
+        const room = store.rooms.find((r) => r.id === roomId)
+        if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
 
-      const prevStatus = room.status
-      room.code = payload.code?.trim() || room.code
-      room.specialty = payload.specialty?.trim() ?? room.specialty
-      if (payload.status) room.status = payload.status
+        const prevStatus = room.status
+        room.code = payload.code?.trim() || room.code
+        room.specialty = payload.specialty?.trim() ?? room.specialty
+        if (payload.status === 'occupied' && !room.currentAssignment) throw this.buildValidationError(['La ocupación requiere una asignación.'])
+        if (payload.status && room.currentAssignment && payload.status !== 'occupied') throw this.buildValidationError(['Primero libere la asignación vigente.'])
+        if (payload.status) room.status = payload.status
 
-      room.history.push(this.buildHistory('update', actor, { code: room.code, specialty: room.specialty, status: room.status }))
+        room.history.push(this.buildHistory('update', actor, { code: room.code, specialty: room.specialty, status: room.status }))
 
-      if (payload.status && payload.status !== prevStatus) {
-        room.history.push(this.buildHistory('status_change', actor, { from: prevStatus, to: payload.status }))
-      }
+        if (payload.status && payload.status !== prevStatus) {
+          room.history.push(this.buildHistory('status_change', actor, { from: prevStatus, to: payload.status }))
+        }
 
-      store.updatedAt = new Date().toISOString()
-      return store.rooms
+        store.updatedAt = new Date().toISOString()
+        return store.rooms
+      })
+
+      return { rooms }
     })
-
-    return { rooms }
   }
 
   assignRoom = async (roomId: string, payload: AssignPayload, actor?: AuditActor) => {
-    const errors: string[] = []
-    if (!payload.patientId) errors.push('Paciente requerido para asignar quirófano.')
-    if (!payload.patientName || !payload.patientName.trim()) errors.push('Nombre del paciente requerido.')
-    if (errors.length > 0) throw this.buildValidationError(errors)
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const errors: string[] = []
+      if (!payload.patientId) errors.push('Paciente requerido para asignar quirófano.')
+      if (!payload.patientName || !payload.patientName.trim()) errors.push('Nombre del paciente requerido.')
+      if (errors.length > 0) throw this.buildValidationError(errors)
 
-    const now = new Date().toISOString()
+      const now = new Date().toISOString()
 
-    const rooms = await this.roomsRepo.update((store) => {
-      const room = store.rooms.find((r) => r.id === roomId)
-      if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
+      const rooms = await this.roomsRepo.update((store) => {
+        const room = store.rooms.find((r) => r.id === roomId)
+        if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
 
-      const payloadData: OrRoomAssignment = {
-        assignmentId: payload.assignmentId || room.currentAssignment?.assignmentId || randomUUID(),
-        patientId: payload.patientId,
-        patientName: payload.patientName.trim(),
-        doctorId: payload.doctorId,
-        doctorName: payload.doctorName?.trim() || undefined,
-        procedure: payload.procedure?.trim() || undefined,
-        anesthesiaType: payload.anesthesiaType?.trim() || undefined,
-        scheduledStart: payload.scheduledStart || undefined,
-        scheduledEnd: payload.scheduledEnd || undefined,
-        notes: payload.notes?.trim() || undefined,
-        assignedAt: room.currentAssignment?.assignedAt ?? now,
-        updatedAt: room.currentAssignment ? now : undefined
-      }
+        if (room.status === 'maintenance' || room.status === 'blocked') throw this.buildValidationError(['La sala no está disponible.'])
+        if (room.currentAssignment && room.currentAssignment.patientId !== payload.patientId) throw this.buildValidationError(['Primero libere la asignación vigente.'])
+        if (payload.assignmentId && payload.assignmentId !== room.currentAssignment?.assignmentId) throw this.buildValidationError(['La asignación indicada no es la vigente.'])
+        if (store.rooms.some(item => item.id !== room.id && item.currentAssignment?.patientId === payload.patientId)) throw this.buildValidationError(['El paciente ya tiene una asignación vigente.'])
 
-      if (room.currentAssignment) {
-        const previous = room.currentAssignment
-        room.currentAssignment = payloadData
-        room.history.push(this.buildHistory('update_assignment', actor, { previous, next: payloadData }))
-      } else {
-        room.currentAssignment = payloadData
-        room.status = 'occupied'
-        room.history.push(this.buildHistory('assign', actor, { assignment: payloadData }))
-      }
-
-      store.updatedAt = now
-      return store.rooms
-    })
-
-    if (this.billingService) {
-      try {
-        await this.billingService.createMovement({
+        const payloadData: OrRoomAssignment = {
+          assignmentId: payload.assignmentId || room.currentAssignment?.assignmentId || randomUUID(),
           patientId: payload.patientId,
-          patientName: payload.patientName,
-          toStation: 'quirofano',
-          occurredAt: now,
-          source: 'oroom',
-          reference: { roomId }
-        }, actor)
-      } catch (err) {
-        console.warn('billing movement error:', (err as any)?.message || err)
-      }
-    }
+          patientName: payload.patientName.trim(),
+          doctorId: payload.doctorId,
+          doctorName: payload.doctorName?.trim() || undefined,
+          procedure: payload.procedure?.trim() || undefined,
+          anesthesiaType: payload.anesthesiaType?.trim() || undefined,
+          scheduledStart: payload.scheduledStart || undefined,
+          scheduledEnd: payload.scheduledEnd || undefined,
+          notes: payload.notes?.trim() || undefined,
+          assignedAt: room.currentAssignment?.assignedAt ?? now,
+          updatedAt: room.currentAssignment ? now : undefined
+        }
 
-    return { rooms }
+        if (room.currentAssignment) {
+          const previous = room.currentAssignment
+          room.currentAssignment = payloadData
+          room.history.push(this.buildHistory('update_assignment', actor, { previous, next: payloadData }))
+        } else {
+          room.currentAssignment = payloadData
+          room.status = 'occupied'
+          room.history.push(this.buildHistory('assign', actor, { assignment: payloadData }))
+        }
+
+        store.updatedAt = now
+        return store.rooms
+      })
+
+      if (this.billingService) {
+        try {
+          await this.billingService.createMovement({
+            patientId: payload.patientId,
+            patientName: payload.patientName,
+            toStation: 'quirofano',
+            occurredAt: now,
+            source: 'oroom',
+            reference: { roomId }
+          }, actor)
+        } catch (err) {
+          throw err
+        }
+      }
+
+      return { rooms }
+    })
   }
 
   releaseRoom = async (roomId: string, payload?: ReleasePayload, actor?: AuditActor) => {
-    const rooms = await this.roomsRepo.update((store) => {
-      const room = store.rooms.find((r) => r.id === roomId)
-      if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
-      if (!room.currentAssignment) throw this.buildValidationError(['El quirófano no tiene asignacion activa.'])
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const rooms = await this.roomsRepo.update((store) => {
+        const room = store.rooms.find((r) => r.id === roomId)
+        if (!room) throw this.buildNotFoundError(`No OR room found with id ${roomId}`)
+        if (!room.currentAssignment) throw this.buildValidationError(['El quirófano no tiene asignacion activa.'])
 
-      const now = new Date().toISOString()
-      const releasedAssignment = { ...room.currentAssignment, releasedAt: now }
+        const now = new Date().toISOString()
+        const releasedAssignment = { ...room.currentAssignment, releasedAt: now }
 
-      room.currentAssignment = null
-      room.status = payload?.status ?? 'available'
-      room.history.push(this.buildHistory('release', actor, { assignment: releasedAssignment, reason: payload?.reason }))
+        room.currentAssignment = null
+        room.status = payload?.status ?? 'available'
+        room.history.push(this.buildHistory('release', actor, { assignment: releasedAssignment, reason: payload?.reason }))
 
-      store.updatedAt = now
-      return store.rooms
+        store.updatedAt = now
+        return store.rooms
+      })
+
+      return { rooms }
     })
-
-    return { rooms }
   }
 
   private buildHistory(type: OrRoomHistoryEntry['type'], actor?: AuditActor, details?: Record<string, any>): OrRoomHistoryEntry {

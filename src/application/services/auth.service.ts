@@ -6,7 +6,7 @@ import { User } from '../../domain/entities/User'
 import { UserMapper } from '../../domain/mappers/UserMapper'
 import { AuthResponse } from '../../domain/responses/AuthResponse'
 import { config } from '../../config/env'
-import { generatePasswordResetToken, verifyPasswordResetToken } from '../../utils/jwtUtils'
+import { generatePasswordResetToken, hashResetToken, verifyPasswordResetToken } from '../../utils/jwtUtils'
 
 interface AuthParams {
   name?: string
@@ -104,6 +104,8 @@ export class AuthService {
     if (!user?.UsuarioID || !user.Activo) return { message: genericMessage }
 
     const token = generatePasswordResetToken(user.UsuarioID, params.codigoEmpresa.toUpperCase(), user.SessionVersion ?? 0)
+    const { exp } = verifyPasswordResetToken(token)
+    await this.authRepo.storePasswordResetToken(user.UsuarioID, hashResetToken(token), new Date(exp * 1000))
     const resetUrl = this.buildResetUrl(token, params.codigoEmpresa)
     const emailSent = await this.sendPasswordResetEmail({
       email,
@@ -141,8 +143,8 @@ export class AuthService {
     }
 
     const passwordHash = await hashPassword(newPassword)
-    await this.authRepo.changeUserPassword(user.UsuarioID, passwordHash)
-    await this.authRepo.incrementSessionVersion(user.UsuarioID, user.SessionVersion)
+    const changed = await this.authRepo.resetPasswordWithToken(user.UsuarioID, payload.sv, hashResetToken(token), passwordHash)
+    if (!changed) throw buildValidationError('El enlace de restablecimiento ya no es válido. Solicita uno nuevo.')
     return { message: 'La contraseña fue actualizada correctamente.' }
   }
 

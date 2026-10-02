@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNull, notInArray } from 'drizzle-orm'
 import { BillingLedgerRepository } from '../../application/ports/billing-ledger.repository'
 import { BillingItemCategory, BillingLedgerStore } from '../../domain/entities/Billing'
 import { TenantContext } from '../database/TenantContext'
@@ -12,6 +12,7 @@ export class DrizzleBillingLedgerRepository implements BillingLedgerRepository {
         patientFirstName: patients.firstName,
         patientLastName: patients.lastName,
         invoiceNumber: invoices.invoiceNumber,
+        invoiceStatus: invoices.status,
       })
       .from(billingLedgerEntries)
       .innerJoin(patients, eq(billingLedgerEntries.patientId, patients.id))
@@ -20,7 +21,7 @@ export class DrizzleBillingLedgerRepository implements BillingLedgerRepository {
       .orderBy(desc(billingLedgerEntries.occurredAt))
 
     return {
-      items: rows.map(({ entry, patientFirstName, patientLastName, invoiceNumber }) => ({
+      items: rows.map(({ entry, patientFirstName, patientLastName, invoiceNumber, invoiceStatus }) => ({
         id: entry.id,
         patientId: entry.patientId,
         patientName: `${patientFirstName} ${patientLastName}`.trim(),
@@ -33,7 +34,7 @@ export class DrizzleBillingLedgerRepository implements BillingLedgerRepository {
         unitPrice: Number(entry.unitPrice),
         total: Number(entry.totalAmount),
         occurredAt: entry.occurredAt.toISOString(),
-        status: entry.status,
+        status: invoiceStatus === 'Anulado' ? 'Anulado' : entry.status === 'Anulado' ? 'Anulado' : invoiceStatus ?? entry.status,
         source: entry.source,
         reference: {
           invoiceNumber: invoiceNumber ?? undefined,
@@ -50,7 +51,7 @@ export class DrizzleBillingLedgerRepository implements BillingLedgerRepository {
     await db.transaction(async (tx) => {
       await tx.update(billingLedgerEntries)
         .set({ deletedAt: new Date(), updatedAt: new Date() })
-        .where(isNull(billingLedgerEntries.deletedAt))
+        .where(and(isNull(billingLedgerEntries.deletedAt), store.items.length ? notInArray(billingLedgerEntries.id, store.items.map(item => item.id)) : undefined))
 
       for (const item of store.items) {
         const invoice = item.invoiceNumber
@@ -82,9 +83,11 @@ export class DrizzleBillingLedgerRepository implements BillingLedgerRepository {
   }
 
   async update<T>(mutator: (store: BillingLedgerStore) => T | Promise<T>): Promise<T> {
-    const store = await this.load()
-    const result = await mutator(store)
-    await this.save(store)
-    return result
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const store = await this.load()
+      const result = await mutator(store)
+      await this.save(store)
+      return result
+    })
   }
 }

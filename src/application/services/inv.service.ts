@@ -10,7 +10,7 @@ interface Delimiters {
 export class InvService {
     constructor(private readonly invRepo: InventoryRepository) {}
 
-    getInventory = async( pagParams: Delimiters, subinvId: number ): Promise<any> => {
+    getInventory = async( pagParams: Delimiters, subinvId: string | number ): Promise<any> => {
         try {
             const resp = await this.invRepo.findAll( pagParams, subinvId )
             const totalRegistries = resp.length > 0 ? resp[0].total_registries : 0
@@ -59,7 +59,7 @@ export class InvService {
         }
     }
 
-    patchArticle = async ( data: any, id: number ): Promise<any> => {
+    patchArticle = async ( data: any, id: string ): Promise<any> => {
         try {
             const affectedRows = await this.invRepo.update( id, data )
             if ( affectedRows === 0)

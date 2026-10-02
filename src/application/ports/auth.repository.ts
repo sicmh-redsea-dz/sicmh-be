@@ -35,6 +35,8 @@ export interface AuthRepository {
     updateUserProfile(userId: string, payload: { name: string; email: string }): Promise<void>
     deleteUser(userId: string): Promise<void>
     changeUserPassword(userId: string, passwordHash: string): Promise<void>
+    storePasswordResetToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void>
+    resetPasswordWithToken(userId: string, sessionVersion: number, tokenHash: string, passwordHash: string): Promise<boolean>
     createPersonalRecord(params: PersonalCreateParams): Promise<string>
     getSessionVersion(userId: string): Promise<number>
     // Pass the already-known current version (e.g. from a just-fetched User
