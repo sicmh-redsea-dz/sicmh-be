@@ -58,7 +58,7 @@ export class DrizzleBedsRepository implements BedsRepository {
         id: bed.id,
         code: bed.code,
         area: bed.area ?? '',
-        status: bed.status,
+        status: assignment ? 'occupied' : bed.status,
         currentAssignment: assignment ? {
           assignmentId: assignment.id,
           patientId: assignment.patientId,
@@ -87,37 +87,31 @@ export class DrizzleBedsRepository implements BedsRepository {
       for (const bed of store[module].beds) {
         await db
           .insert(beds)
-          .values({ id: bed.id, code: bed.code, module, area: bed.area, status: bed.status })
+          .values({ id: bed.id, code: bed.code, module, area: bed.area, status: bed.status === 'occupied' ? 'available' : bed.status })
           .onDuplicateKeyUpdate({
-            set: { code: bed.code, area: bed.area, status: bed.status, deletedAt: null },
+            set: { code: bed.code, area: bed.area, status: bed.status === 'occupied' ? 'available' : bed.status, deletedAt: null },
           })
 
         if (bed.currentAssignment) {
           const assignment = bed.currentAssignment
-          await db
-            .insert(bedAssignments)
-            .values({
-              id: assignment.assignmentId,
-              bedId: bed.id,
-              patientId: assignment.patientId,
-              staffMemberId: assignment.doctorId,
-              reason: assignment.reason,
-              notes: assignment.notes,
-              expectedDischargeAt: assignment.expectedDischarge ? new Date(assignment.expectedDischarge) : undefined,
-              assignedAt: new Date(assignment.assignedAt),
-              releasedAt: assignment.releasedAt ? new Date(assignment.releasedAt) : null,
-            })
-            .onDuplicateKeyUpdate({
-              set: {
-                patientId: assignment.patientId,
-                staffMemberId: assignment.doctorId,
-                reason: assignment.reason,
-                notes: assignment.notes,
-                expectedDischargeAt: assignment.expectedDischarge ? new Date(assignment.expectedDischarge) : null,
-                releasedAt: assignment.releasedAt ? new Date(assignment.releasedAt) : null,
-                deletedAt: null,
-              },
-            })
+          const values = {
+            id: assignment.assignmentId,
+            bedId: bed.id,
+            patientId: assignment.patientId,
+            staffMemberId: assignment.doctorId,
+            reason: assignment.reason,
+            notes: assignment.notes,
+            expectedDischargeAt: assignment.expectedDischarge ? new Date(assignment.expectedDischarge) : undefined,
+            assignedAt: new Date(assignment.assignedAt),
+            releasedAt: assignment.releasedAt ? new Date(assignment.releasedAt) : null,
+          }
+          const [existing] = await db.select().from(bedAssignments).where(eq(bedAssignments.id, assignment.assignmentId))
+          if (existing) {
+            if (existing.bedId !== bed.id || existing.patientId !== assignment.patientId) throw new Error('No se puede reasignar una identidad histórica.')
+            await db.update(bedAssignments).set(values).where(eq(bedAssignments.id, existing.id))
+          } else {
+            await db.insert(bedAssignments).values(values)
+          }
         } else {
           await db
             .update(bedAssignments)
@@ -148,10 +142,12 @@ export class DrizzleBedsRepository implements BedsRepository {
   }
 
   async update<T>(mutator: (store: BedsStore) => T | Promise<T>): Promise<T> {
-    const store = await this.load()
-    const result = await mutator(store)
-    await this.save(store)
-    return result
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const store = await this.load()
+      const result = await mutator(store)
+      await this.save(store)
+      return result
+    })
   }
 
   private assignmentIdFromEvent(event: BedHistoryEntry): string | undefined {

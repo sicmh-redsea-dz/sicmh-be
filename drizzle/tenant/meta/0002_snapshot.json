@@ -1,9 +1,72 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "45a4d5ea-96ba-4244-a0cd-1286f199b1a4",
-  "prevId": "63b818b6-2605-4af8-87ff-7860138b83f1",
+  "id": "084ad1b0-0174-4106-a175-4e9e1bfea237",
+  "prevId": "a83a9f30-2034-4803-a6b8-3ef4db8e7ea7",
   "tables": {
+    "aggregate_locks": {
+      "name": "aggregate_locks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "varchar(80)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "aggregate_locks_scope_unique": {
+          "name": "aggregate_locks_scope_unique",
+          "columns": [
+            "scope"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "aggregate_locks_id": {
+          "name": "aggregate_locks_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
     "appointment_sources": {
       "name": "appointment_sources",
       "columns": {
@@ -496,8 +559,8 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "cascade"
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         },
         "appointments_operating_room_id_operating_rooms_id_fk": {
           "name": "appointments_operating_room_id_operating_rooms_id_fk",
@@ -509,8 +572,8 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "cascade"
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         },
         "appointments_created_by_users_id_fk": {
           "name": "appointments_created_by_users_id_fk",
@@ -535,7 +598,16 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "appointments_resource_check": {
+          "name": "appointments_resource_check",
+          "value": "`appointments`.`bed_id` IS NULL OR `appointments`.`operating_room_id` IS NULL"
+        },
+        "appointments_period_check": {
+          "name": "appointments_period_check",
+          "value": "`appointments`.`ends_at` > `appointments`.`starts_at`"
+        }
+      }
     },
     "audit_logs": {
       "name": "audit_logs",
@@ -549,23 +621,24 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP"
+          "default": "(now())"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+          "onUpdate": true,
+          "default": "(now())"
         },
         "deleted_at": {
           "name": "deleted_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -577,16 +650,16 @@
           "notNull": false,
           "autoincrement": false
         },
-        "action_type": {
-          "name": "action_type",
-          "type": "enum('Create','Update','Delete','View')",
+        "action": {
+          "name": "action",
+          "type": "enum('create','update','delete','view')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "target_table": {
           "name": "target_table",
-          "type": "varchar(64)",
+          "type": "varchar(100)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -600,28 +673,27 @@
         },
         "occurred_at": {
           "name": "occurred_at",
-          "type": "datetime",
+          "type": "timestamp(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "varchar(45)",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP"
+          "autoincrement": false
         },
         "details": {
           "name": "details",
-          "type": "text",
+          "type": "json",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         }
       },
       "indexes": {
-        "audit_logs_actor_idx": {
-          "name": "audit_logs_actor_idx",
-          "columns": [
-            "actor_id"
-          ],
-          "isUnique": false
-        },
         "audit_logs_target_idx": {
           "name": "audit_logs_target_idx",
           "columns": [
@@ -631,17 +703,18 @@
           ],
           "isUnique": false
         },
-        "audit_logs_occurred_idx": {
-          "name": "audit_logs_occurred_idx",
+        "audit_logs_actor_idx": {
+          "name": "audit_logs_actor_idx",
           "columns": [
+            "actor_id",
             "occurred_at"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "audit_logs_actor_id_fk": {
-          "name": "audit_logs_actor_id_fk",
+        "audit_logs_actor_id_users_id_fk": {
+          "name": "audit_logs_actor_id_users_id_fk",
           "tableFrom": "audit_logs",
           "tableTo": "users",
           "columnsFrom": [
@@ -650,7 +723,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "restrict",
+          "onDelete": "set null",
           "onUpdate": "cascade"
         }
       },
@@ -761,9 +834,36 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "active_key": {
+          "name": "active_key",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "generated": {
+            "as": "IF(released_at IS NULL AND deleted_at IS NULL, 1, NULL)",
+            "type": "stored"
+          }
         }
       },
       "indexes": {
+        "bed_assignments_active_resource_unique": {
+          "name": "bed_assignments_active_resource_unique",
+          "columns": [
+            "bed_id",
+            "active_key"
+          ],
+          "isUnique": true
+        },
+        "bed_assignments_active_patient_unique": {
+          "name": "bed_assignments_active_patient_unique",
+          "columns": [
+            "patient_id",
+            "active_key"
+          ],
+          "isUnique": true
+        },
         "bed_assignments_bed_idx": {
           "name": "bed_assignments_bed_idx",
           "columns": [
@@ -835,6 +935,21 @@
           ],
           "onDelete": "set null",
           "onUpdate": "cascade"
+        },
+        "beds_episode_patient_fk": {
+          "name": "beds_episode_patient_fk",
+          "tableFrom": "bed_assignments",
+          "tableTo": "care_episodes",
+          "columnsFrom": [
+            "care_episode_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "id",
+            "patient_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -846,7 +961,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "bed_assignments_dates_check": {
+          "name": "bed_assignments_dates_check",
+          "value": "`bed_assignments`.`released_at` IS NULL OR `bed_assignments`.`released_at` >= `bed_assignments`.`assigned_at`"
+        }
+      }
     },
     "bed_events": {
       "name": "bed_events",
@@ -1045,7 +1165,7 @@
         },
         "status": {
           "name": "status",
-          "type": "enum('available','occupied','maintenance','blocked')",
+          "type": "enum('available','maintenance','blocked')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -1316,6 +1436,51 @@
           ],
           "onDelete": "set null",
           "onUpdate": "cascade"
+        },
+        "ledger_movement_patient_fk": {
+          "name": "ledger_movement_patient_fk",
+          "tableFrom": "billing_ledger_entries",
+          "tableTo": "patient_movements",
+          "columnsFrom": [
+            "movement_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "id",
+            "patient_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "ledger_invoice_patient_fk": {
+          "name": "ledger_invoice_patient_fk",
+          "tableFrom": "billing_ledger_entries",
+          "tableTo": "invoices",
+          "columnsFrom": [
+            "invoice_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "id",
+            "patient_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "ledger_episode_patient_fk": {
+          "name": "ledger_episode_patient_fk",
+          "tableFrom": "billing_ledger_entries",
+          "tableTo": "care_episodes",
+          "columnsFrom": [
+            "care_episode_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "id",
+            "patient_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -1327,7 +1492,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "billing_ledger_amount_check": {
+          "name": "billing_ledger_amount_check",
+          "value": "`billing_ledger_entries`.`quantity` > 0 AND `billing_ledger_entries`.`unit_price` >= 0 AND `billing_ledger_entries`.`total_amount` = `billing_ledger_entries`.`quantity` * `billing_ledger_entries`.`unit_price`"
+        }
+      }
     },
     "care_episodes": {
       "name": "care_episodes",
@@ -1391,14 +1561,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "status": {
-          "name": "status",
-          "type": "enum('Pendiente','Pagado','Anulado')",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'Pendiente'"
-        },
         "opened_at": {
           "name": "opened_at",
           "type": "timestamp(3)",
@@ -1424,13 +1586,13 @@
           ],
           "isUnique": false
         },
-        "care_episodes_status_idx": {
-          "name": "care_episodes_status_idx",
+        "care_episodes_id_patient_unique": {
+          "name": "care_episodes_id_patient_unique",
           "columns": [
-            "status",
-            "deleted_at"
+            "id",
+            "patient_id"
           ],
-          "isUnique": false
+          "isUnique": true
         }
       },
       "foreignKeys": {
@@ -1459,6 +1621,34 @@
           ],
           "onDelete": "set null",
           "onUpdate": "cascade"
+        },
+        "care_episodes_previous_episode_id_care_episodes_id_fk": {
+          "name": "care_episodes_previous_episode_id_care_episodes_id_fk",
+          "tableFrom": "care_episodes",
+          "tableTo": "care_episodes",
+          "columnsFrom": [
+            "previous_episode_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "care_episodes_previous_patient_fk": {
+          "name": "care_episodes_previous_patient_fk",
+          "tableFrom": "care_episodes",
+          "tableTo": "care_episodes",
+          "columnsFrom": [
+            "previous_episode_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "id",
+            "patient_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -1470,7 +1660,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "care_episodes_dates_check": {
+          "name": "care_episodes_dates_check",
+          "value": "`care_episodes`.`closed_at` IS NULL OR `care_episodes`.`closed_at` >= `care_episodes`.`opened_at`"
+        }
+      }
     },
     "attachment_access_logs": {
       "name": "attachment_access_logs",
@@ -1725,13 +1920,15 @@
           "tableFrom": "clinical_attachments",
           "tableTo": "clinical_encounters",
           "columnsFrom": [
-            "clinical_encounter_id"
+            "clinical_encounter_id",
+            "patient_id"
           ],
           "columnsTo": [
-            "id"
+            "id",
+            "patient_id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "cascade"
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -1791,13 +1988,6 @@
           "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "care_episode_id": {
-          "name": "care_episode_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
         "invoice_id": {
@@ -1879,6 +2069,14 @@
         }
       },
       "indexes": {
+        "clinical_encounters_id_patient_unique": {
+          "name": "clinical_encounters_id_patient_unique",
+          "columns": [
+            "id",
+            "patient_id"
+          ],
+          "isUnique": true
+        },
         "clinical_encounters_patient_idx": {
           "name": "clinical_encounters_patient_idx",
           "columns": [
@@ -1933,19 +2131,6 @@
           "onDelete": "restrict",
           "onUpdate": "cascade"
         },
-        "clinical_encounters_care_episode_id_care_episodes_id_fk": {
-          "name": "clinical_encounters_care_episode_id_care_episodes_id_fk",
-          "tableFrom": "clinical_encounters",
-          "tableTo": "care_episodes",
-          "columnsFrom": [
-            "care_episode_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "cascade"
-        },
         "clinical_encounters_invoice_id_invoices_id_fk": {
           "name": "clinical_encounters_invoice_id_invoices_id_fk",
           "tableFrom": "clinical_encounters",
@@ -1958,6 +2143,21 @@
           ],
           "onDelete": "set null",
           "onUpdate": "cascade"
+        },
+        "encounters_invoice_patient_fk": {
+          "name": "encounters_invoice_patient_fk",
+          "tableFrom": "clinical_encounters",
+          "tableTo": "invoices",
+          "columnsFrom": [
+            "invoice_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "id",
+            "patient_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -1983,44 +2183,31 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP"
+          "default": "(now())"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+          "onUpdate": true,
+          "default": "(now())"
         },
         "deleted_at": {
           "name": "deleted_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "consent_template_id": {
-          "name": "consent_template_id",
+        "template_id": {
+          "name": "template_id",
           "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "consent_template_version_id": {
-          "name": "consent_template_version_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "template_name": {
-          "name": "template_name",
-          "type": "varchar(160)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -2032,16 +2219,16 @@
           "notNull": true,
           "autoincrement": false
         },
-        "patient_id": {
-          "name": "patient_id",
+        "staff_member_id": {
+          "name": "staff_member_id",
           "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "staff_member_id": {
-          "name": "staff_member_id",
-          "type": "varchar(36)",
+        "template_version": {
+          "name": "template_version",
+          "type": "int",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -2062,7 +2249,7 @@
         },
         "signer_type": {
           "name": "signer_type",
-          "type": "enum('patient','guardian')",
+          "type": "varchar(30)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -2076,7 +2263,7 @@
         },
         "signer_identification": {
           "name": "signer_identification",
-          "type": "varchar(100)",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -2090,69 +2277,13 @@
         },
         "signer_phone": {
           "name": "signer_phone",
-          "type": "varchar(50)",
+          "type": "varchar(30)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "signer_email": {
-          "name": "signer_email",
-          "type": "varchar(254)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "signer_signature_object_path": {
-          "name": "signer_signature_object_path",
-          "type": "varchar(1024)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "doctor_signature_object_path": {
-          "name": "doctor_signature_object_path",
-          "type": "varchar(1024)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "doctor_stamp_object_path": {
-          "name": "doctor_stamp_object_path",
-          "type": "varchar(1024)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "clinical_attachment_id": {
-          "name": "clinical_attachment_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "document_sha256": {
-          "name": "document_sha256",
-          "type": "char(64)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "snapshot_json": {
-          "name": "snapshot_json",
-          "type": "json",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "accepted_by": {
-          "name": "accepted_by",
+        "attachment_id": {
+          "name": "attachment_id",
           "type": "varchar(36)",
           "primaryKey": false,
           "notNull": false,
@@ -2160,25 +2291,25 @@
         },
         "accepted_at": {
           "name": "accepted_at",
-          "type": "datetime",
+          "type": "timestamp(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "printed_at": {
+          "name": "printed_at",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         }
       },
       "indexes": {
-        "consent_instances_encounter_idx": {
-          "name": "consent_instances_encounter_idx",
+        "consent_instances_visit_template_idx": {
+          "name": "consent_instances_visit_template_idx",
           "columns": [
             "clinical_encounter_id",
-            "status"
-          ],
-          "isUnique": false
-        },
-        "consent_instances_patient_idx": {
-          "name": "consent_instances_patient_idx",
-          "columns": [
-            "patient_id",
+            "template_id",
             "created_at"
           ],
           "isUnique": false
@@ -2186,92 +2317,19 @@
         "consent_instances_attachment_idx": {
           "name": "consent_instances_attachment_idx",
           "columns": [
-            "clinical_attachment_id"
-          ],
-          "isUnique": false
-        },
-        "consent_instances_template_idx": {
-          "name": "consent_instances_template_idx",
-          "columns": [
-            "consent_template_id"
-          ],
-          "isUnique": false
-        },
-        "consent_instances_version_idx": {
-          "name": "consent_instances_version_idx",
-          "columns": [
-            "consent_template_version_id"
-          ],
-          "isUnique": false
-        },
-        "consent_instances_staff_idx": {
-          "name": "consent_instances_staff_idx",
-          "columns": [
-            "staff_member_id"
-          ],
-          "isUnique": false
-        },
-        "consent_instances_creator_idx": {
-          "name": "consent_instances_creator_idx",
-          "columns": [
-            "created_by"
-          ],
-          "isUnique": false
-        },
-        "consent_instances_acceptor_idx": {
-          "name": "consent_instances_acceptor_idx",
-          "columns": [
-            "accepted_by"
+            "attachment_id",
+            "deleted_at"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "consent_instances_accepted_by_fk": {
-          "name": "consent_instances_accepted_by_fk",
-          "tableFrom": "consent_instances",
-          "tableTo": "users",
-          "columnsFrom": [
-            "accepted_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "cascade"
-        },
-        "consent_instances_clinical_attachment_id_fk": {
-          "name": "consent_instances_clinical_attachment_id_fk",
-          "tableFrom": "consent_instances",
-          "tableTo": "clinical_attachments",
-          "columnsFrom": [
-            "clinical_attachment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "cascade"
-        },
-        "consent_instances_clinical_encounter_id_fk": {
-          "name": "consent_instances_clinical_encounter_id_fk",
-          "tableFrom": "consent_instances",
-          "tableTo": "clinical_encounters",
-          "columnsFrom": [
-            "clinical_encounter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "cascade"
-        },
-        "consent_instances_consent_template_id_fk": {
-          "name": "consent_instances_consent_template_id_fk",
+        "consent_instances_template_id_consent_templates_id_fk": {
+          "name": "consent_instances_template_id_consent_templates_id_fk",
           "tableFrom": "consent_instances",
           "tableTo": "consent_templates",
           "columnsFrom": [
-            "consent_template_id"
+            "template_id"
           ],
           "columnsTo": [
             "id"
@@ -2279,47 +2337,8 @@
           "onDelete": "restrict",
           "onUpdate": "cascade"
         },
-        "consent_instances_consent_template_version_id_fk": {
-          "name": "consent_instances_consent_template_version_id_fk",
-          "tableFrom": "consent_instances",
-          "tableTo": "consent_template_versions",
-          "columnsFrom": [
-            "consent_template_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "cascade"
-        },
-        "consent_instances_created_by_fk": {
-          "name": "consent_instances_created_by_fk",
-          "tableFrom": "consent_instances",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "cascade"
-        },
-        "consent_instances_patient_id_fk": {
-          "name": "consent_instances_patient_id_fk",
-          "tableFrom": "consent_instances",
-          "tableTo": "patients",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "cascade"
-        },
-        "consent_instances_staff_member_id_fk": {
-          "name": "consent_instances_staff_member_id_fk",
+        "consent_instances_staff_member_id_staff_members_id_fk": {
+          "name": "consent_instances_staff_member_id_staff_members_id_fk",
           "tableFrom": "consent_instances",
           "tableTo": "staff_members",
           "columnsFrom": [
@@ -2330,6 +2349,47 @@
           ],
           "onDelete": "restrict",
           "onUpdate": "cascade"
+        },
+        "consent_instances_attachment_id_clinical_attachments_id_fk": {
+          "name": "consent_instances_attachment_id_clinical_attachments_id_fk",
+          "tableFrom": "consent_instances",
+          "tableTo": "clinical_attachments",
+          "columnsFrom": [
+            "attachment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
+        },
+        "consent_instances_encounter_fk": {
+          "name": "consent_instances_encounter_fk",
+          "tableFrom": "consent_instances",
+          "tableTo": "clinical_encounters",
+          "columnsFrom": [
+            "clinical_encounter_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "consent_instances_version_fk": {
+          "name": "consent_instances_version_fk",
+          "tableFrom": "consent_instances",
+          "tableTo": "consent_template_versions",
+          "columnsFrom": [
+            "template_id",
+            "template_version"
+          ],
+          "columnsTo": [
+            "template_id",
+            "version"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -2355,36 +2415,37 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP"
+          "default": "(now())"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+          "onUpdate": true,
+          "default": "(now())"
         },
         "deleted_at": {
           "name": "deleted_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "consent_template_id": {
-          "name": "consent_template_id",
+        "template_id": {
+          "name": "template_id",
           "type": "varchar(36)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "version_number": {
-          "name": "version_number",
+        "version": {
+          "name": "version",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
@@ -2392,61 +2453,42 @@
         },
         "content": {
           "name": "content",
-          "type": "mediumtext",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "varchar(36)",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         }
       },
       "indexes": {
-        "consent_template_versions_number_unique": {
-          "name": "consent_template_versions_number_unique",
+        "consent_template_versions_unique": {
+          "name": "consent_template_versions_unique",
           "columns": [
-            "consent_template_id",
-            "version_number"
+            "template_id",
+            "version"
           ],
           "isUnique": true
         },
-        "consent_template_versions_creator_idx": {
-          "name": "consent_template_versions_creator_idx",
+        "consent_template_versions_template_idx": {
+          "name": "consent_template_versions_template_idx",
           "columns": [
-            "created_by"
+            "template_id",
+            "deleted_at"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "consent_template_versions_consent_template_id_fk": {
-          "name": "consent_template_versions_consent_template_id_fk",
+        "consent_template_versions_template_id_consent_templates_id_fk": {
+          "name": "consent_template_versions_template_id_consent_templates_id_fk",
           "tableFrom": "consent_template_versions",
           "tableTo": "consent_templates",
           "columnsFrom": [
-            "consent_template_id"
+            "template_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "restrict",
-          "onUpdate": "cascade"
-        },
-        "consent_template_versions_created_by_fk": {
-          "name": "consent_template_versions_created_by_fk",
-          "tableFrom": "consent_template_versions",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
+          "onDelete": "cascade",
           "onUpdate": "cascade"
         }
       },
@@ -2473,36 +2515,37 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP"
+          "default": "(now())"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+          "onUpdate": true,
+          "default": "(now())"
         },
         "deleted_at": {
           "name": "deleted_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "name": {
           "name": "name",
-          "type": "varchar(160)",
+          "type": "varchar(200)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "current_version_number": {
-          "name": "current_version_number",
+        "current_version": {
+          "name": "current_version",
           "type": "int",
           "primaryKey": false,
           "notNull": true,
@@ -2516,47 +2559,26 @@
           "notNull": true,
           "autoincrement": false,
           "default": true
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
         }
       },
       "indexes": {
+        "consent_templates_name_unique": {
+          "name": "consent_templates_name_unique",
+          "columns": [
+            "name"
+          ],
+          "isUnique": true
+        },
         "consent_templates_active_idx": {
           "name": "consent_templates_active_idx",
           "columns": [
             "is_active",
-            "name"
-          ],
-          "isUnique": false
-        },
-        "consent_templates_creator_idx": {
-          "name": "consent_templates_creator_idx",
-          "columns": [
-            "created_by"
+            "deleted_at"
           ],
           "isUnique": false
         }
       },
-      "foreignKeys": {
-        "consent_templates_created_by_fk": {
-          "name": "consent_templates_created_by_fk",
-          "tableFrom": "consent_templates",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "cascade"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {
         "consent_templates_id": {
           "name": "consent_templates_id",
@@ -2580,170 +2602,187 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP"
+          "default": "(now())"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+          "onUpdate": true,
+          "default": "(now())"
         },
         "deleted_at": {
           "name": "deleted_at",
-          "type": "datetime",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "attachment_id": {
+          "name": "attachment_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "template_version_id": {
+          "name": "template_version_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "consent_instance_id": {
+          "name": "consent_instance_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "content_sha256": {
+          "name": "content_sha256",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "varchar(36)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "document_type": {
           "name": "document_type",
-          "type": "enum('consent','invoice','receipt')",
+          "type": "enum('attachment','consent','consent_draft','invoice_report')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "source_id": {
-          "name": "source_id",
-          "type": "varchar(100)",
+        "channel": {
+          "name": "channel",
+          "type": "enum('view','download')",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "source_version": {
-          "name": "source_version",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'1'"
-        },
-        "recipient_email": {
-          "name": "recipient_email",
-          "type": "varchar(190)",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
         "status": {
           "name": "status",
-          "type": "enum('pending','processing','sent','retry','failed','skipped')",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "skip_reason": {
-          "name": "skip_reason",
-          "type": "enum('missing_recipient_email','invalid_recipient_email')",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "attempt_count": {
-          "name": "attempt_count",
-          "type": "smallint unsigned",
+          "type": "enum('pending','completed','failed')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 0
+          "default": "'pending'"
         },
-        "next_attempt_at": {
-          "name": "next_attempt_at",
-          "type": "datetime",
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp(3)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "claimed_at": {
-          "name": "claimed_at",
-          "type": "datetime",
+        "http_status": {
+          "name": "http_status",
+          "type": "int",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "claim_token": {
-          "name": "claim_token",
-          "type": "char(36)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "snapshot_json": {
-          "name": "snapshot_json",
-          "type": "json",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "source_object_path": {
-          "name": "source_object_path",
-          "type": "varchar(512)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "storage_object_path": {
-          "name": "storage_object_path",
-          "type": "varchar(512)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "pdf_sha256": {
-          "name": "pdf_sha256",
-          "type": "char(64)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "email_provider_id": {
-          "name": "email_provider_id",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "last_error": {
-          "name": "last_error",
-          "type": "varchar(1000)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "datetime",
+        "ip_address": {
+          "name": "ip_address",
+          "type": "varchar(45)",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         }
       },
       "indexes": {
-        "document_deliveries_source_version_unique": {
-          "name": "document_deliveries_source_version_unique",
+        "document_deliveries_attachment_idx": {
+          "name": "document_deliveries_attachment_idx",
           "columns": [
-            "document_type",
-            "source_id",
-            "source_version"
+            "attachment_id",
+            "created_at"
           ],
-          "isUnique": true
+          "isUnique": false
         },
-        "document_deliveries_claim_idx": {
-          "name": "document_deliveries_claim_idx",
+        "document_deliveries_consent_idx": {
+          "name": "document_deliveries_consent_idx",
+          "columns": [
+            "consent_instance_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "document_deliveries_status_idx": {
+          "name": "document_deliveries_status_idx",
           "columns": [
             "status",
-            "next_attempt_at",
             "created_at"
           ],
           "isUnique": false
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "document_deliveries_attachment_id_clinical_attachments_id_fk": {
+          "name": "document_deliveries_attachment_id_clinical_attachments_id_fk",
+          "tableFrom": "document_deliveries",
+          "tableTo": "clinical_attachments",
+          "columnsFrom": [
+            "attachment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "document_deliveries_actor_id_users_id_fk": {
+          "name": "document_deliveries_actor_id_users_id_fk",
+          "tableFrom": "document_deliveries",
+          "tableTo": "users",
+          "columnsFrom": [
+            "actor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
+        },
+        "deliveries_version_fk": {
+          "name": "deliveries_version_fk",
+          "tableFrom": "document_deliveries",
+          "tableTo": "consent_template_versions",
+          "columnsFrom": [
+            "template_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "deliveries_consent_fk": {
+          "name": "deliveries_consent_fk",
+          "tableFrom": "document_deliveries",
+          "tableTo": "consent_instances",
+          "columnsFrom": [
+            "consent_instance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
       "compositePrimaryKeys": {
         "document_deliveries_id": {
           "name": "document_deliveries_id",
@@ -3002,7 +3041,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "encounter_products_quantity_check": {
+          "name": "encounter_products_quantity_check",
+          "value": "`encounter_products`.`quantity` > 0"
+        }
+      }
     },
     "encounter_services": {
       "name": "encounter_services",
@@ -3123,7 +3167,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "encounter_services_quantity_check": {
+          "name": "encounter_services_quantity_check",
+          "value": "`encounter_services`.`quantity` > 0"
+        }
+      }
     },
     "encounter_vitals": {
       "name": "encounter_vitals",
@@ -3405,23 +3454,9 @@
           "notNull": true,
           "autoincrement": false
         },
-        "location_id": {
-          "name": "location_id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "batch_number": {
           "name": "batch_number",
           "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "quantity": {
-          "name": "quantity",
-          "type": "int",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -3439,16 +3474,17 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "unit_cost": {
-          "name": "unit_cost",
-          "type": "decimal(12,2)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
+        "inventory_batches_id_product_unique": {
+          "name": "inventory_batches_id_product_unique",
+          "columns": [
+            "id",
+            "product_id"
+          ],
+          "isUnique": true
+        },
         "inventory_batches_product_number_unique": {
           "name": "inventory_batches_product_number_unique",
           "columns": [
@@ -3479,19 +3515,6 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "cascade"
-        },
-        "inventory_batches_location_id_inventory_locations_id_fk": {
-          "name": "inventory_batches_location_id_inventory_locations_id_fk",
-          "tableFrom": "inventory_batches",
-          "tableTo": "inventory_locations",
-          "columnsFrom": [
-            "location_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -3503,7 +3526,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "inventory_batches_dates_check": {
+          "name": "inventory_batches_dates_check",
+          "value": "`inventory_batches`.`expires_at` IS NULL OR `inventory_batches`.`expires_at` >= `inventory_batches`.`received_at`"
+        }
+      }
     },
     "inventory_categories": {
       "name": "inventory_categories",
@@ -3707,6 +3735,24 @@
           "notNull": true,
           "autoincrement": false
         },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "batch_key": {
+          "name": "batch_key",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "generated": {
+            "as": "COALESCE(batch_id, 'untracked')",
+            "type": "stored"
+          }
+        },
         "quantity": {
           "name": "quantity",
           "type": "int",
@@ -3717,11 +3763,12 @@
         }
       },
       "indexes": {
-        "inventory_stock_product_location_unique": {
-          "name": "inventory_stock_product_location_unique",
+        "inventory_stock_product_location_batch_unique": {
+          "name": "inventory_stock_product_location_batch_unique",
           "columns": [
             "product_id",
-            "location_id"
+            "location_id",
+            "batch_key"
           ],
           "isUnique": true
         },
@@ -3760,6 +3807,21 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "cascade"
+        },
+        "inventory_stock_batch_product_fk": {
+          "name": "inventory_stock_batch_product_fk",
+          "tableFrom": "inventory_stock",
+          "tableTo": "inventory_batches",
+          "columnsFrom": [
+            "batch_id",
+            "product_id"
+          ],
+          "columnsTo": [
+            "id",
+            "product_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -3771,7 +3833,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "inventory_stock_quantity_check": {
+          "name": "inventory_stock_quantity_check",
+          "value": "`inventory_stock`.`quantity` >= 0"
+        }
+      }
     },
     "invoice_items": {
       "name": "invoice_items",
@@ -3949,7 +4016,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "invoice_items_amount_check": {
+          "name": "invoice_items_amount_check",
+          "value": "`invoice_items`.`quantity` > 0 AND `invoice_items`.`unit_price` >= 0 AND `invoice_items`.`discount_amount` >= 0 AND `invoice_items`.`discount_amount` <= `invoice_items`.`quantity` * `invoice_items`.`unit_price` AND `invoice_items`.`total_amount` = `invoice_items`.`quantity` * `invoice_items`.`unit_price` - `invoice_items`.`discount_amount`"
+        }
+      }
     },
     "invoice_number_sequences": {
       "name": "invoice_number_sequences",
@@ -3963,33 +4035,57 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP"
+          "default": "(now())"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+          "onUpdate": true,
+          "default": "(now())"
         },
         "deleted_at": {
           "name": "deleted_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "current_number": {
-          "name": "current_number",
-          "type": "int",
+        "code": {
+          "name": "code",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "active_key": {
+          "name": "active_key",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "prefix": {
+          "name": "prefix",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "padding": {
+          "name": "padding",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 8
         },
         "min_number": {
           "name": "min_number",
@@ -4004,9 +4100,38 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "current_number": {
+          "name": "current_number",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cai": {
+          "name": "cai",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "invoice_number_sequences_code_unique": {
+          "name": "invoice_number_sequences_code_unique",
+          "columns": [
+            "code"
+          ],
+          "isUnique": true
+        },
+        "invoice_number_sequences_active_unique": {
+          "name": "invoice_number_sequences_active_unique",
+          "columns": [
+            "active_key"
+          ],
+          "isUnique": true
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "invoice_number_sequences_id": {
@@ -4017,7 +4142,20 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "invoice_number_sequences_range_check": {
+          "name": "invoice_number_sequences_range_check",
+          "value": "`invoice_number_sequences`.`min_number` > 0 AND `invoice_number_sequences`.`max_number` >= `invoice_number_sequences`.`min_number` AND `invoice_number_sequences`.`current_number` >= `invoice_number_sequences`.`min_number` - 1 AND `invoice_number_sequences`.`current_number` <= `invoice_number_sequences`.`max_number`"
+        },
+        "invoice_number_sequences_padding_check": {
+          "name": "invoice_number_sequences_padding_check",
+          "value": "`invoice_number_sequences`.`padding` BETWEEN 1 AND 10"
+        },
+        "invoice_number_sequences_active_check": {
+          "name": "invoice_number_sequences_active_check",
+          "value": "`invoice_number_sequences`.`active_key` IS NULL OR `invoice_number_sequences`.`active_key` = 'sar'"
+        }
+      }
     },
     "invoices": {
       "name": "invoices",
@@ -4057,7 +4195,7 @@
           "name": "patient_id",
           "type": "varchar(36)",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "staff_member_id": {
@@ -4100,6 +4238,20 @@
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "number_sequence_id": {
+          "name": "number_sequence_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sar_number": {
+          "name": "sar_number",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "issued_at": {
@@ -4164,10 +4316,25 @@
         }
       },
       "indexes": {
+        "invoices_id_patient_unique": {
+          "name": "invoices_id_patient_unique",
+          "columns": [
+            "id",
+            "patient_id"
+          ],
+          "isUnique": true
+        },
         "invoices_number_unique": {
           "name": "invoices_number_unique",
           "columns": [
             "invoice_number"
+          ],
+          "isUnique": true
+        },
+        "invoices_sar_number_unique": {
+          "name": "invoices_sar_number_unique",
+          "columns": [
+            "sar_number"
           ],
           "isUnique": true
         },
@@ -4208,8 +4375,8 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "cascade"
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         },
         "invoices_staff_member_id_staff_members_id_fk": {
           "name": "invoices_staff_member_id_staff_members_id_fk",
@@ -4275,6 +4442,34 @@
           ],
           "onDelete": "set null",
           "onUpdate": "cascade"
+        },
+        "invoices_number_sequence_id_invoice_number_sequences_id_fk": {
+          "name": "invoices_number_sequence_id_invoice_number_sequences_id_fk",
+          "tableFrom": "invoices",
+          "tableTo": "invoice_number_sequences",
+          "columnsFrom": [
+            "number_sequence_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "invoices_episode_patient_fk": {
+          "name": "invoices_episode_patient_fk",
+          "tableFrom": "invoices",
+          "tableTo": "care_episodes",
+          "columnsFrom": [
+            "care_episode_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "id",
+            "patient_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -4286,7 +4481,16 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "invoices_amount_check": {
+          "name": "invoices_amount_check",
+          "value": "`invoices`.`amount` >= 0"
+        },
+        "invoices_discounts_check": {
+          "name": "invoices_discounts_check",
+          "value": "`invoices`.`elderly_discount_percent` BETWEEN 0 AND 100 AND `invoices`.`promotional_discount_percent` BETWEEN 0 AND 100"
+        }
+      }
     },
     "medical_records": {
       "name": "medical_records",
@@ -4671,9 +4875,36 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "active_key": {
+          "name": "active_key",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "generated": {
+            "as": "IF(released_at IS NULL AND deleted_at IS NULL, 1, NULL)",
+            "type": "stored"
+          }
         }
       },
       "indexes": {
+        "or_assignments_active_resource_unique": {
+          "name": "or_assignments_active_resource_unique",
+          "columns": [
+            "operating_room_id",
+            "active_key"
+          ],
+          "isUnique": true
+        },
+        "or_assignments_active_patient_unique": {
+          "name": "or_assignments_active_patient_unique",
+          "columns": [
+            "patient_id",
+            "active_key"
+          ],
+          "isUnique": true
+        },
         "or_assignments_room_idx": {
           "name": "or_assignments_room_idx",
           "columns": [
@@ -4733,6 +4964,21 @@
           "onDelete": "set null",
           "onUpdate": "cascade"
         },
+        "rooms_episode_patient_fk": {
+          "name": "rooms_episode_patient_fk",
+          "tableFrom": "operating_room_assignments",
+          "tableTo": "care_episodes",
+          "columnsFrom": [
+            "care_episode_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "id",
+            "patient_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
         "or_assignments_room_fk": {
           "name": "or_assignments_room_fk",
           "tableFrom": "operating_room_assignments",
@@ -4756,7 +5002,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "or_assignments_dates_check": {
+          "name": "or_assignments_dates_check",
+          "value": "`operating_room_assignments`.`released_at` IS NULL OR `operating_room_assignments`.`released_at` >= `operating_room_assignments`.`assigned_at`"
+        }
+      }
     },
     "operating_room_events": {
       "name": "operating_room_events",
@@ -4948,7 +5199,7 @@
         },
         "status": {
           "name": "status",
-          "type": "enum('available','occupied','maintenance','blocked')",
+          "type": "enum('available','maintenance','blocked')",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -4996,23 +5247,24 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP"
+          "default": "(now())"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+          "onUpdate": true,
+          "default": "(now())"
         },
         "deleted_at": {
           "name": "deleted_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -5026,21 +5278,28 @@
         },
         "token_hash": {
           "name": "token_hash",
-          "type": "char(64)",
+          "type": "varchar(64)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "expires_at": {
           "name": "expires_at",
-          "type": "datetime",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "used_at": {
           "name": "used_at",
-          "type": "datetime",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -5054,25 +5313,18 @@
           ],
           "isUnique": true
         },
-        "password_reset_tokens_user_created_idx": {
-          "name": "password_reset_tokens_user_created_idx",
+        "password_reset_tokens_user_idx": {
+          "name": "password_reset_tokens_user_idx",
           "columns": [
             "user_id",
-            "created_at"
-          ],
-          "isUnique": false
-        },
-        "password_reset_tokens_expiry_idx": {
-          "name": "password_reset_tokens_expiry_idx",
-          "columns": [
             "expires_at"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "password_reset_tokens_user_id_fk": {
-          "name": "password_reset_tokens_user_id_fk",
+        "password_reset_tokens_user_id_users_id_fk": {
+          "name": "password_reset_tokens_user_id_users_id_fk",
           "tableFrom": "password_reset_tokens",
           "tableTo": "users",
           "columnsFrom": [
@@ -5081,7 +5333,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "restrict",
           "onUpdate": "cascade"
         }
       },
@@ -5315,6 +5567,14 @@
         }
       },
       "indexes": {
+        "patient_movements_id_patient_unique": {
+          "name": "patient_movements_id_patient_unique",
+          "columns": [
+            "id",
+            "patient_id"
+          ],
+          "isUnique": true
+        },
         "patient_movements_patient_idx": {
           "name": "patient_movements_patient_idx",
           "columns": [
@@ -5373,6 +5633,62 @@
           ],
           "onDelete": "set null",
           "onUpdate": "cascade"
+        },
+        "patient_movements_bed_id_beds_id_fk": {
+          "name": "patient_movements_bed_id_beds_id_fk",
+          "tableFrom": "patient_movements",
+          "tableTo": "beds",
+          "columnsFrom": [
+            "bed_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "patient_movements_operating_room_id_operating_rooms_id_fk": {
+          "name": "patient_movements_operating_room_id_operating_rooms_id_fk",
+          "tableFrom": "patient_movements",
+          "tableTo": "operating_rooms",
+          "columnsFrom": [
+            "operating_room_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "movements_encounter_patient_fk": {
+          "name": "movements_encounter_patient_fk",
+          "tableFrom": "patient_movements",
+          "tableTo": "clinical_encounters",
+          "columnsFrom": [
+            "clinical_encounter_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "id",
+            "patient_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "movements_episode_patient_fk": {
+          "name": "movements_episode_patient_fk",
+          "tableFrom": "patient_movements",
+          "tableTo": "care_episodes",
+          "columnsFrom": [
+            "care_episode_id",
+            "patient_id"
+          ],
+          "columnsTo": [
+            "id",
+            "patient_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -5465,21 +5781,6 @@
         "identification": {
           "name": "identification",
           "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "identification_type": {
-          "name": "identification_type",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'identidad'"
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -5938,7 +6239,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "products_price_check": {
+          "name": "products_price_check",
+          "value": "`products`.`unit_price` >= 0 AND `products`.`minimum_stock` >= 0"
+        }
+      }
     },
     "promotions": {
       "name": "promotions",
@@ -6167,6 +6473,21 @@
           ],
           "onDelete": "set null",
           "onUpdate": "cascade"
+        },
+        "purchase_items_batch_product_fk": {
+          "name": "purchase_items_batch_product_fk",
+          "tableFrom": "purchase_items",
+          "tableTo": "inventory_batches",
+          "columnsFrom": [
+            "batch_id",
+            "product_id"
+          ],
+          "columnsTo": [
+            "id",
+            "product_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -6178,7 +6499,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "purchase_items_quantity_price_check": {
+          "name": "purchase_items_quantity_price_check",
+          "value": "`purchase_items`.`quantity` > 0 AND `purchase_items`.`unit_cost` >= 0"
+        }
+      }
     },
     "purchases": {
       "name": "purchases",
@@ -6297,76 +6623,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
-    },
-    "resource_types": {
-      "name": "resource_types",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "varchar(36)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "datetime",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "datetime",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "datetime",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "code": {
-          "name": "code",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+      "checkConstraint": {
+        "purchases_amount_check": {
+          "name": "purchases_amount_check",
+          "value": "`purchases`.`total_amount` >= 0"
         }
-      },
-      "indexes": {
-        "resource_types_code_unique": {
-          "name": "resource_types_code_unique",
-          "columns": [
-            "code"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "resource_types_id": {
-          "name": "resource_types_id",
-          "columns": [
-            "id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraint": {}
+      }
     },
     "role_permissions": {
       "name": "role_permissions",
@@ -6642,7 +6904,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "services_price_check": {
+          "name": "services_price_check",
+          "value": "`services`.`price` >= 0"
+        }
+      }
     },
     "staff_members": {
       "name": "staff_members",
@@ -6884,6 +7151,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "quantity": {
           "name": "quantity",
           "type": "int",
@@ -7003,6 +7277,21 @@
           ],
           "onDelete": "set null",
           "onUpdate": "cascade"
+        },
+        "stock_movements_batch_product_fk": {
+          "name": "stock_movements_batch_product_fk",
+          "tableFrom": "stock_movements",
+          "tableTo": "inventory_batches",
+          "columnsFrom": [
+            "batch_id",
+            "product_id"
+          ],
+          "columnsTo": [
+            "id",
+            "product_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -7014,7 +7303,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "stock_movements_quantity_check": {
+          "name": "stock_movements_quantity_check",
+          "value": "`stock_movements`.`quantity` > 0"
+        }
+      }
     },
     "suppliers": {
       "name": "suppliers",

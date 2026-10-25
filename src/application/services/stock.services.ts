@@ -26,10 +26,10 @@ export class StockService {
             id: string; 
             qty: number, 
             subinventoryId?:string 
-        }[]
+        }[], clinicalEncounterId?: string
     ): Promise<void> => {
         try {
-            await this.stockRepo.reduceStockQuantities( items )
+            await this.stockRepo.reduceStockQuantities( items, clinicalEncounterId )
         } catch (err) {
             console.error('error reducing stock quantities: ', err);
             throw err;
@@ -41,10 +41,10 @@ export class StockService {
             id: string;
             qty: number,
             subinventoryId?:string
-        }[]
+        }[], clinicalEncounterId?: string
     ): Promise<void> => {
         try {
-            await this.stockRepo.restoreStockQuantities( items )
+            await this.stockRepo.restoreStockQuantities( items, clinicalEncounterId )
         } catch (err) {
             console.error('error restoring stock quantities: ', err);
             throw err;

@@ -4,6 +4,7 @@ import { TokenPayload } from '../../utils/jwtUtils'
 import { parseRangeHeader } from '../../utils/httpRange'
 import { config } from '../../config/env'
 import { asyncHandler } from '../decorators/asyncHandler'
+import { trackDocumentDelivery } from '../middlewares/document-delivery'
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   'image/jpeg': '.jpg',
@@ -116,6 +117,10 @@ export class AttachmentsController {
 
     // Audit before serving any bytes — every /view and /download hit is logged.
     await this.service.logAccess(attachment.id, user.uid, req.ip ?? null)
+    await trackDocumentDelivery(req, res, {
+      documentType: 'attachment', attachmentId: attachment.id,
+      channel: disposition === 'inline' ? 'view' : 'download',
+    })
 
     const size = Number(attachment.size_bytes)
     res.setHeader('Cache-Control', 'private, no-store')

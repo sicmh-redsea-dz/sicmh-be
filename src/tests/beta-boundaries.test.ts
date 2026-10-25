@@ -26,7 +26,7 @@ test('password recovery has the same public response for absent/inactive account
   let expected: string | undefined
   for (const account of [null, { UsuarioID: 'test', Activo: 0 }, { UsuarioID: 'test', Activo: 1, SessionVersion: 0 }]) {
     for (const mail of ['sent', 'missing', 'failure']) {
-      const service = new AuthService({ findByEmail: async () => account } as any)
+      const service = new AuthService({ findByEmail: async () => account, storePasswordResetToken: async () => {} } as any)
       ;(service as any).sendPasswordResetEmail = async (payload: any) => {
         assert.match(payload.resetUrl, /token=/, 'legitimate delivery still receives the reset link')
         if (mail === 'failure') throw new Error('simulated transport failure')

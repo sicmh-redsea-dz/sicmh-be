@@ -13,7 +13,7 @@
     "db:push:tenant": "drizzle-kit push --config=drizzle.config.ts",
     "db:push": "npm run db:push:global && npm run db:push:tenant",
     "db:migrate:global": "drizzle-kit migrate --config=drizzle.global.config.ts",
-    "db:migrate:tenant": "drizzle-kit migrate --config=drizzle.config.ts",
+    "db:migrate:tenant": "ts-node src/scripts/migrate-tenant.ts",
     "db:migrate": "npm run db:migrate:global && npm run db:migrate:tenant",
     "db:seed": "ts-node src/scripts/seed.ts",
     "db:setup": "npm run db:provision && npm run db:migrate && npm run db:seed"

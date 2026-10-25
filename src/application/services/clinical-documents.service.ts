@@ -17,6 +17,8 @@ import {
   userProfiles,
 } from '../../infrastructure/database/schema/tenant'
 
+export type RenderedConsent = { buffer: Buffer; consentInstanceId?: string; templateVersionId?: string }
+
 type ConsentTemplateDto = {
   id: string
   name: string
@@ -230,20 +232,20 @@ export class ClinicalDocumentsService {
 
   async listVisitConsents(visitId: string): Promise<ConsentInstanceDto[]> {
     const rows = await TenantContext.getDb()
-      .select({ instance: consentInstances, version: consentTemplateVersions })
+      .select({ instance: consentInstances, template: consentTemplates })
       .from(consentInstances)
-      .innerJoin(consentTemplateVersions, eq(consentInstances.templateVersionId, consentTemplateVersions.id))
+      .innerJoin(consentTemplates, eq(consentInstances.templateId, consentTemplates.id))
       .where(and(
         eq(consentInstances.clinicalEncounterId, visitId),
         isNull(consentInstances.deletedAt),
       ))
       .orderBy(desc(consentInstances.updatedAt))
 
-    return rows.map(({ instance, version }) => ({
+    return rows.map(({ instance, template }) => ({
       id: instance.id,
       template_id: instance.templateId,
-      template_name: instance.templateName,
-      template_version: version.version,
+      template_name: instance.templateName ?? template.name,
+      template_version: instance.templateVersion,
       status: instance.status,
       acceptance_method: instance.acceptanceMethod ?? null,
       signer_name: instance.signerName ?? null,
@@ -305,9 +307,9 @@ export class ClinicalDocumentsService {
     })
   }
 
-  async printDraft(patientId: string, doctorId: string, date: string | null, templateId: string, tenantCode: string): Promise<Buffer> {
+  async printDraft(patientId: string, doctorId: string, date: string | null, templateId: string, tenantCode: string): Promise<RenderedConsent> {
     const context = await this.getDraftContext(patientId, doctorId, date, templateId, tenantCode)
-    return renderPdfFromHtml(this.renderConsentHtml(context, { kind: 'printed' }))
+    return { buffer: await renderPdfFromHtml(this.renderConsentHtml(context, { kind: 'printed' })), templateVersionId: context.template.version_id }
   }
 
   async printVisit(
@@ -316,20 +318,21 @@ export class ClinicalDocumentsService {
     expectedTemplateVersion: number | undefined,
     tenantCode: string,
     actorId: string,
-  ): Promise<Buffer> {
+  ): Promise<RenderedConsent> {
     const context = await this.getVisitContext(visitId, templateId, tenantCode)
     this.assertExpectedTemplateVersion(context.template.current_version, expectedTemplateVersion)
     const buffer = await renderPdfFromHtml(this.renderConsentHtml(context, { kind: 'printed' }))
     // Each print is a separate historical instance; never overwrite an accepted consent.
-    await TenantContext.getDb().insert(consentInstances).values({
-      ...this.instanceValues(context, actorId, buffer), status: 'printed',
-    })
-    return buffer
+    const [instance] = await TenantContext.getDb().insert(consentInstances).values({
+      ...this.instanceValues(context, actorId, buffer), status: 'printed', printedAt: new Date(),
+    }).$returningId()
+    return { buffer, consentInstanceId: instance.id }
   }
 
   private instanceValues(context: ConsentDocumentContext, actorId: string, pdf: Buffer) {
     return {
       templateId: context.template.id,
+      templateVersion: context.template.current_version,
       templateVersionId: context.template.version_id,
       templateName: context.template.name,
       clinicalEncounterId: context.visitId!,

@@ -1,114 +1,81 @@
-import { and, count, eq, gte, isNull, like, sql } from 'drizzle-orm'
+import { randomUUID } from 'crypto'
+import { and, eq, isNull, like, or, sql, sum } from 'drizzle-orm'
 import { InventoryRepository } from '../../application/ports/inv.repository'
-import { inventoryValidationError, resolveInventoryLocation } from '../database/inventory-location'
 import { TenantContext } from '../database/TenantContext'
-import { inventoryStock, products, stockMovements } from '../database/schema/tenant'
-
-const toLegacyProduct = (product: typeof products.$inferSelect, quantity: number, total = 0) => ({
-  ProductoID: product.id, NombreProducto: product.name, Descripcion: product.description ?? '',
-  PrecioUnidad: product.unitPrice, NivelMinimoStock: product.minimumStock,
-  Cantidad: quantity, total_registries: total,
-})
-
-const validateProduct = (name: unknown, price: unknown, quantity: unknown, minimum: unknown) => {
-  if (typeof name !== 'string' || !name.trim() || name.trim().length > 150) {
-    throw inventoryValidationError('Product name is required and must not exceed 150 characters.')
-  }
-  if (!Number.isFinite(Number(price)) || Number(price) < 0 || Number(price) > 9999999999.99) {
-    throw inventoryValidationError('Product price must be a non-negative amount.')
-  }
-  for (const value of [quantity, minimum]) {
-    if (!Number.isSafeInteger(Number(value)) || Number(value) < 0 || Number(value) > 2147483647) {
-      throw inventoryValidationError('Stock quantities must be non-negative integers.')
-    }
-  }
-}
+import { inventoryStock, products } from '../database/schema/tenant'
+import { changeInventory, inventoryError, inventoryLocationId, requireQuantity } from './inventory-balances'
 
 export class MysqlInvRepository implements InventoryRepository {
-  async findAll(pagination: { limit: number; offset: number; term: string }, reference: string): Promise<any[]> {
-    const db = TenantContext.getDb()
-    const locationId = await resolveInventoryLocation(reference, db)
-    const filter = and(isNull(products.deletedAt), isNull(inventoryStock.deletedAt),
-      eq(inventoryStock.locationId, locationId),
-      pagination.term ? like(products.name, `%${pagination.term}%`) : undefined)
-    const [rows, totals] = await Promise.all([
-      db.select({ product: products, quantity: inventoryStock.quantity }).from(products)
-        .innerJoin(inventoryStock, eq(products.id, inventoryStock.productId)).where(filter)
-        .orderBy(products.name, products.id).limit(pagination.limit).offset(pagination.offset),
-      db.select({ total: count() }).from(products)
-        .innerJoin(inventoryStock, eq(products.id, inventoryStock.productId)).where(filter),
-    ])
-    return rows.map(({ product, quantity }) => toLegacyProduct(product, quantity, totals[0]?.total ?? 0))
+  async findAll(pagination: { limit: number; offset: number; term: string }, subinvId: string | number): Promise<any[]> {
+    const locationId = await inventoryLocationId(subinvId)
+    const rows = await TenantContext.getDb().select({ product: products, quantity: sum(inventoryStock.quantity), total: sql<number>`COUNT(*) OVER()` })
+      .from(products).leftJoin(inventoryStock, and(eq(products.id, inventoryStock.productId), eq(inventoryStock.locationId, locationId), isNull(inventoryStock.deletedAt)))
+      .where(and(isNull(products.deletedAt), pagination.term ? or(like(products.name, `%${pagination.term}%`), like(products.description, `%${pagination.term}%`)) : undefined))
+      .groupBy(products.id).orderBy(products.name, products.id)
+      .limit(Math.max(1, Math.min(200, Math.trunc(pagination.limit) || 25))).offset(Math.max(0, Math.trunc(pagination.offset) || 0))
+    return rows.map(({ product, quantity, total }) => ({ ...this.legacy(product, Number(quantity ?? 0)), total_registries: Number(total) }))
   }
 
   async findById(id: string): Promise<any | null> {
-    const db = TenantContext.getDb()
-    const mainId = await resolveInventoryLocation('main', db)
-    const [row] = await db.select({ product: products, quantity: inventoryStock.quantity }).from(products)
-      .leftJoin(inventoryStock, and(eq(products.id, inventoryStock.productId),
-        eq(inventoryStock.locationId, mainId), isNull(inventoryStock.deletedAt)))
-      .where(and(eq(products.id, id), isNull(products.deletedAt))).limit(1)
-    return row ? toLegacyProduct(row.product, row.quantity ?? 0) : null
+    const [row] = await TenantContext.getDb().select({ product: products, quantity: sum(inventoryStock.quantity) })
+      .from(products).leftJoin(inventoryStock, and(eq(products.id, inventoryStock.productId), isNull(inventoryStock.deletedAt)))
+      .where(and(eq(products.id, id), isNull(products.deletedAt))).groupBy(products.id)
+    return row ? this.legacy(row.product, Number(row.quantity ?? 0)) : null
   }
 
-  async transfer(data: { prodId: string; prodQty: number; fromLocId: string; toLocId: string; actorId?: string }): Promise<any> {
-    if (!Number.isSafeInteger(data.prodQty) || data.prodQty <= 0 || data.prodQty > 2147483647) {
-      throw inventoryValidationError('Transfer quantity must be a positive integer.')
-    }
-    return TenantContext.getDb().transaction(async (db) => {
-      const from = await resolveInventoryLocation(data.fromLocId, db)
-      const to = await resolveInventoryLocation(data.toLocId, db)
-      if (from === to) throw inventoryValidationError('Origin and destination must be different.')
-      // Serialize transfers and manual edits for a product; conditional updates
-      // also protect against concurrent visit consumption.
-      const [product] = await db.select({ id: products.id }).from(products)
-        .where(and(eq(products.id, data.prodId), isNull(products.deletedAt))).for('update')
-      if (!product) throw inventoryValidationError('Product not found.')
-      const result = await db.update(inventoryStock)
-        .set({ quantity: sql`${inventoryStock.quantity} - ${data.prodQty}` })
-        .where(and(eq(inventoryStock.productId, data.prodId), eq(inventoryStock.locationId, from),
-          isNull(inventoryStock.deletedAt), gte(inventoryStock.quantity, data.prodQty)))
-      if (result[0].affectedRows !== 1) throw inventoryValidationError('Insufficient stock at origin.')
-      await db.insert(inventoryStock).values({ productId: data.prodId, locationId: to, quantity: data.prodQty })
-        .onDuplicateKeyUpdate({ set: {
-          quantity: sql`case when ${inventoryStock.deletedAt} is null then ${inventoryStock.quantity} else 0 end + ${data.prodQty}`,
-          deletedAt: null,
-        } })
-      const [movement] = await db.insert(stockMovements).values({
-        productId: data.prodId, fromLocationId: from, toLocationId: to, type: 'transfer',
-        quantity: data.prodQty, occurredAt: new Date(), actorId: data.actorId,
-      }).$returningId()
-      return { id: movement.id }
-    })
+  async transfer(data: { prodId: string; prodQty: number; fromLocId: string | number; toLocId: string | number; actorId?: string }): Promise<any> {
+    requireQuantity(data.prodQty)
+    const from = await inventoryLocationId(data.fromLocId)
+    const to = await inventoryLocationId(data.toLocId)
+    await changeInventory({ productId: data.prodId, locationId: from, destinationId: to, quantity: -data.prodQty, type: 'transfer', actorId: data.actorId })
+    return { transferred: data.prodQty, productId: data.prodId, fromLocationId: from, toLocationId: to }
   }
 
   async create(data: Record<string, any>): Promise<string> {
-    const { NombreProducto: name, PrecioUnidad: price, Cantidad: quantity, NivelMinimoStock: minimum } = data
-    validateProduct(name, price, quantity, minimum)
-    return TenantContext.getDb().transaction(async (db) => {
-      const mainId = await resolveInventoryLocation('main', db)
-      const [product] = await db.insert(products).values({
-        name: name.trim(), description: data.Descripcion || null,
-        unitPrice: Number(price).toFixed(2), minimumStock: Number(minimum),
-      }).$returningId()
-      await db.insert(inventoryStock).values({ productId: product.id, locationId: mainId, quantity: Number(quantity) })
-      return product.id
+    const name = String(data.NombreProducto ?? '').trim()
+    if (!name) throw inventoryError('El nombre del producto es obligatorio.')
+    const quantity = requireQuantity(Number(data.Cantidad ?? 0), true)
+    const minimumStock = requireQuantity(Number(data.NivelMinimoStock ?? 0), true)
+    const unitPrice = this.price(data.PrecioUnidad)
+    return TenantContext.transaction(async () => {
+      const id = randomUUID()
+      await TenantContext.getDb().insert(products).values({ id, name, description: data.Descripcion ?? null, unitPrice, minimumStock })
+      if (quantity) await changeInventory({ productId: id, locationId: await inventoryLocationId(), quantity, type: 'adjustment' })
+      return id
     })
   }
 
   async update(id: string, data: Record<string, any>): Promise<number> {
-    const { prodName: name, prodUnitPrice: price, prodQty: quantity, prodMinStock: minimum } = data
-    validateProduct(name, price, quantity, minimum)
-    return TenantContext.getDb().transaction(async (db) => {
-      const mainId = await resolveInventoryLocation('main', db)
-      const [product] = await db.select({ id: products.id }).from(products)
-        .where(and(eq(products.id, id), isNull(products.deletedAt))).for('update')
+    return TenantContext.transaction(async () => {
+      const db = TenantContext.getDb()
+      const [product] = await db.select().from(products).where(and(eq(products.id, id), isNull(products.deletedAt))).for('update')
       if (!product) return 0
-      await db.update(products).set({ name: name.trim(), description: data.prodDesc || null,
-        unitPrice: Number(price).toFixed(2), minimumStock: Number(minimum) }).where(eq(products.id, id))
-      await db.insert(inventoryStock).values({ productId: id, locationId: mainId, quantity: Number(quantity) })
-        .onDuplicateKeyUpdate({ set: { quantity: Number(quantity), deletedAt: null } })
+      const name = data.prodName === undefined ? product.name : String(data.prodName).trim()
+      if (!name) throw inventoryError('El nombre del producto es obligatorio.')
+      await db.update(products).set({ name, description: data.prodDesc ?? product.description,
+        minimumStock: data.prodMinStock === undefined ? product.minimumStock : requireQuantity(Number(data.prodMinStock), true),
+        unitPrice: data.prodUnitPrice === undefined ? product.unitPrice : this.price(data.prodUnitPrice),
+      }).where(eq(products.id, id))
+      if (data.prodQty !== undefined) {
+        const quantity = requireQuantity(Number(data.prodQty), true)
+        // The legacy edit endpoint adjusts the general warehouse, never other locations.
+        const locationId = await inventoryLocationId(data.subinvId ?? 'main')
+        const [balance] = await db.select({ quantity: sum(inventoryStock.quantity) }).from(inventoryStock)
+          .where(and(eq(inventoryStock.productId, id), eq(inventoryStock.locationId, locationId), isNull(inventoryStock.deletedAt)))
+        const difference = quantity - Number(balance?.quantity ?? 0)
+        if (difference) await changeInventory({ productId: id, locationId, quantity: difference, type: 'adjustment' })
+      }
       return 1
     })
+  }
+
+  private price(value: unknown): string {
+    const amount = Number(value ?? 0)
+    if (!Number.isFinite(amount) || amount < 0 || amount > 9999999999.99) throw inventoryError('El precio no es válido.')
+    return amount.toFixed(2)
+  }
+  private legacy(product: typeof products.$inferSelect, quantity: number) {
+    return { ProductoID: product.id, NombreProducto: product.name, Descripcion: product.description ?? '',
+      PrecioUnidad: product.unitPrice, NivelMinimoStock: product.minimumStock, Cantidad: quantity }
   }
 }

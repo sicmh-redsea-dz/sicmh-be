@@ -12,29 +12,29 @@
     {
       "idx": 1,
       "version": "5",
-      "when": 1792710058246,
-      "tag": "0001_align_target_schema",
+      "when": 1790716048352,
+      "tag": "0001_restore_reported_tables",
       "breakpoints": true
     },
     {
       "idx": 2,
       "version": "5",
-      "when": 1792880701839,
-      "tag": "0002_patient_form_parity",
+      "when": 1790782059883,
+      "tag": "0002_normalize_integrity",
       "breakpoints": true
     },
     {
       "idx": 3,
       "version": "5",
-      "when": 1792885873144,
-      "tag": "0003_patient_clinical_profile",
+      "when": 1790782917498,
+      "tag": "0003_document_integrity",
       "breakpoints": true
     },
     {
       "idx": 4,
       "version": "5",
-      "when": 1792908000000,
-      "tag": "0004_user_profile_gender",
+      "when": 1792950644401,
+      "tag": "0004_integrated_clinical_parity",
       "breakpoints": true
     }
   ]

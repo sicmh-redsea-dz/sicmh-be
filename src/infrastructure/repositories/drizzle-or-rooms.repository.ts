@@ -47,7 +47,7 @@ export class DrizzleOrRoomsRepository implements OrRoomsRepository {
         id: room.id,
         code: room.code,
         specialty: room.specialty ?? '',
-        status: room.status,
+        status: assignment ? 'occupied' : room.status,
         currentAssignment: assignment ? {
           assignmentId: assignment.id,
           patientId: assignment.patientId,
@@ -82,41 +82,33 @@ export class DrizzleOrRoomsRepository implements OrRoomsRepository {
     for (const room of store.rooms) {
       await db
         .insert(operatingRooms)
-        .values({ id: room.id, code: room.code, specialty: room.specialty, status: room.status })
+        .values({ id: room.id, code: room.code, specialty: room.specialty, status: room.status === 'occupied' ? 'available' : room.status })
         .onDuplicateKeyUpdate({
-          set: { code: room.code, specialty: room.specialty, status: room.status, deletedAt: null },
+          set: { code: room.code, specialty: room.specialty, status: room.status === 'occupied' ? 'available' : room.status, deletedAt: null },
         })
 
       if (room.currentAssignment) {
         const assignment = room.currentAssignment
-        await db
-          .insert(operatingRoomAssignments)
-          .values({
-            id: assignment.assignmentId,
-            operatingRoomId: room.id,
-            patientId: assignment.patientId,
-            staffMemberId: assignment.doctorId,
-            procedureName: assignment.procedure,
-            anesthesiaType: assignment.anesthesiaType,
-            scheduledStartAt: assignment.scheduledStart ? new Date(assignment.scheduledStart) : undefined,
-            scheduledEndAt: assignment.scheduledEnd ? new Date(assignment.scheduledEnd) : undefined,
-            notes: assignment.notes,
-            assignedAt: new Date(assignment.assignedAt),
-            releasedAt: assignment.releasedAt ? new Date(assignment.releasedAt) : null,
-          })
-          .onDuplicateKeyUpdate({
-            set: {
-              patientId: assignment.patientId,
-              staffMemberId: assignment.doctorId,
-              procedureName: assignment.procedure,
-              anesthesiaType: assignment.anesthesiaType,
-              scheduledStartAt: assignment.scheduledStart ? new Date(assignment.scheduledStart) : null,
-              scheduledEndAt: assignment.scheduledEnd ? new Date(assignment.scheduledEnd) : null,
-              notes: assignment.notes,
-              releasedAt: assignment.releasedAt ? new Date(assignment.releasedAt) : null,
-              deletedAt: null,
-            },
-          })
+        const values = {
+          id: assignment.assignmentId,
+          operatingRoomId: room.id,
+          patientId: assignment.patientId,
+          staffMemberId: assignment.doctorId,
+          procedureName: assignment.procedure,
+          anesthesiaType: assignment.anesthesiaType,
+          scheduledStartAt: assignment.scheduledStart ? new Date(assignment.scheduledStart) : undefined,
+          scheduledEndAt: assignment.scheduledEnd ? new Date(assignment.scheduledEnd) : undefined,
+          notes: assignment.notes,
+          assignedAt: new Date(assignment.assignedAt),
+          releasedAt: assignment.releasedAt ? new Date(assignment.releasedAt) : null,
+        }
+        const [existing] = await db.select().from(operatingRoomAssignments).where(eq(operatingRoomAssignments.id, assignment.assignmentId))
+        if (existing) {
+          if (existing.operatingRoomId !== room.id || existing.patientId !== assignment.patientId) throw new Error('No se puede reasignar una identidad histórica.')
+          await db.update(operatingRoomAssignments).set(values).where(eq(operatingRoomAssignments.id, existing.id))
+        } else {
+          await db.insert(operatingRoomAssignments).values(values)
+        }
       } else {
         await db
           .update(operatingRoomAssignments)
@@ -146,10 +138,12 @@ export class DrizzleOrRoomsRepository implements OrRoomsRepository {
   }
 
   async update<T>(mutator: (store: OrRoomsStore) => T | Promise<T>): Promise<T> {
-    const store = await this.load()
-    const result = await mutator(store)
-    await this.save(store)
-    return result
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const store = await this.load()
+      const result = await mutator(store)
+      await this.save(store)
+      return result
+    })
   }
 
   private assignmentIdFromEvent(event: OrRoomHistoryEntry): string | undefined {

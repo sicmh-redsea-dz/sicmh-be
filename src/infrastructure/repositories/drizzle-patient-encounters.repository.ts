@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNull, notInArray } from 'drizzle-orm'
 import { PatientEncountersRepository } from '../../application/ports/patient-encounters.repository'
 import { PatientEncountersStore } from '../../domain/entities/Billing'
 import { TenantContext } from '../database/TenantContext'
@@ -15,6 +15,7 @@ export class DrizzlePatientEncountersRepository implements PatientEncountersRepo
         doctorLastName: staffMembers.lastName,
         invoiceId: invoices.id,
         invoiceNumber: invoices.invoiceNumber,
+        invoiceStatus: invoices.status,
       })
       .from(careEpisodes)
       .innerJoin(patients, eq(careEpisodes.patientId, patients.id))
@@ -24,7 +25,7 @@ export class DrizzlePatientEncountersRepository implements PatientEncountersRepo
       .orderBy(desc(careEpisodes.openedAt))
 
     return {
-      encounters: rows.map(({ episode, patientFirstName, patientLastName, doctorFirstName, doctorLastName, invoiceId, invoiceNumber }) => ({
+      encounters: rows.map(({ episode, patientFirstName, patientLastName, doctorFirstName, doctorLastName, invoiceId, invoiceNumber, invoiceStatus }) => ({
         id: episode.id,
         patientId: episode.patientId,
         patientName: `${patientFirstName} ${patientLastName}`.trim(),
@@ -33,7 +34,7 @@ export class DrizzlePatientEncountersRepository implements PatientEncountersRepo
         origin: episode.origin ?? undefined,
         invoiceNumber: invoiceNumber ?? '',
         invoiceId: invoiceId ?? undefined,
-        status: episode.status,
+        status: invoiceStatus ?? 'Pendiente',
         createdAt: episode.openedAt.toISOString(),
         updatedAt: episode.updatedAt.toISOString(),
         closedAt: episode.closedAt?.toISOString(),
@@ -47,7 +48,7 @@ export class DrizzlePatientEncountersRepository implements PatientEncountersRepo
     const db = TenantContext.getDb()
     await db.transaction(async (tx) => {
       await tx.update(careEpisodes).set({ deletedAt: new Date(), updatedAt: new Date() })
-        .where(isNull(careEpisodes.deletedAt))
+        .where(and(isNull(careEpisodes.deletedAt), store.encounters.length ? notInArray(careEpisodes.id, store.encounters.map(item => item.id)) : undefined))
       for (const encounter of store.encounters) {
         const values = {
           id: encounter.id,
@@ -55,7 +56,6 @@ export class DrizzlePatientEncountersRepository implements PatientEncountersRepo
           staffMemberId: encounter.doctorId ?? null,
           previousEpisodeId: encounter.previousEncounterId ?? null,
           origin: encounter.origin ?? null,
-          status: encounter.status,
           openedAt: new Date(encounter.createdAt),
           closedAt: encounter.closedAt ? new Date(encounter.closedAt) : null,
           deletedAt: null,
@@ -71,9 +71,11 @@ export class DrizzlePatientEncountersRepository implements PatientEncountersRepo
   }
 
   async update<T>(mutator: (store: PatientEncountersStore) => T | Promise<T>): Promise<T> {
-    const store = await this.load()
-    const result = await mutator(store)
-    await this.save(store)
-    return result
+    return TenantContext.withLock('clinical_workflows', async () => {
+      const store = await this.load()
+      const result = await mutator(store)
+      await this.save(store)
+      return result
+    })
   }
 }

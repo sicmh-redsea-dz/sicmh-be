@@ -57,7 +57,7 @@ export const requireVisitOriginPermission = (action: 'read' | 'update', source: 
       let origins: string[] = []
       if (source === 'id') {
         const db = TenantContext.getDb()
-        const [row] = await db.select({ type: clinicalEncounters.type, episode: clinicalEncounters.careEpisodeId,
+        const [row] = await db.select({ type: clinicalEncounters.type,
           invoiceEpisode: invoices.careEpisodeId }).from(clinicalEncounters)
           .leftJoin(invoices, eq(clinicalEncounters.invoiceId, invoices.id))
           .where(and(eq(clinicalEncounters.id, req.params.id), isNull(clinicalEncounters.deletedAt))).limit(1)
@@ -71,7 +71,7 @@ export const requireVisitOriginPermission = (action: 'read' | 'update', source: 
             res.status(403).json({ message: 'Inventory edits require access to the original care module.' }); return
           }
         }
-        const episode = row.episode ?? row.invoiceEpisode
+        const episode = row.invoiceEpisode
         const movements = await db.select({ from: patientMovements.fromStation, to: patientMovements.toStation }).from(patientMovements)
           .where(and(isNull(patientMovements.deletedAt), or(eq(patientMovements.clinicalEncounterId, req.params.id),
             episode ? eq(patientMovements.careEpisodeId, episode) : undefined)))

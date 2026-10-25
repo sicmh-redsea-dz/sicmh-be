@@ -1,9 +1,9 @@
-import { resolveInventoryLocation } from '../database/inventory-location'
-import { and, count, desc, eq, isNull, like, or, SQL } from 'drizzle-orm'
+import { and, count, desc, eq, isNull, like, or, SQL, sum } from 'drizzle-orm'
 import { VisitsRepository } from '../../application/ports/visits.repository'
 import { History, ShortHistory } from '../../domain/entities/History'
 import { ShortPatient } from '../../domain/entities/Patient'
 import { Staff } from '../../domain/entities/Staff'
+import { inventoryLocationId } from './inventory-balances'
 import { TenantContext } from '../database/TenantContext'
 import {
   clinicalEncounters,
@@ -143,8 +143,6 @@ export class MysqlVisitsRepository implements VisitsRepository {
       const result = await transaction
         .update(clinicalEncounters)
         .set({
-          // An edit may contain only optional expediente fields, with no changes
-          // to the encounter columns themselves.
           updatedAt: new Date(),
           patientId: data.PacienteID ? String(data.PacienteID) : undefined,
           staffMemberId: data.PersonalID ? String(data.PersonalID) : undefined,
@@ -213,21 +211,21 @@ export class MysqlVisitsRepository implements VisitsRepository {
   }
 
   async findStockItems(subinventoryId: string): Promise<Array<Record<string, unknown>>> {
-    const locationId = await resolveInventoryLocation(subinventoryId)
+    const locationId = await inventoryLocationId(subinventoryId)
     const rows = await TenantContext.getDb()
-      .select({ product: products, stock: inventoryStock })
+      .select({ product: products, quantity: sum(inventoryStock.quantity) })
       .from(inventoryStock)
       .innerJoin(products, eq(inventoryStock.productId, products.id))
       .where(and(
         eq(inventoryStock.locationId, locationId),
         isNull(inventoryStock.deletedAt),
         isNull(products.deletedAt),
-      ))
-    return rows.map(({ product, stock }) => ({
+      )).groupBy(products.id)
+    return rows.map(({ product, quantity }) => ({
       ProductoID: product.id,
       NombreProducto: product.name,
       Descripcion: product.description ?? '',
-      Cantidad: stock.quantity,
+      Cantidad: Number(quantity ?? 0),
       PrecioUnidad: product.unitPrice,
     }))
   }

@@ -233,7 +233,7 @@ export class VisitsService {
             // Invoice + visit + stock reduction + stock inserts all run on one
             // connection: if any step fails (e.g. insufficient stock), the whole
             // set rolls back atomically instead of leaving partial writes behind.
-            const result = await TenantContext.transaction(async () => {
+            const result = await TenantContext.withLock('clinical_workflows', async () => {
                 let amount: number = 0.00
 
                 if ( stockItems && stockItems.length > 0 )
@@ -254,7 +254,7 @@ export class VisitsService {
                 if (profileReview) await new ClinicalProfileService().review(patient, visitId, profileReview, actorId ?? '')
 
                 if ( stockItems && stockItems.length > 0 ) {
-                    await this.stockService.reduceStockQuantities( stockItems )
+                    await this.stockService.reduceStockQuantities(stockItems, visitId)
                     await Promise.all([
                         this.stockService.insertStockInvoice(translatedFields['FacturaID'], stockItems),
                         this.stockService.insertStockHistory( visitId, stockItems )
@@ -268,6 +268,7 @@ export class VisitsService {
                         createdAt: now, updatedAt: now,
                     })
                 }
+                await this.recordBillingTrail({ patient, doctor, originKey, invoice: createdInvoice, visitId, date, consultaService })
                 return { invoice: createdInvoice, insertId: visitId }
             })
 
@@ -277,19 +278,6 @@ export class VisitsService {
             console.error('error creating visit, transaction rolled back: ', err)
             throw err
         }
-
-        // Encounter/movement/ledger failures are only warned, never surfaced
-        // to the client, so there is no reason to make the response wait for
-        // them (they rewrite growing JSON files on every save).
-        await this.recordBillingTrail({
-            patient,
-            doctor,
-            originKey,
-            invoice,
-            visitId: insertId,
-            date,
-            consultaService
-        })
 
         return { visit: insertId }
     }
@@ -331,7 +319,7 @@ export class VisitsService {
                 reference: { visitId }
             })
         } catch (err) {
-            console.warn('billing movement error:', (err as any)?.message || err)
+            throw err
         }
 
         if (consultaService) {
@@ -345,7 +333,7 @@ export class VisitsService {
                     service: consultaService
                 })
             } catch (err) {
-                console.warn('consulta service ledger error:', (err as any)?.message || err)
+                throw err
             }
         }
     }
@@ -459,7 +447,7 @@ export class VisitsService {
 
 
    editVisit = async (editVisitPayload: EditVisitPayload): Promise<any> => {
-        return TenantContext.transaction(async () => {
+        return TenantContext.withLock('clinical_workflows', async () => {
         const { id, body } = editVisitPayload;
         if (body.clinicalProfileReview !== undefined) throw this.buildValidationError(['La ficha vigente se revisa en una consulta nueva; esta atencion conserva su ficha original.'])
 
@@ -514,11 +502,12 @@ export class VisitsService {
             }
 
             if (stockDelta.length > 0) {
+                const before = await this.stockService.findInvoiceItems(existingVisit.FacturaID)
                 const increases = stockDelta.filter((item) => item.qty > 0)
                 const decreases = stockDelta.filter((item) => item.qty < 0)
 
                 if (increases.length > 0) {
-                    await this.stockService.reduceStockQuantities(increases)
+                    await this.stockService.reduceStockQuantities(increases, id)
                     await Promise.all([
                         this.stockService.insertStockInvoice(existingVisit.FacturaID, increases),
                         this.stockService.insertStockHistory(id, increases)
@@ -527,19 +516,16 @@ export class VisitsService {
 
                 if (decreases.length > 0) {
                     const restorations = decreases.map((item) => ({ ...item, qty: -item.qty }))
-                    await this.stockService.restoreStockQuantities(restorations)
-                    // Negative-quantity correction rows: the aggregate SUM() reads
-                    // in the stock/invoice history queries net these against the
-                    // original charge instead of needing an UPDATE/DELETE.
+                    await this.stockService.restoreStockQuantities(restorations, id)
                     await Promise.all([
                         this.stockService.insertStockInvoice(existingVisit.FacturaID, decreases),
                         this.stockService.insertStockHistory(id, decreases)
                     ])
                 }
 
-                const amountDelta = await this.stockService.readAmountByStockQty(
-                    stockDelta.map((item) => ({ id: item.id, qty: item.qty }))
-                )
+                const after = await this.stockService.findInvoiceItems(existingVisit.FacturaID)
+                const subtotal = (items: typeof after) => items.reduce((total, item) => total + item.qty * item.unitPrice, 0)
+                const amountDelta = subtotal(after) - subtotal(before)
 
                 if (amountDelta !== 0) {
                     await this.invoiceService.incrementAmountById(existingVisit.FacturaID, amountDelta)
@@ -554,26 +540,28 @@ export class VisitsService {
         })
     };
 
-    deleteVisit = async ( id: string ): Promise<any> => {
-        try {
-            const existingVisit = await this.visitsRepo.findById( id )
+    deleteVisit = async (id: string): Promise<any> => {
+        return TenantContext.withLock('clinical_workflows', async () => {
+            try {
+                const existingVisit = await this.visitsRepo.findById(id)
 
-            const affectedRows = await this.visitsRepo.softDelete( id )
-            if ( affectedRows == 0 )
-                throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`)
+                const affectedRows = await this.visitsRepo.softDelete(id)
+                if (affectedRows == 0)
+                    throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`)
 
-            if ( existingVisit?.FacturaID ) {
-                try {
-                    await this.annulInvoiceForVisit( existingVisit.FacturaID )
-                } catch (err) {
-                    console.warn('invoice annul on visit delete warning:', (err as any)?.message || err)
+                if (existingVisit?.FacturaID) {
+                    try {
+                        await this.annulInvoiceForVisit(existingVisit.FacturaID)
+                    } catch (err) {
+                        throw err
+                    }
                 }
-            }
 
-            return `Visit Id: ${id} deleted`
-        } catch ( err ) {
-            throw err
-        }
+                return `Visit Id: ${id} deleted`
+            } catch (err) {
+                throw err
+            }
+        })
     }
 
     private annulInvoiceForVisit = async ( facturaId: string ): Promise<void> => {
