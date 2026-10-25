@@ -37,8 +37,6 @@ export interface AuthRepository {
     changeUserPassword(userId: string, passwordHash: string): Promise<void>
     createPersonalRecord(params: PersonalCreateParams): Promise<string>
     getSessionVersion(userId: string): Promise<number>
-    // Pass the already-known current version (e.g. from a just-fetched User
-    // row) to skip the extra read-back query; omit it to fall back to a
-    // fresh SELECT after the UPDATE.
+    // The version is allocated under an account row lock, including concurrent logins.
     incrementSessionVersion(userId: string, currentVersion?: number): Promise<number>
 }

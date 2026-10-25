@@ -1,4 +1,4 @@
-import { and, count, eq, isNull, SQL, sql } from 'drizzle-orm'
+import { and, count, eq, isNull, SQL } from 'drizzle-orm'
 import { AuthCreateUserParams, AuthRepository, PersonalCreateParams } from '../../application/ports/auth.repository'
 import { User } from '../../domain/entities/User'
 import { TenantContext } from '../database/TenantContext'
@@ -138,16 +138,15 @@ export class MysqlAuthRepository implements AuthRepository {
   }
 
   async incrementSessionVersion(userId: string, currentVersion?: number): Promise<number> {
-    if (currentVersion !== undefined) {
-      const sessionVersion = currentVersion + 1
-      await TenantContext.getDb().update(users).set({ sessionVersion }).where(eq(users.id, userId))
+    return TenantContext.getDb().transaction(async (tx) => {
+      // Lock the account so simultaneous logins cannot issue the same version.
+      const [user] = await tx.select({ sessionVersion: users.sessionVersion }).from(users)
+        .where(and(eq(users.id, userId), isNull(users.deletedAt))).limit(1).for('update')
+      if (!user) throw Object.assign(new Error('User not found.'), { name: 'not_found_error' })
+      const sessionVersion = user.sessionVersion + 1
+      await tx.update(users).set({ sessionVersion }).where(eq(users.id, userId))
       return sessionVersion
-    }
-    await TenantContext.getDb()
-      .update(users)
-      .set({ sessionVersion: sql`${users.sessionVersion} + 1` })
-      .where(eq(users.id, userId))
-    return this.getSessionVersion(userId)
+    })
   }
 
   private async findOne(condition: SQL): Promise<User | null> {

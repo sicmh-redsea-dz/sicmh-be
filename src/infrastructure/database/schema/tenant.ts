@@ -86,6 +86,7 @@ export const userProfiles = mysqlTable(
   {
     ...baseColumns(),
     userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+    gender: mysqlEnum('gender', ['male', 'female', 'unspecified']),
     phone: varchar('phone', { length: 30 }),
     identification: varchar('identification', { length: 50 }),
     department: varchar('department', { length: 100 }),

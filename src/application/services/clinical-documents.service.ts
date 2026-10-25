@@ -14,6 +14,7 @@ import {
   consentTemplateVersions,
   patients,
   staffMembers,
+  userProfiles,
 } from '../../infrastructure/database/schema/tenant'
 
 type ConsentTemplateDto = {
@@ -71,6 +72,7 @@ type PrescriptionContext = {
   doctorId: string
   doctorUserId: string | null
   doctorName: string
+  doctorTitle: string
   doctorSpecialty: string | null
   doctorPosition: string | null
   doctorPhone: string | null
@@ -117,6 +119,10 @@ export class ClinicalDocumentsService {
     const visit = await this.loadVisitRecord(visitId)
     const clinicName = await this.getClinicName(tenantCode)
     const assets = await this.loadDoctorAssets(tenantCode, visit.staff.userId)
+    const [profile] = visit.staff.userId
+      ? await TenantContext.getDb().select({ gender: userProfiles.gender }).from(userProfiles)
+        .where(and(eq(userProfiles.userId, visit.staff.userId), isNull(userProfiles.deletedAt))).limit(1)
+      : []
 
     return {
       visitId: visit.encounter.id,
@@ -130,6 +136,7 @@ export class ClinicalDocumentsService {
       doctorId: visit.staff.id,
       doctorUserId: visit.staff.userId ?? null,
       doctorName: this.fullName(visit.staff.firstName, visit.staff.lastName),
+      doctorTitle: profile?.gender === 'female' ? 'Dra.' : profile?.gender === 'male' ? 'Dr.' : '',
       doctorSpecialty: visit.staff.specialty ?? null,
       doctorPosition: visit.staff.position ?? null,
       doctorPhone: visit.staff.phone ?? null,

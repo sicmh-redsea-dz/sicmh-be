@@ -2,6 +2,7 @@ export type ThemePreference = 'light' | 'dark'
 
 export interface UserProfile {
   userId: string
+  gender?: 'male' | 'female' | 'unspecified'
   phone?: string
   identification?: string
   department?: string

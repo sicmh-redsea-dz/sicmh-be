@@ -5,6 +5,7 @@ export interface TokenPayload {
   uid: string
   codigoEmpresa: string
   dbName: string
+  sessionStartedAt?: number
   sv: number // session version — incremented on each login to invalidate prior tokens
 }
 
@@ -15,8 +16,19 @@ export interface PasswordResetTokenPayload {
   purpose: 'password_reset'
 }
 
-export const generateToken = (userId: string, codigoEmpresa: string, dbName: string, sessionVersion: number): string => {
-  return jwt.sign({ uid: userId, codigoEmpresa, dbName, sv: sessionVersion }, config.SECRET_JWT_TOKEN, { expiresIn: config.JWT_EXPIRES_IN as any })
+let configuredTokenSeconds: number | undefined
+
+export const generateToken = (userId: string, codigoEmpresa: string, dbName: string, sessionVersion: number, sessionStartedAt = Math.floor(Date.now() / 1000)): string => {
+  const now = Math.floor(Date.now() / 1000)
+  const remaining = sessionStartedAt + 8 * 60 * 60 - now
+  if (remaining <= 0) throw Object.assign(new Error('La jornada ha finalizado. Inicia sesión nuevamente.'), { name: 'TokenExpiredError' })
+  // A renewable access token: at most 30 minutes, never past the original 8-hour session.
+  if (configuredTokenSeconds === undefined) {
+    const configured = jwt.decode(jwt.sign({}, config.SECRET_JWT_TOKEN, { expiresIn: config.JWT_EXPIRES_IN as any })) as { exp: number; iat: number }
+    configuredTokenSeconds = configured.exp - configured.iat
+  }
+  const expiresIn = Math.min(configuredTokenSeconds, 30 * 60, remaining)
+  return jwt.sign({ uid: userId, codigoEmpresa, dbName, sv: sessionVersion, sessionStartedAt }, config.SECRET_JWT_TOKEN, { expiresIn })
 }
 
 export const verifyToken = (token: string): TokenPayload => {
@@ -24,6 +36,11 @@ export const verifyToken = (token: string): TokenPayload => {
   if (payload.purpose !== undefined || typeof payload.uid !== 'string' || typeof payload.codigoEmpresa !== 'string'
     || typeof payload.dbName !== 'string' || !Number.isSafeInteger(payload.sv))
     throw Object.assign(new Error('Invalid session token.'), { name: 'JsonWebTokenError' })
+  if (payload.sessionStartedAt !== undefined && (!Number.isSafeInteger(payload.sessionStartedAt)
+    || payload.sessionStartedAt > Math.floor(Date.now() / 1000)
+    || Math.floor(Date.now() / 1000) >= payload.sessionStartedAt + 8 * 60 * 60)) {
+    throw Object.assign(new Error('Session expired.'), { name: 'TokenExpiredError' })
+  }
   return payload
 }
 

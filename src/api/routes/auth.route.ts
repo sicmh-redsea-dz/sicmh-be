@@ -15,6 +15,7 @@ router.post('/register', validateRegister, authController.register.bind(authCont
 router.post('/login', validateLogin, authController.login.bind(authController))
 router.post('/forgot-password', validateForgotPassword, authController.forgotPassword.bind(authController))
 router.post('/reset-password', validateResetPassword, authController.resetPassword.bind(authController))
+router.post('/renew-session', authMiddleware, authController.renewSession.bind(authController))
 router.get('/check-token', authMiddleware, authController.checkToken.bind(authController))
 router.post('/complete-password-change', authMiddleware, authController.completePasswordChange.bind(authController))
 

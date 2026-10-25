@@ -110,6 +110,10 @@ export class SettingsService {
     const user = await this.authRepo.findById(userId)
     if (!user) throw buildError('not_found_error', 'User not found.')
 
+    if (payload.profile?.gender !== undefined && !['male', 'female', 'unspecified'].includes(payload.profile.gender)) {
+      throw buildValidationError('Genero no valido.')
+    }
+
     const name = payload.name?.trim() || user.NombreUsuario
     const email = payload.email?.trim() || user.CorreoElectronico
 
@@ -130,6 +134,7 @@ export class SettingsService {
       const existingProfile = store.profiles.find((p) => p.userId === userId)
       const nextProfile: UserProfile = {
         userId,
+        gender: payload.profile?.gender ?? existingProfile?.gender,
         phone: payload.profile?.phone ?? existingProfile?.phone,
         identification: payload.profile?.identification ?? existingProfile?.identification,
         department: payload.profile?.department ?? existingProfile?.department,

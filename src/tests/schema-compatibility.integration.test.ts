@@ -40,6 +40,7 @@ test('every tenant model matches the supplied target column names, types, and nu
   // Explicit, additive application extension; keep the supplied target fixture unchanged.
   tables.get('patients')!.set('identification_type', "varchar(30) NOT NULL DEFAULT 'identidad'")
   tables.get('patients')!.set('notes', 'text NULL')
+  tables.get('user_profiles')!.set('gender', "enum('male','female','unspecified') NULL")
   const extension = readFileSync('drizzle/tenant/0003_patient_clinical_profile.sql', 'utf8')
   for (const match of extension.matchAll(/CREATE TABLE `([^`]+)` \(([\s\S]*?)\n\);/g)) {
     tables.set(match[1], new Map(Array.from(match[2].matchAll(/^\s+`([^`]+)` (.+?)(?:,)?$/gm), column => [column[1], column[2]])))

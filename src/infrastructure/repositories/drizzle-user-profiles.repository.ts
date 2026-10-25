@@ -9,6 +9,7 @@ export class DrizzleUserProfilesRepository implements UserProfilesRepository {
     const rows = await TenantContext.getDb().select().from(userProfiles).where(isNull(userProfiles.deletedAt))
     const profiles = rows.map((row): UserProfile => ({
       userId: row.userId,
+      gender: row.gender ?? undefined,
       phone: row.phone ?? undefined,
       identification: row.identification ?? undefined,
       department: row.department ?? undefined,
@@ -41,6 +42,7 @@ export class DrizzleUserProfilesRepository implements UserProfilesRepository {
         .insert(userProfiles)
         .values({
           userId: profile.userId,
+          gender: profile.gender,
           phone: profile.phone,
           identification: profile.identification,
           department: profile.department,
@@ -50,6 +52,7 @@ export class DrizzleUserProfilesRepository implements UserProfilesRepository {
         })
         .onDuplicateKeyUpdate({
           set: {
+            gender: profile.gender,
             phone: profile.phone,
             identification: profile.identification,
             department: profile.department,

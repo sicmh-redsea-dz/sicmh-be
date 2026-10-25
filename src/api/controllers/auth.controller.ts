@@ -81,6 +81,16 @@ export class AuthController {
   }
 
   @asyncHandler({ mode: 'payload' })
+  async renewSession(req: Request): Promise<any> {
+    const session = (req as any).user
+    // Middleware verifies the current session version; renewal must never increment it.
+    const user = await this.authService.checkToken(String(session.uid))
+    const token = generateToken(user._id, session.codigoEmpresa, session.dbName, session.sv,
+      session.sessionStartedAt ?? session.iat)
+    return { user, token }
+  }
+
+  @asyncHandler({ mode: 'payload' })
   async completePasswordChange(req: Request): Promise<any> {
     const reqUser = (req as any).user
     const { newPassword } = req.body ?? {}
