@@ -1,4 +1,12 @@
 node_modules
 dist
 .env
+.env.*
+.git
+.agents
+.claude
+reports
+firebase-debug.log
+**/*firebase-adminsdk*.json
+**/*credentials*.json
 *.txt

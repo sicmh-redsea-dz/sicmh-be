@@ -5,7 +5,12 @@ RUN npm ci
 COPY src/ ./src/
 RUN npm run build
 
-FROM node:22-slim
+FROM builder AS database-setup
+COPY drizzle/ ./drizzle/
+COPY drizzle.config.ts drizzle.global.config.ts ./
+CMD ["npm", "run", "db:setup"]
+
+FROM node:22-slim AS runtime
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-noto-color-emoji \
@@ -19,8 +24,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
-COPY data/ ./data/
-COPY migration.sql ./
 
 EXPOSE 3000
 CMD ["node", "dist/server.js"]

@@ -251,11 +251,13 @@ export class SettingsService {
         provider: 'conventional'
       })
     } catch (err: any) {
-      if (err?.code === 'ER_NO_REFERENCED_ROW_2' || err?.code === 'ER_NO_REFERENCED_ROW') {
+      // Drizzle wraps driver failures in a query error with the original cause.
+      const code = err?.cause?.code ?? err?.code
+      if (code === 'ER_NO_REFERENCED_ROW_2' || code === 'ER_NO_REFERENCED_ROW') {
         throw buildValidationError('Rol inválido.')
       }
-      if (err?.code === 'ER_DUP_ENTRY') {
-        throw buildValidationError('El correo ya está registrado.')
+      if (code === 'ER_DUP_ENTRY') {
+        throw buildValidationError('El correo ya está registrado, posiblemente en una cuenta eliminada. Usa otro correo o solicita recuperar la cuenta.')
       }
       throw err
     }

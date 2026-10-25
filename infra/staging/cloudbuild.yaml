@@ -1,0 +1,11 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: [build, --target, runtime, -t, 'us-central1-docker.pkg.dev/$PROJECT_ID/medit-staging/backend:$BUILD_ID', .]
+  - name: gcr.io/cloud-builders/docker
+    args: [build, --target, database-setup, -t, 'us-central1-docker.pkg.dev/$PROJECT_ID/medit-staging/database-setup:$BUILD_ID', .]
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/medit-staging/backend:$BUILD_ID'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/medit-staging/database-setup:$BUILD_ID'
+timeout: 1200s
+options:
+  logging: CLOUD_LOGGING_ONLY

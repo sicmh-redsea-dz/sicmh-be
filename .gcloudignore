@@ -1,0 +1,12 @@
+.gcloudignore
+.git
+.agents
+.claude
+node_modules
+dist
+.env
+.env.*
+reports
+firebase-debug.log
+**/*firebase-adminsdk*.json
+**/*credentials*.json
