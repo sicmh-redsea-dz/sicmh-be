@@ -20,7 +20,11 @@ export const generateToken = (userId: string, codigoEmpresa: string, dbName: str
 }
 
 export const verifyToken = (token: string): TokenPayload => {
-  return jwt.verify(token, config.SECRET_JWT_TOKEN) as TokenPayload
+  const payload = jwt.verify(token, config.SECRET_JWT_TOKEN) as TokenPayload & { purpose?: unknown }
+  if (payload.purpose !== undefined || typeof payload.uid !== 'string' || typeof payload.codigoEmpresa !== 'string'
+    || typeof payload.dbName !== 'string' || !Number.isSafeInteger(payload.sv))
+    throw Object.assign(new Error('Invalid session token.'), { name: 'JsonWebTokenError' })
+  return payload
 }
 
 export const generatePasswordResetToken = (

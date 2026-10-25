@@ -2,8 +2,8 @@ import { Request, Router } from 'express';
 import { validateCreatePatient, validateEditPatient, validateDeletePatient } from '../validators/visits.validator'
 import { VisitsController } from '../controllers/visits.controller';
 import { ClinicalDocumentsController } from '../controllers/clinical-documents.controller';
-import { requireAnyPermission, requirePermissions, requirePermissionsIf, requireResolvedAnyPermission } from '../middlewares/permission.middleware'
-import { CLINICAL_READ_PERMISSIONS, CLINICAL_UPDATE_PERMISSIONS, getClinicalPermissionForOrigin, Permission } from '../permissions/permissions'
+import { requireAnyPermission, requirePermissions, requirePermissionsIf, requireVisitOriginPermission, requireInventoryLocationPermissions } from '../middlewares/permission.middleware'
+import { CLINICAL_READ_PERMISSIONS, CLINICAL_UPDATE_PERMISSIONS, Permission } from '../permissions/permissions'
 import { singleFileUpload } from '../middlewares/upload.middleware';
 
 const router = Router()
@@ -14,26 +14,15 @@ const clinicalDocumentsController = new ClinicalDocumentsController()
 // Emergencia/hospitalización/quirófano always allow inventory; consulta externa
 // only does for tenants/roles granted the feature permission.
 const consultaWithInventory = (req: Request) =>
-    req.body?.origin === 'visits' &&
+    (req.body?.origin === 'visits' || (req as any).visitOrigin === 'visits' || (req as any).visitOriginalOrigin === 'visits') &&
     Array.isArray(req.body?.stockItems) &&
     req.body.stockItems.length > 0
-
-const resolveReadPermission = (req: Request): Permission[] => {
-    const ext = String(req.query.ext ?? '').trim()
-    const derived = getClinicalPermissionForOrigin(ext || 'visits', 'read')
-    return derived ? ['visits.read', derived] : ['visits.read', ...CLINICAL_READ_PERMISSIONS]
-}
-
-const resolveUpdatePermission = (req: Request): Permission[] => {
-    const derived = getClinicalPermissionForOrigin(String(req.body?.origin ?? ''), 'update')
-    return derived ? ['visits.update', 'visits.create', derived] : ['visits.update', 'visits.create', ...CLINICAL_UPDATE_PERMISSIONS]
-}
 
 const allVisitReadPermissions: Permission[] = ['visits.read', ...CLINICAL_READ_PERMISSIONS]
 
 router.get(
     '/', 
-    requireResolvedAnyPermission(resolveReadPermission, allVisitReadPermissions),
+    requireVisitOriginPermission('read', 'query'),
     visitsController.getVisits.bind( visitsController )
 )
 router.get(
@@ -48,80 +37,84 @@ router.get(
 )
 router.post(
     '/consent-templates/:templateId/print',
-    requireAnyPermission(allVisitReadPermissions),
+    requireAnyPermission(CLINICAL_UPDATE_PERMISSIONS),
     clinicalDocumentsController.printDraft
 )
 router.get(
     '/:id', 
-    requireAnyPermission(allVisitReadPermissions),
+    requireVisitOriginPermission('read', 'id'),
     visitsController.getVisit.bind( visitsController )
 )
 router.get(
     '/:id/prescription',
-    requireAnyPermission(allVisitReadPermissions),
+    requireVisitOriginPermission('read', 'id'),
     clinicalDocumentsController.getPrescription.bind(clinicalDocumentsController)
 )
 router.get(
     '/:id/consents',
-    requireAnyPermission(allVisitReadPermissions),
+    requireVisitOriginPermission('read', 'id'),
     clinicalDocumentsController.listVisitConsents.bind(clinicalDocumentsController)
 )
 router.get(
     '/:id/consents/:templateId/context',
-    requireAnyPermission(allVisitReadPermissions),
+    requireVisitOriginPermission('read', 'id'),
     clinicalDocumentsController.getVisitContext.bind(clinicalDocumentsController)
 )
 router.post(
     '/:id/consents/:templateId/accept',
-    requireAnyPermission(allVisitReadPermissions),
+    requireVisitOriginPermission('update', 'id'),
+    requirePermissions('attachments.create'),
     clinicalDocumentsController.acceptVisit.bind(clinicalDocumentsController)
 )
 router.post(
     '/:id/consents/:templateId/print',
-    requireAnyPermission(allVisitReadPermissions),
+    requireVisitOriginPermission('update', 'id'),
     clinicalDocumentsController.printVisit
 )
 router.post(
     '/:id/consents/instances/:instanceId/physical',
-    requireAnyPermission(allVisitReadPermissions),
+    requireVisitOriginPermission('update', 'id'),
+    requirePermissions('attachments.create'),
     singleFileUpload('file'),
     clinicalDocumentsController.uploadPhysical
 )
 router.post(
     '/create',
-    requireResolvedAnyPermission(resolveUpdatePermission, ['visits.create', 'visits.update', ...CLINICAL_UPDATE_PERMISSIONS]),
+    requireVisitOriginPermission('update', 'body'),
     requirePermissionsIf(consultaWithInventory, 'visits.inventory.manage'),
     validateCreatePatient,
     visitsController.createVisit.bind( visitsController )
 )
 router.patch(
     '/edit/:id',
-    requireResolvedAnyPermission(resolveUpdatePermission, ['visits.update', ...CLINICAL_UPDATE_PERMISSIONS]),
+    requireVisitOriginPermission('update', 'id'),
     requirePermissionsIf(consultaWithInventory, 'visits.inventory.manage'),
     validateEditPatient,
     visitsController.editVisit.bind( visitsController )
 )
 router.delete(
     '/:id', 
+    requireVisitOriginPermission('update', 'id'),
     requirePermissions('visits.delete'),
     validateDeletePatient,
     visitsController.deleteVisit.bind( visitsController )
 )
 router.get(
     '/search/doctors',
-    requireAnyPermission(allVisitReadPermissions),
+    requireAnyPermission([...allVisitReadPermissions, ...CLINICAL_UPDATE_PERMISSIONS]),
     visitsController.getDoctors.bind( visitsController )
 )
 
 router.get(
     '/search/patients',
-    requireAnyPermission(allVisitReadPermissions),
+    requireAnyPermission([...allVisitReadPermissions, ...CLINICAL_UPDATE_PERMISSIONS]),
     visitsController.getPatients.bind( visitsController )
 )
 
 router.get(
     '/search/stock-items',
-    requireAnyPermission(allVisitReadPermissions),
+    requireAnyPermission([...allVisitReadPermissions, ...CLINICAL_UPDATE_PERMISSIONS]),
+    requireInventoryLocationPermissions('stock'),
     visitsController.getStockItems.bind( visitsController )
 )
 

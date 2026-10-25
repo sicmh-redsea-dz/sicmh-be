@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { describe, test } from 'node:test'
-import { validateGetPatient, validatePatchPatient } from '../api/validators/patients.validator'
+import { validateGetPatient, validatePatchPatient, validatePostPatient } from '../api/validators/patients.validator'
 import { TenantContext } from '../infrastructure/database/TenantContext'
 import { MysqlPatientsRepository } from '../infrastructure/repositories/mysql-patients.repository'
 
@@ -64,4 +64,32 @@ describe('MysqlPatientsRepository.update', () => {
       ;(TenantContext as any).getDb = originalGetDb
     }
   })
+})
+
+
+describe('patient document and contact formats', () => {
+  const base = { birthdate: '2000-01-01', firstName: 'Test', lastName: 'Patient', gender: 'other', phone: '', email: '', address: '' }
+  test('accepts each document format and optional patient contact details', async () => {
+    for (const [identificationType, id] of [['identidad', '0801199912345'], ['carne_residencia', '1234567890123456789'], ['pasaporte', 'AB12345']]) {
+      assert.equal(await runMiddlewares(validatePostPatient, { body: { ...base, identificationType, id } }), undefined)
+    }
+  })
+  test('rejects malformed documents', async () => {
+    for (const change of [
+      { identificationType: 'identidad', id: '080119991234' }, { identificationType: 'identidad', id: 'A801199912345' },
+      { identificationType: 'carne_residencia', id: '12345678901234567890' }, { identificationType: 'carne_residencia', id: 'AB1234' },
+      { identificationType: 'pasaporte', id: 'AB-1234' },
+    ]) {
+      const error: any = await runMiddlewares(validatePostPatient, { body: { ...base, ...change } })
+      assert.equal(error?.name, 'validation_errors', JSON.stringify(change))
+    }
+  })
+})
+
+
+test('patient creation accepts omitted optional fields, blank email and partial emergency contact', async () => {
+  const required = { birthdate: '2000-01-01', firstName: 'Test', lastName: 'Patient', gender: 'other', id: '0801199912345' }
+  for (const extra of [{}, { email: '' }, { email: '   ' }, { emergencyContact: { phone: '99999999' } }, { address: 'A' }]) {
+    assert.equal(await runMiddlewares(validatePostPatient, { body: { ...required, ...extra } }), undefined)
+  }
 })

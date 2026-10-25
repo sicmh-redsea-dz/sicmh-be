@@ -3,7 +3,7 @@ import { PatientsController } from '../controllers/patients.controller';
 import { AttachmentsController } from '../controllers/attachments.controller';
 import { AttachmentCaptureController } from '../controllers/attachment-capture.controller';
 import { validateGetPatient, validateGetPatients, validatePostPatient, validatePatchPatient, validateDeletePatient } from '../validators/patients.validator';
-import { requirePermissions } from '../middlewares/permission.middleware';
+import { requireAnyPermission, requirePermissions } from '../middlewares/permission.middleware';
 import { singleFileUpload } from '../middlewares/upload.middleware';
 
 const router = Router();
@@ -11,6 +11,11 @@ const router = Router();
 const patientController = new PatientsController();
 const attachmentsController = new AttachmentsController();
 const attachmentCaptureController = new AttachmentCaptureController();
+
+router.get('/:id/clinical-profile',
+  requireAnyPermission(['visits.outpatient.read', 'visits.outpatient.update']),
+  validateGetPatient,
+  patientController.getClinicalProfile.bind(patientController));
 
 router.post(
   '/attachment-capture',

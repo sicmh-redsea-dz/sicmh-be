@@ -13,6 +13,7 @@ export interface ShortHistory {
 }
 
 export interface History {
+    patientBirthDate?: string | null
     HistoriaID:        string
     PacienteID:        string
     FechaVisita:       Date

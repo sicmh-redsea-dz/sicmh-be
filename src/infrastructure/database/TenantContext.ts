@@ -17,6 +17,15 @@ export const TenantContext = {
   run<T>(pool: Pool, db: TenantDatabase, fn: () => T | Promise<T>): Promise<T> {
     return storage.run({ pool, db }, () => Promise.resolve(fn()))
   },
+  transaction<T>(fn: () => Promise<T>): Promise<T> {
+    const current = storage.getStore()
+    if (!current) throw new Error('No tenant context active.')
+    // Repository calls and nested Drizzle transactions must share the outer
+    // transaction; nested transactions then use savepoints on that connection.
+    return current.db.transaction((transaction) => storage.run(
+      { ...current, db: transaction as unknown as TenantDatabase }, fn,
+    ))
+  },
   runWithConnection<T>(connection: PoolConnection, fn: () => T | Promise<T>): Promise<T> {
     const current = storage.getStore()
     if (!current) throw new Error('No tenant context active. Ensure all requests go through auth middleware.')

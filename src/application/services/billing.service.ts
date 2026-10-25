@@ -1,3 +1,4 @@
+import { billingReportDetails } from './billing-report-details'
 import { randomUUID } from 'crypto'
 
 import { BillingRepository, BillingFilters } from '../ports/billing.repository'
@@ -101,7 +102,9 @@ export class BillingService {
       return true
     })
 
-    const invoiceItems: BillingLedgerItem[] = invoiceRows.map((row) => {
+    const invoiceItems: BillingLedgerItem[] = Array.from(
+      new Map(invoiceRows.map((row) => [row.InvoiceNumber, row])).values(),
+    ).map((row) => {
       const amount = Number(row.Monto) || 0
       return {
         id: `invoice-${row.InvoiceNumber}`,
@@ -144,20 +147,15 @@ export class BillingService {
       }
     })
 
-    let ledgerItems = [...invoiceItems, ...inventoryItems, ...manualItems]
-      .filter((item) => item.status !== 'Anulado')
+    const matchesFilters = (item: BillingLedgerItem) => item.status !== 'Anulado'
+      && (!stationFilter || this.normalizeFilter(item.station) === stationFilter)
+      && (!statusFilter || this.normalizeFilter(item.status) === statusFilter)
 
-    if (stationFilter) {
-      ledgerItems = ledgerItems.filter((item) =>
-        this.normalizeFilter(item.station) === stationFilter
-      )
-    }
-
-    if (statusFilter) {
-      ledgerItems = ledgerItems.filter((item) =>
-        this.normalizeFilter(item.status) === statusFilter
-      )
-    }
+    // Reconcile before display filters so filtering out a charge does not bring
+    // back the whole invoice as an apparent additional charge.
+    const ledgerItems = billingReportDetails(invoiceItems, [...inventoryItems, ...manualItems])
+      .filter(matchesFilters)
+    const invoiceSummaries = invoiceItems.filter(matchesFilters)
 
     const movements = movementStore.events.filter((event) => {
       if (!this.isWithinRange(event.occurredAt, from, to)) return false
@@ -173,6 +171,7 @@ export class BillingService {
       from,
       to,
       ledgerItems,
+      invoiceItems: invoiceSummaries,
       movements
     })
 
@@ -545,11 +544,10 @@ export class BillingService {
     from: string
     to: string
     ledgerItems: BillingLedgerItem[]
+    invoiceItems: BillingLedgerItem[]
     movements: PatientMovementEvent[]
   }) {
-    const { from, to, ledgerItems, movements } = args
-
-    const invoiceItems = ledgerItems.filter((item) => item.source === 'invoice')
+    const { from, to, ledgerItems, invoiceItems, movements } = args
     const inventoryItems = ledgerItems.filter((item) => item.source === 'stock')
     const manualItems = ledgerItems.filter((item) => item.source !== 'invoice' && item.source !== 'stock')
 
@@ -566,7 +564,13 @@ export class BillingService {
     const categoryMap = new Map<string, any>()
     const stationMap = new Map<string, any>()
 
-    ledgerItems.forEach((item) => {
+    // Invoice metrics retain their authoritative totals even when the invoice
+    // header is replaced by its charges in the visible ledger.
+    const financialRows = [
+      ...invoiceItems,
+      ...ledgerItems.filter((item) => item.source !== 'invoice'),
+    ]
+    financialRows.forEach((item) => {
       const patientEntry = patientMap.get(item.patientId) ?? {
         patientId: item.patientId,
         patientName: item.patientName,
@@ -604,6 +608,10 @@ export class BillingService {
       }
       dayMap.set(dateKey, dayEntry)
 
+    })
+
+    // Category/station breakdowns sum the reconciled detail exactly once.
+    ledgerItems.forEach((item) => {
       const categoryKey = item.category ?? 'otros'
       const categoryEntry = categoryMap.get(categoryKey) ?? {
         category: categoryKey,

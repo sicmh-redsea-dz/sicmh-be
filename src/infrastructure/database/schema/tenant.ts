@@ -1,19 +1,25 @@
+import { sql } from 'drizzle-orm'
 import {
   boolean,
+  char,
   date,
+  datetime,
   decimal,
   foreignKey,
   index,
   int,
   json,
+  mediumtext,
   mysqlEnum,
   mysqlTable,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/mysql-core'
-import { baseColumns, uuid } from './base'
+import { baseColumns, primaryUuid, uuid } from './base'
+import type { ClinicalProfileData } from '../../../domain/entities/ClinicalProfile'
 
 export const roles = mysqlTable(
   'roles',
@@ -148,11 +154,13 @@ export const patients = mysqlTable(
     ...baseColumns(),
     firstName: varchar('first_name', { length: 100 }).notNull(),
     lastName: varchar('last_name', { length: 100 }).notNull(),
-    birthDate: date('birth_date', { mode: 'date' }),
+    birthDate: date('birth_date', { mode: 'string' }),
     phone: varchar('phone', { length: 30 }),
     email: varchar('email', { length: 190 }),
     address: varchar('address', { length: 500 }),
     identification: varchar('identification', { length: 50 }),
+    identificationType: varchar('identification_type', { length: 30 }).$type<'identidad' | 'pasaporte' | 'carne_residencia'>().notNull().default('identidad'),
+    notes: text('notes'),
     gender: varchar('gender', { length: 30 }),
   },
   (table) => [
@@ -557,6 +565,27 @@ export const medicalRecords = mysqlTable(
   (table) => [uniqueIndex('medical_records_encounter_unique').on(table.clinicalEncounterId)],
 )
 
+// Immutable versions: existing encounters keep referencing the version reviewed then.
+export const patientClinicalProfiles = mysqlTable('patient_clinical_profiles', {
+  ...baseColumns(),
+  patientId: uuid('patient_id').notNull(),
+  version: int('version').notNull(),
+  data: json('data').$type<ClinicalProfileData>().notNull(),
+  recordedBy: uuid('recorded_by').notNull(),
+}, table => [uniqueIndex('patient_clinical_profiles_version_unique').on(table.patientId, table.version),
+  foreignKey({ name: 'clinical_profile_patient_fk', columns: [table.patientId], foreignColumns: [patients.id] }).onDelete('restrict').onUpdate('cascade'),
+  foreignKey({ name: 'clinical_profile_actor_fk', columns: [table.recordedBy], foreignColumns: [users.id] }).onDelete('restrict').onUpdate('cascade')])
+
+export const encounterClinicalReviews = mysqlTable('encounter_clinical_reviews', {
+  ...baseColumns(),
+  clinicalEncounterId: uuid('clinical_encounter_id').notNull(),
+  profileId: uuid('profile_id').notNull(),
+  reviewedBy: uuid('reviewed_by').notNull(),
+}, table => [uniqueIndex('encounter_clinical_reviews_encounter_unique').on(table.clinicalEncounterId),
+  foreignKey({ name: 'clinical_review_encounter_fk', columns: [table.clinicalEncounterId], foreignColumns: [clinicalEncounters.id] }).onDelete('restrict').onUpdate('cascade'),
+  foreignKey({ name: 'clinical_review_profile_fk', columns: [table.profileId], foreignColumns: [patientClinicalProfiles.id] }).onDelete('restrict').onUpdate('cascade'),
+  foreignKey({ name: 'clinical_review_actor_fk', columns: [table.reviewedBy], foreignColumns: [users.id] }).onDelete('restrict').onUpdate('cascade')])
+
 export const encounterProducts = mysqlTable(
   'encounter_products',
   {
@@ -654,58 +683,91 @@ export const clinicalAttachmentAccessLogs = mysqlTable(
   (table) => [index('attachment_access_attachment_idx').on(table.attachmentId, table.accessedAt)],
 )
 
+const documentColumns = () => ({
+  id: primaryUuid(),
+  createdAt: datetime('created_at', { mode: 'date' }).notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at', { mode: 'date' }).notNull().default(sql`CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`).$onUpdate(() => new Date()),
+  deletedAt: datetime('deleted_at', { mode: 'date' }),
+})
+
 export const consentTemplates = mysqlTable(
   'consent_templates',
   {
-    ...baseColumns(),
-    name: varchar('name', { length: 200 }).notNull(),
-    currentVersion: int('current_version').notNull().default(1),
+    ...documentColumns(),
+    name: varchar('name', { length: 160 }).notNull(),
+    currentVersion: int('current_version_number').notNull().default(1),
     isActive: boolean('is_active').notNull().default(true),
+    createdBy: uuid('created_by').notNull(),
   },
   (table) => [
-    uniqueIndex('consent_templates_name_unique').on(table.name),
-    index('consent_templates_active_idx').on(table.isActive, table.deletedAt),
+    foreignKey({ name: 'consent_templates_created_by_fk', columns: [table.createdBy], foreignColumns: [users.id] }).onDelete('restrict').onUpdate('cascade'),
+    index('consent_templates_active_idx').on(table.isActive, table.name),
+    index('consent_templates_creator_idx').on(table.createdBy),
   ],
 )
 
 export const consentTemplateVersions = mysqlTable(
   'consent_template_versions',
   {
-    ...baseColumns(),
-    templateId: uuid('template_id').notNull().references(() => consentTemplates.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    version: int('version').notNull(),
-    content: text('content').notNull(),
+    ...documentColumns(),
+    templateId: uuid('consent_template_id').notNull(),
+    version: int('version_number').notNull(),
+    content: mediumtext('content').notNull(),
+    createdBy: uuid('created_by').notNull(),
   },
   (table) => [
-    uniqueIndex('consent_template_versions_unique').on(table.templateId, table.version),
-    index('consent_template_versions_template_idx').on(table.templateId, table.deletedAt),
+    foreignKey({ name: 'consent_template_versions_consent_template_id_fk', columns: [table.templateId], foreignColumns: [consentTemplates.id] }).onDelete('restrict').onUpdate('cascade'),
+    foreignKey({ name: 'consent_template_versions_created_by_fk', columns: [table.createdBy], foreignColumns: [users.id] }).onDelete('restrict').onUpdate('cascade'),
+    uniqueIndex('consent_template_versions_number_unique').on(table.templateId, table.version),
+    index('consent_template_versions_creator_idx').on(table.createdBy),
   ],
 )
 
 export const consentInstances = mysqlTable(
   'consent_instances',
   {
-    ...baseColumns(),
-    templateId: uuid('template_id').notNull().references(() => consentTemplates.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
-    clinicalEncounterId: uuid('clinical_encounter_id').notNull().references(() => clinicalEncounters.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
-    staffMemberId: uuid('staff_member_id').notNull().references(() => staffMembers.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
-    templateVersion: int('template_version').notNull(),
+    ...documentColumns(),
+    templateId: uuid('consent_template_id').notNull(),
+    templateVersionId: uuid('consent_template_version_id').notNull(),
+    templateName: varchar('template_name', { length: 160 }).notNull(),
+    clinicalEncounterId: uuid('clinical_encounter_id').notNull(),
+    patientId: uuid('patient_id').notNull(),
+    staffMemberId: uuid('staff_member_id').notNull(),
     status: mysqlEnum('status', ['printed', 'accepted']).notNull(),
     acceptanceMethod: mysqlEnum('acceptance_method', ['checkbox', 'drawn_signature', 'physical']),
-    signerType: varchar('signer_type', { length: 30 }),
+    signerType: mysqlEnum('signer_type', ['patient', 'guardian']),
     signerName: varchar('signer_name', { length: 200 }),
-    signerIdentification: varchar('signer_identification', { length: 50 }),
+    signerIdentification: varchar('signer_identification', { length: 100 }),
     signerRelationship: varchar('signer_relationship', { length: 100 }),
-    signerPhone: varchar('signer_phone', { length: 30 }),
-    attachmentId: uuid('attachment_id').references(() => clinicalAttachments.id, { onDelete: 'set null', onUpdate: 'cascade' }),
-    acceptedAt: timestamp('accepted_at', { mode: 'date', fsp: 3 }),
-    printedAt: timestamp('printed_at', { mode: 'date', fsp: 3 }),
+    signerPhone: varchar('signer_phone', { length: 50 }),
+    signerEmail: varchar('signer_email', { length: 254 }),
+    signerSignatureObjectPath: varchar('signer_signature_object_path', { length: 1024 }),
+    doctorSignatureObjectPath: varchar('doctor_signature_object_path', { length: 1024 }),
+    doctorStampObjectPath: varchar('doctor_stamp_object_path', { length: 1024 }),
+    attachmentId: uuid('clinical_attachment_id'),
+    documentSha256: char('document_sha256', { length: 64 }),
+    snapshot: json('snapshot_json').$type<Record<string, unknown>>().notNull(),
+    createdBy: uuid('created_by').notNull(),
+    acceptedBy: uuid('accepted_by'),
+    acceptedAt: datetime('accepted_at', { mode: 'date' }),
   },
   (table) => [
-    uniqueIndex('consent_instances_visit_template_unique').on(table.clinicalEncounterId, table.templateId),
-    index('consent_instances_patient_idx').on(table.patientId, table.createdAt, table.deletedAt),
-    index('consent_instances_attachment_idx').on(table.attachmentId, table.deletedAt),
+    foreignKey({ name: 'consent_instances_accepted_by_fk', columns: [table.acceptedBy], foreignColumns: [users.id] }).onDelete('restrict').onUpdate('cascade'),
+    foreignKey({ name: 'consent_instances_clinical_attachment_id_fk', columns: [table.attachmentId], foreignColumns: [clinicalAttachments.id] }).onDelete('restrict').onUpdate('cascade'),
+    foreignKey({ name: 'consent_instances_clinical_encounter_id_fk', columns: [table.clinicalEncounterId], foreignColumns: [clinicalEncounters.id] }).onDelete('restrict').onUpdate('cascade'),
+    foreignKey({ name: 'consent_instances_consent_template_id_fk', columns: [table.templateId], foreignColumns: [consentTemplates.id] }).onDelete('restrict').onUpdate('cascade'),
+    foreignKey({ name: 'consent_instances_consent_template_version_id_fk', columns: [table.templateVersionId], foreignColumns: [consentTemplateVersions.id] }).onDelete('restrict').onUpdate('cascade'),
+    foreignKey({ name: 'consent_instances_created_by_fk', columns: [table.createdBy], foreignColumns: [users.id] }).onDelete('restrict').onUpdate('cascade'),
+    foreignKey({ name: 'consent_instances_patient_id_fk', columns: [table.patientId], foreignColumns: [patients.id] }).onDelete('restrict').onUpdate('cascade'),
+    foreignKey({ name: 'consent_instances_staff_member_id_fk', columns: [table.staffMemberId], foreignColumns: [staffMembers.id] }).onDelete('restrict').onUpdate('cascade'),
+    index('consent_instances_encounter_idx').on(table.clinicalEncounterId, table.status),
+    index('consent_instances_patient_idx').on(table.patientId, table.createdAt),
+    index('consent_instances_attachment_idx').on(table.attachmentId),
+    index('consent_instances_template_idx').on(table.templateId),
+    index('consent_instances_version_idx').on(table.templateVersionId),
+    index('consent_instances_staff_idx').on(table.staffMemberId),
+    index('consent_instances_creator_idx').on(table.createdBy),
+    index('consent_instances_acceptor_idx').on(table.acceptedBy),
   ],
 )
 
@@ -890,3 +952,91 @@ export type ClinicalEncounter = typeof clinicalEncounters.$inferSelect
 export type Invoice = typeof invoices.$inferSelect
 export type Product = typeof products.$inferSelect
 export type Appointment = typeof appointments.$inferSelect
+
+export const auditLogs = mysqlTable(
+  'audit_logs',
+  {
+    ...documentColumns(),
+    actorId: varchar('actor_id', { length: 36 }),
+    actionType: mysqlEnum('action_type', ['Create','Update','Delete','View']).notNull(),
+    targetTable: varchar('target_table', { length: 64 }).notNull(),
+    recordId: varchar('record_id', { length: 100 }),
+    occurredAt: datetime('occurred_at', { mode: 'date' }).default(sql`CURRENT_TIMESTAMP`),
+    details: text('details'),
+  },
+  (table) => [
+    foreignKey({ name: 'audit_logs_actor_id_fk', columns: [table.actorId], foreignColumns: [users.id] }).onDelete('restrict').onUpdate('cascade'),
+    index('audit_logs_actor_idx').on(table.actorId),
+    index('audit_logs_target_idx').on(table.targetTable, table.recordId, table.occurredAt),
+    index('audit_logs_occurred_idx').on(table.occurredAt),
+  ],
+)
+
+export const documentDeliveries = mysqlTable(
+  'document_deliveries',
+  {
+    ...documentColumns(),
+    documentType: mysqlEnum('document_type', ['consent','invoice','receipt']).notNull(),
+    sourceId: varchar('source_id', { length: 100 }).notNull(),
+    sourceVersion: varchar('source_version', { length: 50 }).notNull().default('1'),
+    recipientEmail: varchar('recipient_email', { length: 190 }),
+    status: mysqlEnum('status', ['pending','processing','sent','retry','failed','skipped']).notNull(),
+    skipReason: mysqlEnum('skip_reason', ['missing_recipient_email','invalid_recipient_email']),
+    attemptCount: smallint('attempt_count', { unsigned: true }).notNull().default(0),
+    nextAttemptAt: datetime('next_attempt_at', { mode: 'date' }),
+    claimedAt: datetime('claimed_at', { mode: 'date' }),
+    claimToken: char('claim_token', { length: 36 }),
+    snapshotJson: json('snapshot_json').$type<Record<string, unknown>>().notNull(),
+    sourceObjectPath: varchar('source_object_path', { length: 512 }),
+    storageObjectPath: varchar('storage_object_path', { length: 512 }),
+    pdfSha256: char('pdf_sha256', { length: 64 }),
+    emailProviderId: varchar('email_provider_id', { length: 255 }),
+    lastError: varchar('last_error', { length: 1000 }),
+    sentAt: datetime('sent_at', { mode: 'date' }),
+  },
+  (table) => [
+    uniqueIndex('document_deliveries_source_version_unique').on(table.documentType, table.sourceId, table.sourceVersion),
+    index('document_deliveries_claim_idx').on(table.status, table.nextAttemptAt, table.createdAt),
+  ],
+)
+
+export const invoiceNumberSequences = mysqlTable(
+  'invoice_number_sequences',
+  {
+    ...documentColumns(),
+    currentNumber: int('current_number').notNull(),
+    minNumber: int('min_number').notNull(),
+    maxNumber: int('max_number').notNull(),
+  },
+  (table) => [
+  ],
+)
+
+export const passwordResetTokens = mysqlTable(
+  'password_reset_tokens',
+  {
+    ...documentColumns(),
+    userId: varchar('user_id', { length: 36 }).notNull(),
+    tokenHash: char('token_hash', { length: 64 }).notNull(),
+    expiresAt: datetime('expires_at', { mode: 'date' }).notNull(),
+    usedAt: datetime('used_at', { mode: 'date' }),
+  },
+  (table) => [
+    foreignKey({ name: 'password_reset_tokens_user_id_fk', columns: [table.userId], foreignColumns: [users.id] }).onDelete('cascade').onUpdate('cascade'),
+    uniqueIndex('password_reset_tokens_hash_unique').on(table.tokenHash),
+    index('password_reset_tokens_user_created_idx').on(table.userId, table.createdAt),
+    index('password_reset_tokens_expiry_idx').on(table.expiresAt),
+  ],
+)
+
+export const resourceTypes = mysqlTable(
+  'resource_types',
+  {
+    ...documentColumns(),
+    code: varchar('code', { length: 50 }).notNull(),
+    name: varchar('name', { length: 100 }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('resource_types_code_unique').on(table.code),
+  ],
+)

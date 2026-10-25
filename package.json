@@ -7,7 +7,7 @@
     "start:dev": "nodemon",
     "build": "tsc",
     "type-check": "tsc --noEmit",
-    "test": "tsc && node --test \"dist/tests/*.test.js\"",
+    "test": "tsc && node scripts/run-tests.cjs",
     "db:provision": "ts-node src/scripts/provision-databases.ts",
     "db:push:global": "drizzle-kit push --config=drizzle.global.config.ts",
     "db:push:tenant": "drizzle-kit push --config=drizzle.config.ts",

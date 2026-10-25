@@ -1,5 +1,6 @@
 export interface InvoiceRepository {
     findAll(args: { limit: number; offset: number; term: string }): Promise<any[]>
+    findByInvoiceNumberForUpdate(invoiceNumber: string): Promise<Record<string, any> | null>
     findByInvoiceNumber(invoiceNumber: string): Promise<Record<string, any> | null>
     findLatestPendingByPatientAndDate(patientId: string, occurredAt: string): Promise<Record<string, any> | null>
     create(data: Record<string, any>): Promise<string>
@@ -15,5 +16,5 @@ export interface InvoiceRepository {
     fetchReportCashbox(term?: string): Promise<any[]>
     fetchServiceById(id: string): Promise<{ ServicioID: string; NombreServicio: string; Precio: number } | null>
     fetchFirstService(): Promise<{ ServicioID: string; NombreServicio: string; Precio: number } | null>
-    findById(facturaId: string): Promise<Record<string, any> | null>
+    findById(facturaId: string, lockForUpdate?: boolean): Promise<Record<string, any> | null>
 }

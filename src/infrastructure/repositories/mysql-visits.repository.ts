@@ -1,3 +1,4 @@
+import { resolveInventoryLocation } from '../database/inventory-location'
 import { and, count, desc, eq, isNull, like, or, SQL } from 'drizzle-orm'
 import { VisitsRepository } from '../../application/ports/visits.repository'
 import { History, ShortHistory } from '../../domain/entities/History'
@@ -52,9 +53,9 @@ export class MysqlVisitsRepository implements VisitsRepository {
     return rows.map((row) => this.toShortHistory(row, rows.length))
   }
 
-  async findById(id: string): Promise<History | null> {
+  async findById(id: string, lockForUpdate = false): Promise<History | null> {
     const db = TenantContext.getDb()
-    const [row] = await db
+    const query = db
       .select({
         encounter: clinicalEncounters,
         vitals: encounterVitals,
@@ -70,11 +71,13 @@ export class MysqlVisitsRepository implements VisitsRepository {
       ))
       .where(and(eq(clinicalEncounters.id, id), isNull(clinicalEncounters.deletedAt)))
       .limit(1)
+    const [row] = await (lockForUpdate ? query.for('update') : query)
     if (!row) return null
-    const used = await db
+    const usedQuery = db
       .select({ InventarioID: encounterProducts.productId, CantidadUsada: encounterProducts.quantity })
       .from(encounterProducts)
       .where(and(eq(encounterProducts.clinicalEncounterId, id), isNull(encounterProducts.deletedAt)))
+    const used = await (lockForUpdate ? usedQuery.for('update') : usedQuery)
     return {
       HistoriaID: row.encounter.id,
       PacienteID: row.encounter.patientId,
@@ -101,6 +104,7 @@ export class MysqlVisitsRepository implements VisitsRepository {
       Ant_Habito: row.encounter.habitsHistory,
       Ant_Patologico: row.encounter.pathologicalHistory,
       Ant_Quirurgico: row.encounter.surgicalHistory,
+      patientBirthDate: row.patient.birthDate ?? null,
       NombrePaciente: `${row.patient.firstName} ${row.patient.lastName}`.trim(),
       NombreDoctor: `${row.staff.firstName} ${row.staff.lastName}`.trim(),
       InventarioUsado: used,
@@ -139,6 +143,9 @@ export class MysqlVisitsRepository implements VisitsRepository {
       const result = await transaction
         .update(clinicalEncounters)
         .set({
+          // An edit may contain only optional expediente fields, with no changes
+          // to the encounter columns themselves.
+          updatedAt: new Date(),
           patientId: data.PacienteID ? String(data.PacienteID) : undefined,
           staffMemberId: data.PersonalID ? String(data.PersonalID) : undefined,
           type: data.TipoVisita ? encounterType(data.TipoVisita) : undefined,
@@ -175,7 +182,8 @@ export class MysqlVisitsRepository implements VisitsRepository {
           or(like(staffMembers.firstName, `%${term}%`), like(staffMembers.lastName, `%${term}%`)),
         )
       : isNull(staffMembers.deletedAt)
-    const rows = await TenantContext.getDb().select().from(staffMembers).where(filter).limit(20)
+    const rows = await TenantContext.getDb().select().from(staffMembers).where(filter)
+      .orderBy(staffMembers.firstName, staffMembers.lastName, staffMembers.id)
     return rows.map((row) => ({
       PersonalID: row.id,
       NombrePersonal: `${row.firstName} ${row.lastName}`.trim(),
@@ -195,20 +203,23 @@ export class MysqlVisitsRepository implements VisitsRepository {
           ),
         )
       : isNull(patients.deletedAt)
-    const rows = await TenantContext.getDb().select().from(patients).where(filter).limit(20)
+    const rows = await TenantContext.getDb().select({ id: patients.id, firstName: patients.firstName,
+      lastName: patients.lastName, birthDate: patients.birthDate }).from(patients).where(filter).limit(20)
     return rows.map((row) => ({
+      birthDate: row.birthDate ?? null,
       PacienteID: row.id,
       NombrePersonal: `${row.firstName} ${row.lastName}`.trim(),
     }))
   }
 
   async findStockItems(subinventoryId: string): Promise<Array<Record<string, unknown>>> {
+    const locationId = await resolveInventoryLocation(subinventoryId)
     const rows = await TenantContext.getDb()
       .select({ product: products, stock: inventoryStock })
       .from(inventoryStock)
       .innerJoin(products, eq(inventoryStock.productId, products.id))
       .where(and(
-        eq(inventoryStock.locationId, subinventoryId),
+        eq(inventoryStock.locationId, locationId),
         isNull(inventoryStock.deletedAt),
         isNull(products.deletedAt),
       ))
@@ -297,16 +308,18 @@ export class MysqlVisitsRepository implements VisitsRepository {
       bodyMassIndex: this.optionalDecimal(data.IMC),
       bodyFatPercent: this.optionalDecimal(data.PorcentajeGrasa),
       visceralFat: this.optionalDecimal(data.GrasaVisceral),
-      metabolicAge: data.EdadSegunPeso == null ? null : Number(data.EdadSegunPeso),
+      metabolicAge: data.EdadSegunPeso === undefined ? undefined : data.EdadSegunPeso == null ? null : Number(data.EdadSegunPeso),
     }
   }
 
-  private optionalString(value: unknown): string | null {
+  private optionalString(value: unknown): string | null | undefined {
+    if (value === undefined) return undefined
     if (value === undefined || value === null || value === '') return null
     return String(value)
   }
 
-  private optionalDecimal(value: unknown): string | null {
+  private optionalDecimal(value: unknown): string | null | undefined {
+    if (value === undefined) return undefined
     if (value === undefined || value === null || value === '') return null
     return String(value)
   }

@@ -43,6 +43,7 @@ export class PatientsService {
     }
 
     insertPatient = async (patientParams:PatientCreateParams):Promise<PatientResponse> => {
+        this.validateIdentification(patientParams.id, patientParams.identificationType ?? 'identidad')
         const { email } = patientParams
         try {
             const insertId = await this.patientsRepo.create(patientParams)
@@ -61,6 +62,12 @@ export class PatientsService {
 
     updatedPatient = async (patientParams:PatientUpdateParams, id:string):Promise<PatientResponse> => {
         try{
+            if (patientParams.id !== undefined || patientParams.identificationType !== undefined) {
+                const existing = await this.patientsRepo.findById(id)
+                if (!existing) throw this.errorHandler('not_found_error', `Patient with Id ${id} not found`)
+                this.validateIdentification(patientParams.id ?? existing.Identificacion,
+                    patientParams.identificationType ?? existing.identificationType ?? 'identidad')
+            }
             const affectedRows = await this.patientsRepo.update( id, patientParams )
             if ( affectedRows === 0)
                 throw this.errorHandler('not_found_error', `No patient found with Id: ${id}, to update`)
@@ -80,6 +87,14 @@ export class PatientsService {
             return [true, id]
         } catch ( err ) {
             throw err
+        }
+    }
+
+    private validateIdentification(value: string | undefined, type: string) {
+        const patterns: Record<string, RegExp> = { identidad: /^\d{13}$/, carne_residencia: /^\d{1,19}$/, pasaporte: /^[A-Za-z0-9]{1,50}$/ }
+        if (typeof value !== 'string' || !patterns[type]?.test(value)) {
+            const message = 'Identificacion invalida: identidad requiere 13 digitos; residencia hasta 19 digitos; pasaporte letras y numeros hasta 50 caracteres.'
+            throw Object.assign(new Error(message), { name: 'validation_errors', errors: [{ msg: message }] })
         }
     }
 

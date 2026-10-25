@@ -31,7 +31,7 @@ export class VisitsController {
     @asyncHandler()
     async createVisit(req:Request) {
         const { body } = req
-        return this.visitsService.createVisit( body )
+        return this.visitsService.createVisit( body, String((req as any).currentUser?._id ?? '') )
     }
 
     @asyncHandler()
@@ -48,7 +48,7 @@ export class VisitsController {
 
     @asyncHandler()
     async getDoctors( req:Request ) {
-        const term = String(req.query.term) || ''
+        const term = String(req.query.term ?? '')
 
         return this.visitsService.getDoctors( term )
     }

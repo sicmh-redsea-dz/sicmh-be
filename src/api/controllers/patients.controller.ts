@@ -2,8 +2,13 @@ import { Request } from 'express'
 import { PatientsService } from '../../application/services/patients.service'
 import { ServiceContainer } from '../../infrastructure/container/service.container'
 import { asyncHandler } from '../decorators/asyncHandler'
+import { ClinicalProfileService } from '../../application/services/clinical-profile.service'
 
 export class PatientsController {
+    @asyncHandler()
+    async getClinicalProfile(req: Request): Promise<any> {
+        return new ClinicalProfileService().get(req.params.id)
+    }
     private patientsService: PatientsService
 
     constructor() {

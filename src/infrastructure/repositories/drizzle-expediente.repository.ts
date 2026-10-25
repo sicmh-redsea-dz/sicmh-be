@@ -86,8 +86,8 @@ export class DrizzleExpedienteRepository implements ExpedienteRepository {
       postoperativeDiagnosis: data.module.postOpDiagnosis,
       procedureName: data.module.procedure,
       anesthesiaType: data.module.anesthesiaType,
-      surgeryStartedAt: data.module.surgeryStart ? new Date(data.module.surgeryStart) : undefined,
-      surgeryEndedAt: data.module.surgeryEnd ? new Date(data.module.surgeryEnd) : undefined,
+      surgeryStartedAt: data.module.surgeryStart === undefined ? undefined : data.module.surgeryStart ? new Date(data.module.surgeryStart) : null,
+      surgeryEndedAt: data.module.surgeryEnd === undefined ? undefined : data.module.surgeryEnd ? new Date(data.module.surgeryEnd) : null,
       findings: data.module.findings,
       complications: data.module.complications,
       admissionDiagnosis: data.module.admissionDiagnosis,
@@ -96,7 +96,7 @@ export class DrizzleExpedienteRepository implements ExpedienteRepository {
       bedLabel: data.module.bed,
       evolutionSummary: data.module.evolutionSummary,
       dischargePlan: data.module.dischargePlan,
-      dischargedAt: data.module.dischargeDate ? new Date(data.module.dischargeDate) : undefined,
+      dischargedAt: data.module.dischargeDate === undefined ? undefined : data.module.dischargeDate ? new Date(data.module.dischargeDate) : null,
     }
     await TenantContext.getDb()
       .insert(medicalRecords)

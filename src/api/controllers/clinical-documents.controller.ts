@@ -23,13 +23,13 @@ export class ClinicalDocumentsController {
   @asyncHandler()
   async createTemplate(req: Request): Promise<any> {
     const { name, content } = req.body ?? {}
-    return this.service.createTemplate(String(name ?? ''), String(content ?? ''))
+    return this.service.createTemplate(String(name ?? ''), String(content ?? ''), ((req as any).user as TokenPayload).uid)
   }
 
   @asyncHandler()
   async updateTemplate(req: Request): Promise<any> {
     const { name, content } = req.body ?? {}
-    return this.service.updateTemplate(String(req.params['id']), String(name ?? ''), String(content ?? ''))
+    return this.service.updateTemplate(String(req.params['id']), String(name ?? ''), String(content ?? ''), ((req as any).user as TokenPayload).uid)
   }
 
   @asyncHandler()
@@ -87,6 +87,7 @@ export class ClinicalDocumentsController {
       String(req.params['templateId']),
       req.body?.expectedTemplateVersion !== undefined ? Number(req.body.expectedTemplateVersion) : undefined,
       user.codigoEmpresa,
+      user.uid,
     )
   }
 

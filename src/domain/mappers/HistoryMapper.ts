@@ -91,7 +91,8 @@ export class HistoryMapper {
             surgicalHst,
             patientName,
             docName,
-            usedInventory
+            usedInventory,
+            patientBirthDate: history.patientBirthDate
         }
     }
     

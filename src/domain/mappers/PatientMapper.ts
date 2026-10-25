@@ -24,6 +24,9 @@ export class PatientMapper {
             email,
             address,
             idNumber,
+            identificationType: patient.identificationType,
+            notes: patient.notes,
+            emergencyContact: patient.emergencyContact,
             gender
         }
     }
@@ -35,6 +38,7 @@ export class PatientMapper {
         } = patient
 
         return {
+            birthDate: patient.birthDate,
             id,
             name,
         }

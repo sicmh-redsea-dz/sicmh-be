@@ -75,6 +75,11 @@ export class MysqlInvoiceRepository implements InvoiceRepository {
     return rows.map((row) => ({ ...legacyInvoice(row), total_registries: total }))
   }
 
+  async findByInvoiceNumberForUpdate(invoiceNumber: string): Promise<Record<string, unknown> | null> {
+    const [row] = await this.baseQuery().where(and(eq(invoices.invoiceNumber, invoiceNumber), isNull(invoices.deletedAt))).limit(1).for('update')
+    return row ? legacyInvoice(row) : null
+  }
+
   async findByInvoiceNumber(invoiceNumber: string): Promise<Record<string, unknown> | null> {
     const [row] = await this.baseQuery()
       .where(and(eq(invoices.invoiceNumber, invoiceNumber), isNull(invoices.deletedAt)))
@@ -265,10 +270,11 @@ export class MysqlInvoiceRepository implements InvoiceRepository {
     return service ? { ServicioID: service.id, NombreServicio: service.name, Precio: Number(service.price) } : null
   }
 
-  async findById(facturaId: string): Promise<Record<string, unknown> | null> {
-    const [row] = await this.baseQuery()
+  async findById(facturaId: string, lockForUpdate = false): Promise<Record<string, unknown> | null> {
+    const query = this.baseQuery()
       .where(and(eq(invoices.id, facturaId), isNull(invoices.deletedAt)))
       .limit(1)
+    const [row] = await (lockForUpdate ? query.for('update') : query)
     return row ? legacyInvoice(row) : null
   }
 

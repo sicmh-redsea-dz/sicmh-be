@@ -31,6 +31,7 @@ export interface ShortHistoryResponse {
 }
 
 export interface HistoryResponse {
+    patientBirthDate?: string | null
     id: string
     patientId: string
     visitDate: Date

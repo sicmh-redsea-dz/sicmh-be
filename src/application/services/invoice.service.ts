@@ -1,3 +1,4 @@
+import { TenantContext } from '../../infrastructure/database/TenantContext'
 import { generateShortenedUuid } from '../../helper/uuidGen'
 import { InvoiceRepository } from '../ports/invoice.repository'
 import { InvoiceMapper } from '../../domain/mappers/InvoiceMapper'
@@ -59,9 +60,9 @@ export class InvoiceService {
         }
     }
 
-    getInvByFacturaId = async ( facturaId: string ): Promise<Record<string, any> | null> => {
+    getInvByFacturaId = async ( facturaId: string, lockForUpdate = false ): Promise<Record<string, any> | null> => {
         try {
-            return await this.invoiceRepo.findById( facturaId )
+            return await this.invoiceRepo.findById( facturaId, lockForUpdate )
         } catch ( err: any ) {
             console.log('error reading invoice by FacturaID ::: ', err.message)
             throw err
@@ -84,7 +85,8 @@ export class InvoiceService {
     }
 
     updateInvById = async (id: string, updInvoicePayload: Record<string, any>): Promise<any> => {
-        const currentInvoice = await this.invoiceRepo.findByInvoiceNumber(id)
+        return TenantContext.transaction(async () => {
+        const currentInvoice = await this.invoiceRepo.findByInvoiceNumberForUpdate(id)
         if (!currentInvoice) {
             const error = new Error(`Invoice with Id ${id} not found`)
             error.name = 'not_found_error'
@@ -117,20 +119,15 @@ export class InvoiceService {
 
         try {
             await this.invoiceRepo.updateByInvoiceNumber( id, translatedFields )
-            if (this.billingService) {
-                try {
-                    await this.billingService.updateEncounterStatusByInvoice(id, 'Pagado')
-                } catch (err) {
-                    console.warn('encounter status update warning:', (err as any)?.message || err)
-                }
-            }
+            if (this.billingService) await this.billingService.updateEncounterStatusByInvoice(id, 'Pagado')
             return {
                 id
             }
         } catch (err) {
             console.error('Error en updateInvById:', err)
-            throw new Error((err as any)?.message || 'Error desconocido')
+            throw err
         }
+        })
     }
 
     incrementAmountById = async ( invoiceId: string, delta: number ): Promise<void> => {

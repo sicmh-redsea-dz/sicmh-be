@@ -1,0 +1,448 @@
+﻿
+> sicmh_backend@1.0.0 test
+> tsc && node scripts/run-tests.cjs
+
+TAP version 13
+# Subtest: two invoices with their consultation charges produce two detail rows and unchanged invoice totals
+ok 1 - two invoices with their consultation charges produce two detail rows and unchanged invoice totals
+  ---
+  duration_ms: 11.0446
+  type: 'test'
+  ...
+# Subtest: service and inventory details are retained without also adding their invoice total
+ok 2 - service and inventory details are retained without also adding their invoice total
+  ---
+  duration_ms: 0.3885
+  type: 'test'
+  ...
+# Subtest: separate charges with identical descriptions and amounts are not collapsed
+ok 3 - separate charges with identical descriptions and amounts are not collapsed
+  ---
+  duration_ms: 0.7594
+  type: 'test'
+  ...
+# Subtest: invoices without itemized detail remain visible as fallback rows
+ok 4 - invoices without itemized detail remain visible as fallback rows
+  ---
+  duration_ms: 0.2049
+  type: 'test'
+  ...
+# Subtest: partially itemized invoices show only the remaining amount alongside existing charges
+ok 5 - partially itemized invoices show only the remaining amount alongside existing charges
+  ---
+  duration_ms: 0.3763
+  type: 'test'
+  ...
+# Subtest: over-itemized invoices expose a signed difference instead of overstating the breakdown
+ok 6 - over-itemized invoices expose a signed difference instead of overstating the breakdown
+  ---
+  duration_ms: 0.267
+  type: 'test'
+  ...
+# Subtest: cent rounding does not manufacture extra rows
+ok 7 - cent rounding does not manufacture extra rows
+  ---
+  duration_ms: 0.2852
+  type: 'test'
+  ...
+# Subtest: paid status comes from the linked invoice even if its detail still says pending
+ok 8 - paid status comes from the linked invoice even if its detail still says pending
+  ---
+  duration_ms: 0.4072
+  type: 'test'
+  ...
+# Subtest: annulled invoices also exclude still-pending linked charges
+ok 9 - annulled invoices also exclude still-pending linked charges
+  ---
+  duration_ms: 0.3578
+  type: 'test'
+  ...
+# Subtest: station filters do not recreate invoice totals for hidden itemized charges
+ok 10 - station filters do not recreate invoice totals for hidden itemized charges
+  ---
+  duration_ms: 0.3763
+  type: 'test'
+  ...
+# Subtest: patient/date filters preserve scope and do not remove unrelated standalone charges
+ok 11 - patient/date filters preserve scope and do not remove unrelated standalone charges
+  ---
+  duration_ms: 0.2971
+  type: 'test'
+  ...
+# Subtest: a joined duplicate invoice header is counted once, without collapsing charge details
+ok 12 - a joined duplicate invoice header is counted once, without collapsing charge details
+  ---
+  duration_ms: 0.1532
+  type: 'test'
+  ...
+# Subtest: MIME whitelist (magic-byte sniffing)
+    # Subtest: rejects an executable disguised with an image MIME type and .png name
+    ok 1 - rejects an executable disguised with an image MIME type and .png name
+      ---
+      duration_ms: 2.2752
+      type: 'test'
+      ...
+    # Subtest: rejects a GIF even though it is a real image (not on the whitelist)
+    ok 2 - rejects a GIF even though it is a real image (not on the whitelist)
+      ---
+      duration_ms: 0.3503
+      type: 'test'
+      ...
+    # Subtest: rejects content whose type cannot be determined
+    ok 3 - rejects content whose type cannot be determined
+      ---
+      duration_ms: 0.3485
+      type: 'test'
+      ...
+    # Subtest: accepts a real PDF regardless of the declared MIME type
+    ok 4 - accepts a real PDF regardless of the declared MIME type
+      ---
+      duration_ms: 1.8276
+      type: 'test'
+      ...
+    # Subtest: file_upload stores the original bytes untouched (no recompression)
+    ok 5 - file_upload stores the original bytes untouched (no recompression)
+      ---
+      duration_ms: 7.4375
+      type: 'test'
+      ...
+    1..5
+ok 13 - MIME whitelist (magic-byte sniffing)
+  ---
+  duration_ms: 13.1042
+  type: 'suite'
+  ...
+# Subtest: in_app_camera pipeline (sharp)
+    # Subtest: resizes to ≤2048px, converts to JPEG and strips metadata
+    ok 1 - resizes to ≤2048px, converts to JPEG and strips metadata
+      ---
+      duration_ms: 196.3445
+      type: 'test'
+      ...
+    # Subtest: rejects non-image content from the in-app camera
+    ok 2 - rejects non-image content from the in-app camera
+      ---
+      duration_ms: 0.4156
+      type: 'test'
+      ...
+    # Subtest: enforces the 10MB camera limit (vs 25MB for file uploads)
+    ok 3 - enforces the 10MB camera limit (vs 25MB for file uploads)
+      ---
+      duration_ms: 3.9839
+      type: 'test'
+      ...
+    1..3
+ok 14 - in_app_camera pipeline (sharp)
+  ---
+  duration_ms: 200.9966
+  type: 'suite'
+  ...
+# Subtest: upload input validation
+    # Subtest: rejects an unknown source value
+    ok 1 - rejects an unknown source value
+      ---
+      duration_ms: 0.3139
+      type: 'test'
+      ...
+    # Subtest: rejects a missing label
+    ok 2 - rejects a missing label
+      ---
+      duration_ms: 3.2728
+      type: 'test'
+      ...
+    1..2
+ok 15 - upload input validation
+  ---
+  duration_ms: 3.764
+  type: 'suite'
+  ...
+# Subtest: tenant path defense in depth
+    # Subtest: getForAccess refuses an attachment whose GCS path belongs to another tenant
+    ok 1 - getForAccess refuses an attachment whose GCS path belongs to another tenant
+      ---
+      duration_ms: 0.3348
+      type: 'test'
+      ...
+    1..1
+ok 16 - tenant path defense in depth
+  ---
+  duration_ms: 0.4003
+  type: 'suite'
+  ...
+# Subtest: parseRangeHeader
+    # Subtest: bytes=0-1000 → 0..1000
+    ok 1 - bytes=0-1000 → 0..1000
+      ---
+      duration_ms: 0.6412
+      type: 'test'
+      ...
+    # Subtest: open-ended and suffix ranges
+    ok 2 - open-ended and suffix ranges
+      ---
+      duration_ms: 0.1868
+      type: 'test'
+      ...
+    # Subtest: end clamped to size
+    ok 3 - end clamped to size
+      ---
+      duration_ms: 0.0903
+      type: 'test'
+      ...
+    # Subtest: no header → full body
+    ok 4 - no header → full body
+      ---
+      duration_ms: 0.1125
+      type: 'test'
+      ...
+    # Subtest: out-of-bounds or malformed → unsatisfiable (416)
+    ok 5 - out-of-bounds or malformed → unsatisfiable (416)
+      ---
+      duration_ms: 0.0634
+      type: 'test'
+      ...
+    1..5
+ok 17 - parseRangeHeader
+  ---
+  duration_ms: 1.2484
+  type: 'suite'
+  ...
+# Subtest: doctor catalog reads staff_members and preserves records beyond the first 20
+ok 18 - doctor catalog reads staff_members and preserves records beyond the first 20
+  ---
+  duration_ms: 1.2904
+  type: 'test'
+  ...
+# Subtest: all four care modules accept just doctor and patient plus module metadata
+ok 19 - all four care modules accept just doctor and patient plus module metadata
+  ---
+  duration_ms: 9.1689
+  type: 'test'
+  ...
+# Subtest: blank/null optional fields are accepted without generating NaN, while zero is preserved
+ok 20 - blank/null optional fields are accepted without generating NaN, while zero is preserved
+  ---
+  duration_ms: 1.4964
+  type: 'test'
+  ...
+# Subtest: missing or invalid doctor/patient and malformed supplied data remain invalid
+ok 21 - missing or invalid doctor/patient and malformed supplied data remain invalid
+  ---
+  duration_ms: 8.4768
+  type: 'test'
+  ...
+# Subtest: partial edits retain existing identity and allow omitted optional fields
+ok 22 - partial edits retain existing identity and allow omitted optional fields
+  ---
+  duration_ms: 0.7733
+  type: 'test'
+  ...
+# Subtest: missing, null and empty expediente do not manufacture an empty clinical record
+ok 23 - missing, null and empty expediente do not manufacture an empty clinical record
+  ---
+  duration_ms: 0.3918
+  type: 'test'
+  ...
+# Subtest: partial expediente supports each module and preserves existing clinical text on edit
+ok 24 - partial expediente supports each module and preserves existing clinical text on edit
+  ---
+  duration_ms: 0.566
+  type: 'test'
+  ...
+# Subtest: new visits receive a real current date when date is omitted or blank
+ok 25 - new visits receive a real current date when date is omitted or blank
+  ---
+  duration_ms: 1.2714
+  type: 'test'
+  ...
+# Subtest: patient validators
+    # Subtest: accept patch requests with UUID route ids and optional identification updates
+    ok 1 - accept patch requests with UUID route ids and optional identification updates
+      ---
+      duration_ms: 4.0215
+      type: 'test'
+      ...
+    # Subtest: reject non-UUID patient route ids
+    ok 2 - reject non-UUID patient route ids
+      ---
+      duration_ms: 0.4623
+      type: 'test'
+      ...
+    1..2
+ok 26 - patient validators
+  ---
+  duration_ms: 5.1694
+  type: 'suite'
+  ...
+# Subtest: MysqlPatientsRepository.update
+    # Subtest: persists identification changes when present in the payload
+    ok 1 - persists identification changes when present in the payload
+      ---
+      duration_ms: 0.5797
+      type: 'test'
+      ...
+    1..1
+ok 27 - MysqlPatientsRepository.update
+  ---
+  duration_ms: 0.6654
+  type: 'suite'
+  ...
+# Subtest: patient document and contact formats
+    # Subtest: accepts each document format and optional patient contact details
+    ok 1 - accepts each document format and optional patient contact details
+      ---
+      duration_ms: 2.5599
+      type: 'test'
+      ...
+    # Subtest: rejects malformed documents and incomplete emergency contacts
+    ok 2 - rejects malformed documents and incomplete emergency contacts
+      ---
+      duration_ms: 2.7012
+      type: 'test'
+      ...
+    1..2
+ok 28 - patient document and contact formats
+  ---
+  duration_ms: 5.3876
+  type: 'suite'
+  ...
+# Subtest: legacy location aliases resolve to stable codes without changing UUIDs
+ok 29 - legacy location aliases resolve to stable codes without changing UUIDs
+  ---
+  duration_ms: 0.717
+  type: 'test'
+  ...
+# Subtest: every tenant model matches the supplied target column names, types, and nullability
+ok 30 - every tenant model matches the supplied target column names, types, and nullability
+  ---
+  duration_ms: 3.7555
+  type: 'test'
+  ...
+# Subtest: target tenant schema and database workflows
+    # Subtest: migrations recreate target column and foreign-key contracts from an empty database
+    ok 1 - migrations recreate target column and foreign-key contracts from an empty database
+      ---
+      duration_ms: 19396.1864
+      type: 'test'
+      ...
+    # Subtest: migration is safe when the target tables already exist
+    ok 2 - migration is safe when the target tables already exist
+      ---
+      duration_ms: 317.4113
+      type: 'test'
+      ...
+    # Subtest: all 54 runtime models can select against the target
+    ok 3 - all 54 runtime models can select against the target
+      ---
+      duration_ms: 151.0244
+      type: 'test'
+      ...
+    # Subtest: patient document type, notes and emergency contact survive create/edit/reopen
+    ok 4 - patient document type, notes and emergency contact survive create/edit/reopen
+      ---
+      duration_ms: 112.1712
+      type: 'test'
+      ...
+    # Subtest: encounter notes, all histories and all vital signs survive create/edit/reopen
+    ok 5 - encounter notes, all histories and all vital signs survive create/edit/reopen
+      ---
+      duration_ms: 71.0266
+      type: 'test'
+      ...
+    # Subtest: every clinical form field roundtrips through the renamed medical_records columns
+    ok 6 - every clinical form field roundtrips through the renamed medical_records columns
+      ---
+      duration_ms: 29.2565
+      type: 'test'
+      ...
+    # Subtest: each care module creates and edits a minimal visit with automatic invoice/visit dates
+    ok 7 - each care module creates and edits a minimal visit with automatic invoice/visit dates
+      ---
+      duration_ms: 250.142
+      type: 'test'
+      ...
+    # Subtest: partial clinical records satisfy the target without requiring blank clinical fields
+    ok 8 - partial clinical records satisfy the target without requiring blank clinical fields
+      ---
+      duration_ms: 71.5727
+      type: 'test'
+      ...
+# error creating visit, transaction rolled back:  Error: Simulated clinical-record failure
+#     at expedienteRepo.upsert (C:\\Users\\joser\\NubSmart Development\\MedIT\\sicmh-be\\dist\\tests\\schema-compatibility.integration.test.js:293:61)
+#     at C:\\Users\\joser\\NubSmart Development\\MedIT\\sicmh-be\\dist\\application\\services\\visits.service.js:160:51
+#     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+#     at async MySql2Session.transaction (C:\\Users\\joser\\NubSmart Development\\MedIT\\sicmh-be\\node_modules\\drizzle-orm\\mysql2\\session.cjs:228:22)
+#     at async VisitsService.createVisit (C:\\Users\\joser\\NubSmart Development\\MedIT\\sicmh-be\\dist\\application\\services\\visits.service.js:133:32)
+#     at async waitForActual (node:assert:566:5)
+#     at async Function.rejects (node:assert:687:25)
+#     at async TestContext.<anonymous> (C:\\Users\\joser\\NubSmart Development\\MedIT\\sicmh-be\\dist\\tests\\schema-compatibility.integration.test.js:295:21)
+#     at async Test.run (node:internal/test_runner/test:1054:7)
+#     at async C:\\Users\\joser\\NubSmart Development\\MedIT\\sicmh-be\\dist\\tests\\schema-compatibility.integration.test.js:289:13
+    # Subtest: a clinical-record failure rolls back invoice and visit creation together
+    ok 9 - a clinical-record failure rolls back invoice and visit creation together
+      ---
+      duration_ms: 25.2502
+      type: 'test'
+      ...
+    # Subtest: inventory CRUD preserves UUIDs, zero stock, and minimum-stock DTOs
+    ok 10 - inventory CRUD preserves UUIDs, zero stock, and minimum-stock DTOs
+      ---
+      duration_ms: 101.8491
+      type: 'test'
+      ...
+    # Subtest: transfers use UUID locations, audit movement, and reject invalid amounts without partial writes
+    ok 11 - transfers use UUID locations, audit movement, and reject invalid amounts without partial writes
+      ---
+      duration_ms: 35.3632
+      type: 'test'
+      ...
+    # Subtest: visit stock lookup and consumption support codes and older numeric location aliases
+    ok 12 - visit stock lookup and consumption support codes and older numeric location aliases
+      ---
+      duration_ms: 61.7067
+      type: 'test'
+      ...
+    # Subtest: nested repository writes and stock changes roll back with the outer visit transaction
+    ok 13 - nested repository writes and stock changes roll back with the outer visit transaction
+      ---
+      duration_ms: 30.414
+      type: 'test'
+      ...
+    # Subtest: concurrent transfers cannot overdraw origin stock
+    ok 14 - concurrent transfers cannot overdraw origin stock
+      ---
+      duration_ms: 82.015
+      type: 'test'
+      ...
+    # Subtest: consent templates persist actor IDs and serialize concurrent version changes
+    ok 15 - consent templates persist actor IDs and serialize concurrent version changes
+      ---
+      duration_ms: 52.1273
+      type: 'test'
+      ...
+    # Subtest: consent acceptance stores version UUID, snapshot, actor, and hash; reprint preserves acceptance
+    ok 16 - consent acceptance stores version UUID, snapshot, actor, and hash; reprint preserves acceptance
+      ---
+      duration_ms: 85.9063
+      type: 'test'
+      ...
+    # Subtest: physical acceptance preserves printed snapshot and rejects replacing an accepted document
+    ok 17 - physical acceptance preserves printed snapshot and rejects replacing an accepted document
+      ---
+      duration_ms: 34.4535
+      type: 'test'
+      ...
+    1..17
+ok 31 - target tenant schema and database workflows
+  ---
+  duration_ms: 25488.4699
+  type: 'test'
+  ...
+1..31
+# tests 61
+# suites 8
+# pass 61
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 26346.3425

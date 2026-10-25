@@ -44,9 +44,39 @@ Run a type check before pushing changes.
 npm run type-check
 ```
 
+`npm test` compiles and runs only tests with current source files; stale tests
+left in `dist` from other checkouts are excluded. MySQL compatibility tests are
+opt-in and use only an isolated server at `127.0.0.1:33316` (root, empty password).
+They never use application database credentials. For a disposable local server:
+
+```powershell
+docker run --detach --rm --name medit-schema-check --publish 127.0.0.1:33316:3306 --env MYSQL_ALLOW_EMPTY_PASSWORD=yes mysql:8.0
+# Wait for MySQL to report ready, then:
+$env:RUN_SCHEMA_INTEGRATION_TESTS = '1'
+npm test
+Remove-Item Env:RUN_SCHEMA_INTEGRATION_TESTS
+docker stop medit-schema-check
+```
+
+The tests create and remove uniquely named test databases and import only schema
+definitions from the checked-in fixture. PDF rendering and cloud object storage
+are stubbed in the consent database tests.
+
 ## Database
 
 Apply pending Drizzle migrations to the global and tenant databases.
+
+`0001_align_target_schema` adds the eight application tables absent from the
+initial migration and preserves tables already present in the supplied new dump.
+It supports that target or the initial 46-table schema; it does not rename tables
+or migrate legacy production data or incompatible intermediate consent schemas.
+Set `DB_TENANT_SCHEMA` for migration/seed scripts. Runtime tenant selection still
+uses `medit_global.companies.database_name`.
+
+Inventory callers may supply location UUIDs or stable codes (`main`, `outpatient`,
+`emergency`, `operating_room`, `hospitalization`). The existing seed script creates
+these locations; the supplied new dump lacks a hospitalization location. Legacy
+numeric aliases are resolved by the backend for older clients during rollout.
 
 ```sh
 npm run db:migrate

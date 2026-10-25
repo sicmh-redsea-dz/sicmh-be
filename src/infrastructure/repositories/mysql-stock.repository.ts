@@ -1,10 +1,10 @@
+import { resolveInventoryLocation, inventoryValidationError } from '../database/inventory-location'
 import { and, eq, gte, inArray, isNull, sql, sum } from 'drizzle-orm'
 import { StockRepository } from '../../application/ports/stock.repository'
 import { Stock } from '../../domain/entities/Stock'
 import { TenantContext } from '../database/TenantContext'
 import {
   encounterProducts,
-  inventoryLocations,
   inventoryStock,
   invoiceItems,
   products,
@@ -46,9 +46,9 @@ export class MysqlStockRepository implements StockRepository {
   async reduceStockQuantities(items: { id: string; qty: number; subinventoryId?: string }[]): Promise<void> {
     const db = TenantContext.getDb()
     await db.transaction(async (transaction) => {
-      const defaultLocationId = await this.defaultLocationId()
       for (const item of items) {
-        const locationId = item.subinventoryId ?? defaultLocationId
+        const locationId = await resolveInventoryLocation(item.subinventoryId ?? 'main', transaction)
+        if (!Number.isSafeInteger(item.qty) || item.qty <= 0) throw inventoryValidationError('Stock quantity must be a positive integer.')
         const result = await transaction
           .update(inventoryStock)
           .set({ quantity: sql`${inventoryStock.quantity} - ${item.qty}` })
@@ -59,7 +59,7 @@ export class MysqlStockRepository implements StockRepository {
             isNull(inventoryStock.deletedAt),
           ))
         if (result[0].affectedRows !== 1) {
-          throw Object.assign(new Error(`Insufficient stock for product ${item.id}`), { name: 'validation_errors' })
+          throw inventoryValidationError(`Insufficient stock for product ${item.id}`)
         }
       }
     })
@@ -68,9 +68,9 @@ export class MysqlStockRepository implements StockRepository {
   async restoreStockQuantities(items: { id: string; qty: number; subinventoryId?: string }[]): Promise<void> {
     const db = TenantContext.getDb()
     await db.transaction(async (transaction) => {
-      const defaultLocationId = await this.defaultLocationId()
       for (const item of items) {
-        const locationId = item.subinventoryId ?? defaultLocationId
+        const locationId = await resolveInventoryLocation(item.subinventoryId ?? 'main', transaction)
+        if (!Number.isSafeInteger(item.qty) || item.qty <= 0) throw inventoryValidationError('Stock quantity must be a positive integer.')
         await transaction
           .insert(inventoryStock)
           .values({ productId: item.id, locationId, quantity: item.qty })
@@ -120,23 +120,16 @@ export class MysqlStockRepository implements StockRepository {
     const rows = await TenantContext.getDb()
       .select({
         id: products.id,
-        qty: invoiceItems.quantity,
+        qty: sum(invoiceItems.quantity),
         name: invoiceItems.description,
         unitPrice: invoiceItems.unitPrice,
       })
       .from(invoiceItems)
       .innerJoin(products, eq(invoiceItems.productId, products.id))
       .where(and(eq(invoiceItems.invoiceId, invoiceId), isNull(invoiceItems.deletedAt)))
-    return rows.map((row) => ({ ...row, unitPrice: Number(row.unitPrice) }))
+      .groupBy(products.id, invoiceItems.description, invoiceItems.unitPrice)
+      .having(sql`sum(${invoiceItems.quantity}) <> 0`)
+    return rows.map((row) => ({ ...row, qty: Number(row.qty), unitPrice: Number(row.unitPrice) }))
   }
 
-  private async defaultLocationId(): Promise<string> {
-    const [location] = await TenantContext.getDb()
-      .select({ id: inventoryLocations.id })
-      .from(inventoryLocations)
-      .where(and(eq(inventoryLocations.code, 'main'), isNull(inventoryLocations.deletedAt)))
-      .limit(1)
-    if (!location) throw new Error('Default inventory location is not configured.')
-    return location.id
-  }
 }

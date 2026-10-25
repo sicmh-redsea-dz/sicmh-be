@@ -9,6 +9,9 @@ export interface PatientCreateParams {
     phone: string
     email: string
     id?: string
+    identificationType?: 'identidad' | 'pasaporte' | 'carne_residencia'
+    notes?: string
+    emergencyContact?: { name: string; relationship: string; phone: string; email?: string; address?: string } | null
 }
 
 export type PatientUpdateParams = Partial<PatientCreateParams>

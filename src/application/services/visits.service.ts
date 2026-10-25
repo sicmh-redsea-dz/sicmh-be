@@ -1,3 +1,4 @@
+import { ExpedienteInput, normalizeExpediente, visitDate } from './visit-input'
 import { VisitsRepository } from '../ports/visits.repository'
 import { HistoryMapper } from '../../domain/mappers/HistoryMapper'
 import { StaffService } from './staff.service'
@@ -8,39 +9,42 @@ import { BillingService } from './billing.service'
 import { StaffMapper } from '../../domain/mappers/StaffMapper'
 import { PatientMapper } from '../../domain/mappers/PatientMapper'
 import { StockMapper } from '../../domain/mappers/StockMapper'
-import { ExpedientePayload, ExpedienteExtra, VisitOrigin } from '../../domain/entities/Expediente'
+import { ExpedienteExtra, VisitOrigin } from '../../domain/entities/Expediente'
 import { ExpedienteRepository } from '../ports/expediente.repository'
-import { Database } from '../../infrastructure/database/Database'
+import { TenantContext } from '../../infrastructure/database/TenantContext'
+import { ClinicalProfileReview, validateClinicalProfileReview } from '../../domain/entities/ClinicalProfile'
+import { ClinicalProfileService } from './clinical-profile.service'
 
 interface CreateVisitPayload {
-    BMI:                    number
-    ageAccordingToWeight:   number
-    date:                   string
-    diagnosis:              string
+    clinicalProfileReview?: ClinicalProfileReview
+    BMI?:                    number
+    ageAccordingToWeight?:   number
+    date?:                   string
+    diagnosis?:              string
     doctor:                 string
-    fatPercentage:          number
-    glucometry:             number
-    height:                 number
-    notes:                  string
-    oxygenation:            number
+    fatPercentage?:          number
+    glucometry?:             number
+    height?:                 number
+    notes?:                  string
+    oxygenation?:            number
     patient:                string
-    pressure:               string
-    temperature:            number
-    treatment:              string
-    visceralFat:            number
-    weight:                 number
-    familyHst:              string
-    backgroundHst:          string
-    pathologicalHst:        string
-    surgicalHst:            string
+    pressure?:               string
+    temperature?:            number
+    treatment?:              string
+    visceralFat?:            number
+    weight?:                 number
+    familyHst?:              string
+    backgroundHst?:          string
+    pathologicalHst?:        string
+    surgicalHst?:            string
     stockItems?:            { id: string; qty: number; subinventoryId?: string }[]
     origin:                 string
-    expediente?:            ExpedientePayload
+    expediente?:            ExpedienteInput | null
 }
 
 interface EditVisitPayload {
     id: string,
-    body: CreateVisitPayload
+    body: Partial<CreateVisitPayload>
 }
 
 interface DelimitersArgs {
@@ -178,13 +182,14 @@ export class VisitsService {
             const medicalHistory = await this.visitsRepo.findById( id )
             if ( !medicalHistory )
                 throw this.errorHandler('not_found_error', `No visit found with Id: ${id}`)
-            const stock = await this.stockService.findAll()
+            const stock: never[] = [] // Catalogs are loaded separately through location-scoped routes.
             const expediente = await this.expedienteRepo.findByHistoryId(id)
             const expedientePayload = expediente ? { standard: expediente.standard, module: expediente.module } : null
             return {
                 visit: {
                     ...HistoryMapper.toHistoryFormResponse( medicalHistory ),
-                    expediente: expedientePayload
+                    expediente: expedientePayload,
+                    clinicalProfileSnapshot: await new ClinicalProfileService().snapshot(id)
                 },
                 stock
             }
@@ -193,12 +198,24 @@ export class VisitsService {
         }
     }
 
-    createVisit = async (createVisitPayload: CreateVisitPayload): Promise<any> => {
-        const { stockItems, date, doctor, patient, origin, expediente } = createVisitPayload
+    createVisit = async (createVisitPayload: CreateVisitPayload, actorId?: string): Promise<any> => {
+        const profileReview = createVisitPayload.clinicalProfileReview === undefined ? undefined
+            : validateClinicalProfileReview(createVisitPayload.clinicalProfileReview)
+        if (profileReview && createVisitPayload.origin !== 'visits') throw this.buildValidationError(['La ficha clinica se revisa desde consulta externa.'])
+        if (profileReview) {
+            const { familyHst, backgroundHst, pathologicalHst, surgicalHst, allergies, currentMeds } = profileReview.data
+            createVisitPayload = { ...createVisitPayload, familyHst, backgroundHst, pathologicalHst, surgicalHst,
+                expediente: { ...createVisitPayload.expediente, standard: { ...createVisitPayload.expediente?.standard, allergies, currentMeds } } }
+        }
+        const date = visitDate(createVisitPayload.date)
+        const { doctor, patient, origin } = createVisitPayload
+        const location = ({ visits: 'main', emergency: 'emergency', hospitalization: 'hospitalization', oroom: 'operating_room' } as Record<string, string>)[origin]
+        const stockItems = createVisitPayload.stockItems?.map(item => ({ ...item, subinventoryId: location }))
+        this.computeStockDelta([], stockItems ?? [], location)
+        const expediente = normalizeExpediente(createVisitPayload.expediente)
         const originKey = this.assertOrigin(origin)
-        this.validateExpediente(expediente, originKey)
 
-        const fieldsForVisit = HistoryMapper.toDbForm(createVisitPayload)
+        const fieldsForVisit = HistoryMapper.toDbForm({ ...createVisitPayload, date })
         const translatedFields = this.removeUndefined(fieldsForVisit)
 
         translatedFields['isActive'] = true
@@ -216,18 +233,15 @@ export class VisitsService {
             // Invoice + visit + stock reduction + stock inserts all run on one
             // connection: if any step fails (e.g. insufficient stock), the whole
             // set rolls back atomically instead of leaving partial writes behind.
-            const result = await Database.transaction(async () => {
+            const result = await TenantContext.transaction(async () => {
                 let amount: number = 0.00
 
                 if ( stockItems && stockItems.length > 0 )
                     amount = await this.stockService.readAmountByStockQty( stockItems )
 
                 if (originKey === 'visits') {
-                    try {
-                        consultaService = await this.billingService.getDefaultConsultaService()
-                    } catch (err) {
-                        console.warn('default consulta service lookup error:', (err as any)?.message || err)
-                    }
+                    consultaService = await this.billingService.getDefaultConsultaService()
+                    if (!consultaService) throw this.buildValidationError(['Configure el servicio de consulta antes de registrar una consulta externa.'])
                     if (consultaService) {
                         amount += consultaService.price
                     }
@@ -237,6 +251,7 @@ export class VisitsService {
                 translatedFields['FacturaID'] = createdInvoice.id
 
                 const visitId = await this.visitsRepo.create( translatedFields )
+                if (profileReview) await new ClinicalProfileService().review(patient, visitId, profileReview, actorId ?? '')
 
                 if ( stockItems && stockItems.length > 0 ) {
                     await this.stockService.reduceStockQuantities( stockItems )
@@ -246,6 +261,13 @@ export class VisitsService {
                     ])
                 }
 
+                if (expediente) {
+                    const now = new Date().toISOString()
+                    await this.expedienteRepo.upsert(visitId, {
+                        ...expediente, historyId: visitId, patientId: patient, origin: originKey,
+                        createdAt: now, updatedAt: now,
+                    })
+                }
                 return { invoice: createdInvoice, insertId: visitId }
             })
 
@@ -256,35 +278,10 @@ export class VisitsService {
             throw err
         }
 
-        try {
-            if ( expediente ) {
-                const now = new Date().toISOString()
-                const expedienteRecord: ExpedienteExtra = {
-                    historyId: insertId,
-                    patientId: patient,
-                    origin: originKey,
-                    standard: expediente.standard,
-                    module: expediente.module,
-                    createdAt: now,
-                    updatedAt: now
-                }
-                await this.expedienteRepo.upsert(insertId, expedienteRecord)
-            }
-        } catch (err) {
-            // The expediente lives in a file store outside the SQL transaction, so
-            // it needs its own compensating cleanup if it fails after commit.
-            console.error('error saving expediente after visit was committed, rolling back visit/invoice: ', err)
-            await this.visitsRepo.softDelete(insertId).catch(cleanupErr =>
-                console.error(`rollback failed to soft-delete visit ${insertId}:`, cleanupErr))
-            await this.invoiceService.removeInvoiceById(invoice.invoiceNumber).catch(cleanupErr =>
-                console.error(`rollback failed to soft-delete invoice ${invoice.invoiceNumber}:`, cleanupErr))
-            throw err
-        }
-
         // Encounter/movement/ledger failures are only warned, never surfaced
         // to the client, so there is no reason to make the response wait for
         // them (they rewrite growing JSON files on every save).
-        void this.recordBillingTrail({
+        await this.recordBillingTrail({
             patient,
             doctor,
             originKey,
@@ -365,7 +362,8 @@ export class VisitsService {
     // or edits that reduce usage never give the inventory/invoice back.
     private computeStockDelta(
         previous: { stockId: string; stockQty: number }[],
-        incoming: { id: string; qty: number; subinventoryId?: string }[]
+        incoming: { id: string; qty: number; subinventoryId?: string }[],
+        location = 'main'
     ) {
         const prevMap = new Map<string, number>()
         previous.forEach((item) => {
@@ -374,6 +372,9 @@ export class VisitsService {
         })
 
         const incomingIds = new Set(incoming.map((item) => item.id))
+        if (incomingIds.size !== incoming.length || incoming.some(item => !item.id || !Number.isSafeInteger(Number(item.qty)) || Number(item.qty) < 0)) {
+            throw this.buildValidationError(['Los insumos deben tener identificadores unicos y cantidades enteras no negativas.'])
+        }
         const deltaItems: { id: string; qty: number; subinventoryId?: string }[] = []
 
         incoming.forEach((item) => {
@@ -381,7 +382,7 @@ export class VisitsService {
             const prevQty = prevMap.get(item.id) ?? 0
             const delta = nextQty - prevQty
             if (delta !== 0) {
-                deltaItems.push({ id: item.id, qty: delta, subinventoryId: item.subinventoryId })
+                deltaItems.push({ id: item.id, qty: delta, subinventoryId: location })
             }
         })
 
@@ -389,7 +390,7 @@ export class VisitsService {
             if (incomingIds.has(item.stockId)) return
             const prevQty = Number(item.stockQty) || 0
             if (prevQty > 0) {
-                deltaItems.push({ id: item.stockId, qty: -prevQty })
+                deltaItems.push({ id: item.stockId, qty: -prevQty, subinventoryId: location })
             }
         })
 
@@ -458,20 +459,38 @@ export class VisitsService {
 
 
    editVisit = async (editVisitPayload: EditVisitPayload): Promise<any> => {
+        return TenantContext.transaction(async () => {
         const { id, body } = editVisitPayload;
-        const originKey = await this.resolveOrigin(body, id)
-        this.validateExpediente(body.expediente, originKey)
+        if (body.clinicalProfileReview !== undefined) throw this.buildValidationError(['La ficha vigente se revisa en una consulta nueva; esta atencion conserva su ficha original.'])
 
-        const existingVisit = await this.visitsRepo.findById(id)
+        const existingVisit = await this.visitsRepo.findById(id, true)
         if (!existingVisit) {
             throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`);
         }
 
-        const existingInventory = HistoryMapper.toHistoryFormResponse(existingVisit).usedInventory ?? []
-        const incomingInventory = Array.isArray(body.stockItems) ? body.stockItems : []
-        const stockDelta = this.computeStockDelta(existingInventory, incomingInventory)
+        const reviewedProfile = await new ClinicalProfileService().snapshot(id)
+        if (reviewedProfile) {
+            if (body.patient && body.patient !== existingVisit.PacienteID) throw this.buildValidationError(['No se puede cambiar el paciente de una atencion con ficha revisada.'])
+            const { familyHst, backgroundHst, pathologicalHst, surgicalHst, allergies, currentMeds } = reviewedProfile.data
+            Object.assign(body, { familyHst, backgroundHst, pathologicalHst, surgicalHst })
+            if (body.expediente) body.expediente = { ...body.expediente, standard: { ...body.expediente.standard, allergies, currentMeds } }
+        }
 
-        const fieldsForVisit = HistoryMapper.toDbForm(body)
+        const originKey = body.origin ? this.assertOrigin(body.origin) : VISIT_TYPE_TO_ORIGIN[existingVisit.TipoVisita]
+        if (!originKey) throw this.buildValidationError(['No se pudo determinar el modulo de la atencion.'])
+        const existingInventory = HistoryMapper.toHistoryFormResponse(existingVisit).usedInventory ?? []
+        const stockDelta = Array.isArray(body.stockItems)
+            ? this.computeStockDelta(existingInventory, body.stockItems,
+                ({ Consulta: 'main', Emergencia: 'emergency', Hospitalizacion: 'hospitalization', Quirofano: 'operating_room' } as Record<string, string>)[existingVisit.TipoVisita]) : []
+        if (stockDelta.length) {
+            const invoice = await this.invoiceService.getInvByFacturaId(existingVisit.FacturaID, true)
+            if (!invoice || String(invoice.Estado).toLowerCase() !== 'pendiente')
+                throw this.buildValidationError(['No se puede modificar inventario de una factura pagada o anulada.'])
+        }
+        const existingExpediente = body.expediente == null ? null : await this.expedienteRepo.findByHistoryId(id)
+        const expediente = normalizeExpediente(body.expediente, existingExpediente)
+
+        const fieldsForVisit = HistoryMapper.toDbForm({ ...body, visitType: undefined, invoiceId: undefined })
         const translatedFields = this.removeUndefined(fieldsForVisit)
 
         try {
@@ -480,15 +499,14 @@ export class VisitsService {
                 throw this.errorHandler('not_found_error', `No visit found with Id: ${id}, to update`);
             }
 
-            if ( body.expediente ) {
-                const existingExpediente = await this.expedienteRepo.findByHistoryId(id)
+            if ( expediente ) {
                 const now = new Date().toISOString()
                 const expedienteRecord: ExpedienteExtra = {
                     historyId: id,
                     patientId: body.patient ?? existingExpediente?.patientId,
                     origin: originKey,
-                    standard: body.expediente.standard,
-                    module: body.expediente.module,
+                    standard: expediente.standard,
+                    module: expediente.module,
                     createdAt: existingExpediente?.createdAt ?? now,
                     updatedAt: now
                 }
@@ -533,6 +551,7 @@ export class VisitsService {
             console.log('Error editing visit:', err);
             throw err;
         }
+        })
     };
 
     deleteVisit = async ( id: string ): Promise<any> => {
@@ -622,7 +641,7 @@ export class VisitsService {
         return normalized
     }
 
-    private async resolveOrigin(body: CreateVisitPayload, id: string): Promise<VisitOrigin> {
+    private async resolveOrigin(body: Partial<CreateVisitPayload>, id: string): Promise<VisitOrigin> {
         if (body.origin) {
             return this.assertOrigin(body.origin)
         }
@@ -635,62 +654,6 @@ export class VisitsService {
             throw this.buildValidationError(['No se pudo determinar el origen de la visita.'])
         }
         return mapped
-    }
-
-    private validateExpediente(expediente: ExpedientePayload | undefined, origin: VisitOrigin) {
-        const errors: string[] = []
-        const isBlank = (value: any) => value === undefined || value === null || value === ''
-
-        if (!expediente) {
-            errors.push('El expediente es requerido.')
-        }
-
-        const standard = expediente?.standard ?? {}
-        const module = expediente?.module ?? {}
-
-        const fieldLabels: Record<string, string> = {
-            chiefComplaint: 'Motivo de consulta/ingreso',
-            currentIllness: 'Padecimiento actual',
-            physicalExam: 'Exploracion fisica',
-            triageLevel: 'Triage',
-            arrivalMode: 'Modo de llegada',
-            disposition: 'Destino/condicion al egreso',
-            preOpDiagnosis: 'Diagnostico preoperatorio',
-            postOpDiagnosis: 'Diagnostico postoperatorio',
-            procedure: 'Procedimiento quirurgico',
-            anesthesiaType: 'Tipo de anestesia',
-            surgeryStart: 'Inicio de cirugia',
-            surgeryEnd: 'Fin de cirugia',
-            admissionDiagnosis: 'Diagnostico de ingreso',
-            admissionReason: 'Motivo de ingreso',
-            service: 'Servicio',
-            bed: 'Cama',
-            evolutionSummary: 'Resumen de evolucion'
-        }
-
-        const requiredStandard = ['chiefComplaint', 'currentIllness', 'physicalExam']
-        requiredStandard.forEach((field) => {
-            if (isBlank((standard as any)[field])) {
-                errors.push(`Se requiere ${fieldLabels[field]}`)
-            }
-        })
-
-        const requiredByOrigin: Record<VisitOrigin, string[]> = {
-            visits: [],
-            emergency: ['triageLevel', 'arrivalMode', 'disposition'],
-            oroom: ['preOpDiagnosis', 'postOpDiagnosis', 'procedure', 'anesthesiaType', 'surgeryStart', 'surgeryEnd'],
-            hospitalization: ['admissionDiagnosis', 'admissionReason', 'service', 'bed', 'evolutionSummary']
-        }
-
-        requiredByOrigin[origin].forEach((field) => {
-            if (isBlank((module as any)[field])) {
-                errors.push(`Se requiere ${fieldLabels[field]}`)
-            }
-        })
-
-        if (errors.length > 0) {
-            throw this.buildValidationError(errors)
-        }
     }
 
     private errorHandler = (name:string, msg:string) => {

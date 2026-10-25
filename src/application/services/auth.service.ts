@@ -105,14 +105,13 @@ export class AuthService {
 
     const token = generatePasswordResetToken(user.UsuarioID, params.codigoEmpresa.toUpperCase(), user.SessionVersion ?? 0)
     const resetUrl = this.buildResetUrl(token, params.codigoEmpresa)
-    const emailSent = await this.sendPasswordResetEmail({
-      email,
-      name: user.NombreUsuario,
-      resetUrl,
-    })
-
-    if (emailSent) return { message: genericMessage }
-    return { message: `SMTP no configurado. Usa este enlace temporal: ${resetUrl}` }
+    try {
+      await this.sendPasswordResetEmail({ email, name: user.NombreUsuario, resetUrl })
+    } catch {
+      // Delivery errors must never expose the bearer token or distinguish accounts.
+      console.warn('Password reset email delivery failed.')
+    }
+    return { message: genericMessage }
   }
 
   resetPassword = async (token: string, newPassword: string, codigoEmpresa: string): Promise<{ message: string }> => {
