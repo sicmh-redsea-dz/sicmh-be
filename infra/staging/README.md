@@ -1,6 +1,6 @@
 # MedIT staging / QA
 
-Proyecto: `sicmh-441423` (SICMH-Testing). Region: `us-central1`.
+Proyecto: `sicmh-441423` (MedIT-Testing). Region: `us-central1`. El ID tecnico heredado se conserva para mantener las referencias de GCP/Firebase.
 
 ## Recursos de MedIT
 
@@ -10,7 +10,7 @@ Proyecto: `sicmh-441423` (SICMH-Testing). Region: `us-central1`.
 - Contenedor: `medit-staging-mysql`, MySQL 8.0.46, volumen `medit-staging-mysql-data`.
 - Red/subred: `medit-staging`, `10.24.0.0/24`. MySQL escucha en `10.24.0.10:3306`.
 - Cloud Run usa Direct VPC y la etiqueta `medit-staging-api`; solo esa etiqueta puede conectar a MySQL. SSH solo por IAP.
-- Bases: `medit_global` y `sicmh`. Empresa: `MEDITQA`.
+- Bases activas desde el despliegue del 25 de octubre: `medit_qa_global` y `medit`. Empresa: `MEDITQA`. Las bases anteriores `medit_global` y `sicmh` se conservan para recuperacion; no son el destino de nuevas importaciones.
 - Buckets: `sicmh-441423-medit-clinical` (privado), `sicmh-441423-medit-public` (lectura publica) y `sicmh-441423-medit-builds`.
 - Imagenes: Artifact Registry `us-central1/medit-staging`.
 - Servicio preexistente `gc-connection`: conservar.
@@ -72,7 +72,7 @@ Con `./infra/staging/smoke.ps1 -WriteProbe` tambien se crea (si no existe) y se 
 
 Registrar el BUILD_ID, version del frontend, resultados QA y errores pendientes. Probar acceso y permisos, pacientes, ficha clinica, consultas, citas, inventario por ubicacion, cobros/facturas y documentos/adjuntos. Para cada error guardar pasos, resultado esperado, resultado observado y captura sin datos sensibles.
 
-Este ambiente valida la nueva estructura desde cero. Para validar la migracion de datos historicos se necesita tambien un ensayo con una copia anonimizada y comparaciones de cantidades, relaciones y totales. Ese ensayo no esta incluido en la inicializacion.
+El 25 de octubre se preparo una copia con conservacion de los datos QA al esquema canonico en bases MedIT nuevas; ver `migration-20261025/`. Esto no sustituye un ensayo de migracion con los datos historicos de produccion. Para ese ensayo se necesita una copia anonimizada y comparaciones de cantidades, relaciones y totales.
 
 Antes de produccion: respaldo verificable de DB/archivos, ensayo de migracion, aprobacion QA y plan de recuperacion de datos. Volver a una revision anterior del backend no revierte migraciones de DB. El frontend necesita su build de produccion para apuntar al backend correcto. No copiar registros QA a produccion.
 

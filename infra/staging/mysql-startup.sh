@@ -22,10 +22,10 @@ password = secret('medit-staging-db-password')
 with open('/etc/medit-staging/mysql.env', 'w') as f:
     f.write('MYSQL_ROOT_PASSWORD=' + root + '\n')
 with open('/etc/medit-staging/01-databases.sql', 'w') as f:
-    f.write("CREATE DATABASE IF NOT EXISTS medit_global;\nCREATE DATABASE IF NOT EXISTS sicmh;\n")
+    f.write("CREATE DATABASE IF NOT EXISTS medit_qa_global;\nCREATE DATABASE IF NOT EXISTS medit;\n")
     f.write("CREATE USER IF NOT EXISTS 'medit_staging'@'%' IDENTIFIED BY '" + password + "';\n")
-    f.write("GRANT ALL PRIVILEGES ON medit_global.* TO 'medit_staging'@'%';\n")
-    f.write("GRANT ALL PRIVILEGES ON sicmh.* TO 'medit_staging'@'%';\n")
+    f.write("GRANT ALL PRIVILEGES ON medit_qa_global.* TO 'medit_staging'@'%';\n")
+    f.write("GRANT ALL PRIVILEGES ON medit.* TO 'medit_staging'@'%';\n")
 PY
 chmod 600 /etc/medit-staging/*
 chmod 644 /etc/medit-staging/01-databases.sql

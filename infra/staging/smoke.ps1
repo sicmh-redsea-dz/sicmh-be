@@ -1,7 +1,7 @@
-param([switch]$WriteProbe)
+param([switch]$WriteProbe, [string]$BaseUrl = 'https://medit-be-staging-403161153944.us-central1.run.app')
 $ErrorActionPreference = 'Stop'
 $project = 'sicmh-441423'
-$base = 'https://medit-be-staging-403161153944.us-central1.run.app'
+$base = $BaseUrl.TrimEnd('/')
 $password = & gcloud secrets versions access 1 --secret=medit-staging-qa-password --project=$project
 if ($LASTEXITCODE -ne 0) { throw 'Cannot read the staging QA secret.' }
 try {
@@ -13,6 +13,11 @@ try {
     $headers = @{ Authorization="Bearer $($login.token)" }
     $check = Invoke-RestMethod "$base/auth/check-token" -Headers $headers
     if (!$check.user) { throw 'Token validation failed.' }
+    $renewed = Invoke-RestMethod "$base/auth/renew-session" -Method Post -Headers $headers
+    if (!$renewed.token -or $renewed.user.email -ne 'qa.admin@example.com') { throw 'Session renewal failed.' }
+    $headers = @{ Authorization="Bearer $($renewed.token)" }
+    $null = Invoke-RestMethod "$base/auth/check-token" -Headers $headers
+    Write-Host 'PASS: session renewal and renewed token validation.'
     foreach ($path in @('/app/', '/app/patients/?term=', '/app/inventory/?subinvId=main')) {
         $result = Invoke-RestMethod "$base$path" -Headers $headers
         if ($null -eq $result.data) { throw "Protected endpoint failed: $path" }

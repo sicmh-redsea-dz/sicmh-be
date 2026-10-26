@@ -1,6 +1,8 @@
-# sicmh-be
+# MedIT Backend
 
 Backend API built with Node.js, Express, MySQL, and Drizzle.
+
+The product name is MedIT. Use MedIT for new names and documentation. Existing legacy cloud IDs and historical migration artifacts retain their original identifiers until an explicit migration preserves their references and data.
 
 ## Requirements
 
