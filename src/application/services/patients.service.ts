@@ -44,19 +44,11 @@ export class PatientsService {
 
     insertPatient = async (patientParams:PatientCreateParams):Promise<PatientResponse> => {
         this.validateIdentification(patientParams.id, patientParams.identificationType ?? 'identidad')
-        const { email } = patientParams
         try {
             const insertId = await this.patientsRepo.create(patientParams)
             return this.findOnePatient( insertId )
         } catch ( err:any ) {
-            let error = new Error()
-            if( err.code === 'ER_DUP_ENTRY') {
-                error.name = 'duplicate_entry'
-                error.message = `Duplicated entry ${email}`
-               throw error 
-            } else {
-                throw err
-            }
+            throw this.patientWriteError(err)
         }
     }
 
@@ -74,7 +66,7 @@ export class PatientsService {
             
             return await this.findOnePatient( id )
         } catch ( err ) {
-            throw err
+            throw this.patientWriteError(err)
         }
     }
 
@@ -88,6 +80,19 @@ export class PatientsService {
         } catch ( err ) {
             throw err
         }
+    }
+
+    private patientWriteError(err: any): unknown {
+        const seen = new Set<unknown>()
+        for (let cause = err; cause && !seen.has(cause); cause = cause.cause) {
+            seen.add(cause)
+            if (cause.code === 'ER_DUP_ENTRY') {
+                return Object.assign(new Error('Ya existe un paciente con este número de identificación. Verifica el número o busca al paciente en el listado antes de registrarlo nuevamente.'), {
+                    name: 'patient_identification_conflict', code: 'PATIENT_IDENTIFICATION_EXISTS', field: 'id',
+                })
+            }
+        }
+        return err
     }
 
     private validateIdentification(value: string | undefined, type: string) {

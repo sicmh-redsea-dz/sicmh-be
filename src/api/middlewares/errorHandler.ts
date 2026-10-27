@@ -1,6 +1,9 @@
 import { Response, NextFunction } from "express";
 
 export const errorHandler = (err: any, res: Response, next: NextFunction) => {
+  if (err.name === 'patient_identification_conflict') {
+    return res.status(409).json({ message: err.message, code: err.code, field: err.field });
+  }
   if (err.name === 'validation_errors') {
     return res.status(400).json({ message: err.errors });
   }

@@ -19,6 +19,14 @@ El ambiente genera cargos de VM, disco, IP externa, builds, almacenamiento y Clo
 
 ## Acceso QA
 
+### Backend local con base QA
+
+Ejecutar `./scripts/qa-db-tunnel.ps1` y mantener el proceso activo. Requiere acceso de Google Cloud por IAP a la VM de QA. El tunel expone MySQL solo en `127.0.0.1:13306`; no abre el puerto de la VM a Internet.
+
+La configuracion local usa `DB_HOST=127.0.0.1`, `DB_PORT=13306`, `DB_USER=medit_staging`, `DB_GLOBAL_SCHEMA=medit_qa_global`, `DB_TENANT_SCHEMA=medit` y empresa `MEDITQA`. La contrasena se obtiene de Secret Manager y se guarda solo en `.env` ignorado. Reiniciar el backend y volver a iniciar sesion con la empresa QA despues de cambiar la conexion. Las escrituras desde este backend afectan la base compartida de QA.
+
+La configuracion local anterior se conserva en `.env.local-emergency`, tambien ignorado. Para volver a ella, guardar primero la configuracion QA en un lugar privado, copiar `.env.local-emergency` sobre `.env` y reiniciar el backend. No ejecutar `db:setup` como parte del cambio de conexion.
+
 - Empresa: `MEDITQA`.
 - Usuario inicial: `qa.admin@example.com` (cuenta local, correo ficticio).
 - Contrasena: Secret Manager, secreto `medit-staging-qa-password`, version `1`. No guardarla en Git ni compartirla en reportes de errores.

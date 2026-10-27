@@ -46,31 +46,31 @@ const identificationFields = [
 export const validatePostPatient: (ValidationChain | RequestHandler)[] = [
     body('birthdate')
         .notEmpty()
-        .withMessage('birthdate is required').isISO8601({ strict: true }).withMessage('Invalid birthdate'),
+        .withMessage('La fecha de nacimiento es obligatoria.').isISO8601({ strict: true }).withMessage('La fecha de nacimiento no es válida.'),
     body('firstName')
         .notEmpty()
-        .withMessage('firstName is required')
+        .withMessage('El nombre es obligatorio.')
         .isLength({ min: 2 })
-        .withMessage('firstName must be at least 2 characters long'),
+        .withMessage('El nombre debe tener al menos 2 caracteres.'),
     body('lastName')
         .notEmpty()
-        .withMessage('lastName is required')
+        .withMessage('El apellido es obligatorio.')
         .isLength({ min: 2 })
-        .withMessage('lastName must be at least 2 characters long'),
+        .withMessage('El apellido debe tener al menos 2 caracteres.'),
     body('address')
         .optional({ checkFalsy: true })
         .isString().isLength({ max: 500 }),
     body('gender')
         .notEmpty()
-        .withMessage('gender is required'),
+        .withMessage('El género es obligatorio.'),
     body('phone').optional({ checkFalsy: true }).isString().isLength({ max: 30 }),
     body('email').customSanitizer(value => typeof value === 'string' ? value.trim() : value)
         .optional({ checkFalsy: true })
         .isEmail()
-        .withMessage('Invalid email address'),
+        .withMessage('El correo electrónico no es válido.'),
     body('id')
         .notEmpty()
-        .withMessage('id is required'),
+        .withMessage('El número de identificación es obligatorio.'),
     ...identificationFields,
     handleValidationErrors
 ]
@@ -82,38 +82,38 @@ export const validatePatchPatient: (ValidationChain | RequestHandler)[] = [
     body('birthdate')
         .optional()
         .notEmpty()
-        .withMessage('birthdate is required').isISO8601({ strict: true }).withMessage('Invalid birthdate'),
+        .withMessage('La fecha de nacimiento es obligatoria.').isISO8601({ strict: true }).withMessage('La fecha de nacimiento no es válida.'),
     body('firstName')
         .optional()
         .notEmpty()
-        .withMessage('firstName is required')
+        .withMessage('El nombre es obligatorio.')
         .isLength({ min: 2 })
-        .withMessage('firstName must be at least 2 characters long'),
+        .withMessage('El nombre debe tener al menos 2 caracteres.'),
     body('lastName')
         .optional()
         .notEmpty()
-        .withMessage('lastName is required')
+        .withMessage('El apellido es obligatorio.')
         .isLength({ min: 2 })
-        .withMessage('lastName must be at least 2 characters long'),
+        .withMessage('El apellido debe tener al menos 2 caracteres.'),
     body('address')
         .optional({ checkFalsy: true })
         .isString().isLength({ max: 500 }),
     body('gender')
         .optional()
         .notEmpty()
-        .withMessage('gender is required'),
+        .withMessage('El género es obligatorio.'),
     body('phone')
         .optional({ checkFalsy: true })
         .isLength({ max: 30 })
-        .withMessage('Phone must be at most 30 characters long'),
+        .withMessage('El teléfono debe tener como máximo 30 caracteres.'),
     body('email').customSanitizer(value => typeof value === 'string' ? value.trim() : value)
         .optional({ checkFalsy: true })
         .isEmail()
-        .withMessage('Invalid email address'),
+        .withMessage('El correo electrónico no es válido.'),
     body('id')
         .optional()
         .notEmpty()
-        .withMessage('id is required'),
+        .withMessage('El número de identificación es obligatorio.'),
     ...identificationFields,
     handleValidationErrors
 ]

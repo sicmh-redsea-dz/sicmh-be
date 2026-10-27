@@ -2,6 +2,7 @@
 .claude/
 /src/api/middlewares/sampleapp-d2514-firebase-adminsdk-fbsvc-339751be6c.json
 .env
+.env.local-emergency
 
 /dist
 .DS_Store
