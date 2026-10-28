@@ -12,7 +12,9 @@ import { DocumentDeliveriesService } from '../application/services/document-deli
 import { trackDocumentDelivery } from '../api/middlewares/document-delivery'
 
 test('migration snapshot contains every tenant table, column and foreign key', () => {
-  const snapshot = JSON.parse(readFileSync('drizzle/tenant/meta/0004_snapshot.json', 'utf8'))
+  const journal = JSON.parse(readFileSync('drizzle/tenant/meta/_journal.json', 'utf8'))
+  const index = String(journal.entries.at(-1).idx).padStart(4, '0')
+  const snapshot = JSON.parse(readFileSync(`drizzle/tenant/meta/${index}_snapshot.json`, 'utf8'))
   const definitions = Object.values(tables).filter((table) => is(table, Table)).map((table) => getTableConfig(table))
   assert.equal(Object.keys(snapshot.tables).length, definitions.length)
   for (const definition of definitions) {

@@ -31,7 +31,7 @@ La configuracion local anterior se conserva en `.env.local-emergency`, tambien i
 - Usuario inicial: `qa.admin@example.com` (cuenta local, correo ficticio).
 - Contrasena: Secret Manager, secreto `medit-staging-qa-password`, version `1`. No guardarla en Git ni compartirla en reportes de errores.
 - Crear desde administracion cuentas individuales para las pruebas de permisos.
-- SMTP no esta configurado: la recuperacion de contrasena por correo no se entrega en este ambiente.
+- SMTP Hostinger configurado para recuperacion de contrasena. `SMTP_PASS` referencia Secret Manager (`medit-staging-smtp-password`, version 1); el enlace usa el frontend QA definido en `PUBLIC_BASE_URL`.
 - Usar datos ficticios. Este ambiente se inicializa desde migraciones y catalogos; no contiene una copia de pacientes de produccion.
 
 ## Desplegar cambios

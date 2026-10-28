@@ -316,9 +316,12 @@ export const products = mysqlTable(
     description: text('description'),
     barcode: varchar('barcode', { length: 100 }),
     unitPrice: decimal('unit_price', { precision: 12, scale: 2 }).notNull().default('0.00'),
+    purchasePrice: decimal('purchase_price', { precision: 12, scale: 2 }),
+    expirationDate: date('expiration_date', { mode: 'string' }),
     minimumStock: int('minimum_stock').notNull().default(0),
   },
   (table) => [
+    check('products_purchase_price_check', sql`${table.purchasePrice} IS NULL OR ${table.purchasePrice} >= 0`),
     check('products_price_check', sql`${table.unitPrice} >= 0 AND ${table.minimumStock} >= 0`),
     uniqueIndex('products_barcode_unique').on(table.barcode),
     index('products_name_idx').on(table.name, table.deletedAt),

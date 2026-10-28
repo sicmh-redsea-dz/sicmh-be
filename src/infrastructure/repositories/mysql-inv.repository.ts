@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { and, eq, isNull, like, or, sql, sum } from 'drizzle-orm'
+import { and, gt, eq, isNull, like, or, sql, sum } from 'drizzle-orm'
 import { InventoryRepository } from '../../application/ports/inv.repository'
 import { TenantContext } from '../database/TenantContext'
 import { inventoryStock, products } from '../database/schema/tenant'
@@ -8,10 +8,13 @@ import { changeInventory, inventoryError, inventoryLocationId, requireQuantity }
 export class MysqlInvRepository implements InventoryRepository {
   async findAll(pagination: { limit: number; offset: number; term: string }, subinvId: string | number): Promise<any[]> {
     const locationId = await inventoryLocationId(subinvId)
+    const mainLocationId = await inventoryLocationId('main')
     const rows = await TenantContext.getDb().select({ product: products, quantity: sum(inventoryStock.quantity), total: sql<number>`COUNT(*) OVER()` })
       .from(products).leftJoin(inventoryStock, and(eq(products.id, inventoryStock.productId), eq(inventoryStock.locationId, locationId), isNull(inventoryStock.deletedAt)))
       .where(and(isNull(products.deletedAt), pagination.term ? or(like(products.name, `%${pagination.term}%`), like(products.description, `%${pagination.term}%`)) : undefined))
-      .groupBy(products.id).orderBy(products.name, products.id)
+      .groupBy(products.id)
+      .having(locationId === mainLocationId ? undefined : gt(sum(inventoryStock.quantity), 0))
+      .orderBy(products.name, products.id)
       .limit(Math.max(1, Math.min(200, Math.trunc(pagination.limit) || 25))).offset(Math.max(0, Math.trunc(pagination.offset) || 0))
     return rows.map(({ product, quantity, total }) => ({ ...this.legacy(product, Number(quantity ?? 0)), total_registries: Number(total) }))
   }
@@ -39,7 +42,8 @@ export class MysqlInvRepository implements InventoryRepository {
     const unitPrice = this.price(data.PrecioUnidad)
     return TenantContext.transaction(async () => {
       const id = randomUUID()
-      await TenantContext.getDb().insert(products).values({ id, name, description: data.Descripcion ?? null, unitPrice, minimumStock })
+      await TenantContext.getDb().insert(products).values({ id, name, description: data.Descripcion ?? null, unitPrice, minimumStock,
+        purchasePrice: this.optionalPrice(data.PrecioCompra), expirationDate: this.date(data.FechaVencimiento) })
       if (quantity) await changeInventory({ productId: id, locationId: await inventoryLocationId(), quantity, type: 'adjustment' })
       return id
     })
@@ -55,6 +59,8 @@ export class MysqlInvRepository implements InventoryRepository {
       await db.update(products).set({ name, description: data.prodDesc ?? product.description,
         minimumStock: data.prodMinStock === undefined ? product.minimumStock : requireQuantity(Number(data.prodMinStock), true),
         unitPrice: data.prodUnitPrice === undefined ? product.unitPrice : this.price(data.prodUnitPrice),
+        purchasePrice: data.prodPurchasePrice === undefined ? product.purchasePrice : this.optionalPrice(data.prodPurchasePrice),
+        expirationDate: data.prodExpirationDate === undefined ? product.expirationDate : this.date(data.prodExpirationDate),
       }).where(eq(products.id, id))
       if (data.prodQty !== undefined) {
         const quantity = requireQuantity(Number(data.prodQty), true)
@@ -69,13 +75,25 @@ export class MysqlInvRepository implements InventoryRepository {
     })
   }
 
+  private optionalPrice(value: unknown): string | null {
+    return value === undefined || value === null || value === '' ? null : this.price(value)
+  }
+  private date(value: unknown): string | null {
+    if (value === undefined || value === null || value === '') return null
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)
+      || value < '1000-01-01' || value > '9999-12-31'
+      || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString().slice(0, 10) !== value)
+      throw inventoryError('La fecha de vencimiento no es v?lida.')
+    return value
+  }
   private price(value: unknown): string {
     const amount = Number(value ?? 0)
-    if (!Number.isFinite(amount) || amount < 0 || amount > 9999999999.99) throw inventoryError('El precio no es válido.')
+    if (!Number.isFinite(amount) || amount < 0 || amount > 9999999999.99) throw inventoryError('El precio no es vÃ¡lido.')
     return amount.toFixed(2)
   }
   private legacy(product: typeof products.$inferSelect, quantity: number) {
     return { ProductoID: product.id, NombreProducto: product.name, Descripcion: product.description ?? '',
+      PrecioCompra: product.purchasePrice, FechaVencimiento: product.expirationDate,
       PrecioUnidad: product.unitPrice, NivelMinimoStock: product.minimumStock, Cantidad: quantity }
   }
 }

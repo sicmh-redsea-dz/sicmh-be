@@ -6,13 +6,15 @@ export class DashbService {
 
     getData = async (): Promise<any> => {
         try {
-            const [cardData, visitData] = await Promise.all([
+            const [cardData, visitData, dailyActivity] = await Promise.all([
                 this.dashbRepo.fetchCardData(),
-                this.dashbRepo.fetchVisits()
+                this.dashbRepo.fetchVisits(),
+                this.dashbRepo.fetchDailyActivity()
             ])
             return {
                 cardData,
-                visitData
+                visitData,
+                dailyActivity
             }
         } catch ( err ) {
             throw err

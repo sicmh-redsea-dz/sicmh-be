@@ -36,6 +36,13 @@
       "when": 1792950644401,
       "tag": "0004_integrated_clinical_parity",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1793198317412,
+      "tag": "0005_inventory_product_details",
+      "breakpoints": true
     }
   ]
 }

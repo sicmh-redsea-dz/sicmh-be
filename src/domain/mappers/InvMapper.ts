@@ -14,6 +14,8 @@ export class InvMapper {
             prodName,
             prodDesc,
             prodUnitPrice,
+            prodPurchasePrice: invRecord.PrecioCompra ?? null,
+            prodExpirationDate: invRecord.FechaVencimiento ?? null,
             prodQuantity,
             prodMinStock
         }
@@ -33,7 +35,9 @@ export class InvMapper {
             NivelMinimoStock,
             NombreProducto,
             Cantidad,
-            PrecioUnidad
+            PrecioUnidad,
+            PrecioCompra: invRecord.prodPurchasePrice,
+            FechaVencimiento: invRecord.prodExpirationDate
         }
     }
 }

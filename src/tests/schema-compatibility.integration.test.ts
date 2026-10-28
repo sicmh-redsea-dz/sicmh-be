@@ -134,7 +134,7 @@ test('target tenant schema and database workflows', {
         patientId: patient.id, staffMemberId: staff.id, type: 'emergency', occurredAt: new Date(),
       }).$returningId()
       for (const code of ['main', 'outpatient', 'emergency', 'operating_room', 'hospitalization']) {
-        await targetDb.insert(schema.inventoryLocations).values({ code, name: code })
+        await targetDb.insert(schema.inventoryLocations).values({ code, name: code }).onDuplicateKeyUpdate({ set: { deletedAt: null } })
       }
       await t.test('clinical profile versions preserve snapshots, reject stale saves and roll back atomically', async () => {
         const service = new ClinicalProfileService()
@@ -400,13 +400,37 @@ test('target tenant schema and database workflows', {
       }
 
       await t.test('inventory CRUD preserves UUIDs, zero stock, and minimum-stock DTOs', async () => {
-        productId = await inventory.create({ NombreProducto: 'Gauze', PrecioUnidad: 2.5, Cantidad: 10, NivelMinimoStock: 3 })
+        productId = await inventory.create({ NombreProducto: 'Gauze', PrecioUnidad: 2.5, Cantidad: 10, NivelMinimoStock: 3, PrecioCompra: 1.25, FechaVencimiento: '2028-02-29' })
         assert.match(productId, /^[0-9a-f-]{36}$/)
         assert.equal((await inventory.findById(productId)).NivelMinimoStock, 3)
+        assert.equal((await inventory.findById(productId)).PrecioCompra, '1.25')
+        assert.equal((await inventory.findById(productId)).FechaVencimiento, '2028-02-29')
+        await assert.rejects(inventory.update(productId, { prodPurchasePrice: -1 }))
+        await assert.rejects(inventory.update(productId, { prodExpirationDate: '2027-02-29' }))
+        await inventory.update(productId, { prodPurchasePrice: 0, prodExpirationDate: null })
+        assert.equal((await inventory.findById(productId)).PrecioCompra, '0.00')
+        assert.equal((await inventory.findById(productId)).FechaVencimiento, null)
         await inventory.update(productId, { prodName: 'Gauze', prodUnitPrice: 2.5, prodQty: 0, prodMinStock: 3 })
         const rows = await inventory.findAll({ limit: 25, offset: 0, term: 'Gauze' }, 'main')
         assert.equal(rows[0].Cantidad, 0)
         await inventory.update(productId, { prodName: 'Gauze', prodUnitPrice: 2.5, prodQty: 10, prodMinStock: 3 })
+      })
+
+      await t.test('subinventories list only positive local balances with filtered pagination totals', async () => {
+        const localProductId = await inventory.create({ NombreProducto: 'Subinventory scope test', Cantidad: 2 })
+        const page = { limit: 25, offset: 0, term: 'Subinventory scope test' }
+        assert.deepEqual(await inventory.findAll(page, 'hospitalization'), [])
+        const destination = await resolveInventoryLocation('hospitalization')
+        await inventory.transfer({ prodId: localProductId, prodQty: 2, fromLocId: 'main', toLocId: destination, actorId: user.id })
+        for (const reference of ['hospitalization', '4', destination]) {
+          const rows = await inventory.findAll(page, reference)
+          assert.equal(rows.length, 1)
+          assert.equal(rows[0].ProductoID, localProductId)
+          assert.equal(rows[0].Cantidad, 2)
+          assert.equal(rows[0].total_registries, 1)
+        }
+        await inventory.transfer({ prodId: localProductId, prodQty: 2, fromLocId: destination, toLocId: 'main', actorId: user.id })
+        assert.deepEqual(await inventory.findAll(page, destination), [])
       })
 
       await t.test('transfers use UUID locations, audit movement, and reject invalid amounts without partial writes', async () => {
